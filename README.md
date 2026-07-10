@@ -1,109 +1,78 @@
 # AI-200 Learn
 
-A simple study site for **[Microsoft AI-200: Developing AI Cloud Solutions on Azure](https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200)** — the Azure AI Cloud Developer Associate certification.
+**Your focused companion for the Microsoft AI-200 exam** — cut through the noise and study what actually matters for *Developing AI Cloud Solutions on Azure*.
 
-Study guides with code samples (Python & Azure CLI), practice questions with explanations, and a mock exam across all exam domains.
+This repo is a lightweight learning site built for developers preparing for the **Azure AI Cloud Developer Associate** certification. Instead of jumping between docs, videos, and random practice tests, you get one place to read, practice, and test yourself — organized exactly around the official exam objectives.
 
-## Features
+---
 
-- **Study materials** — Markdown notes per topic with concepts, exam tips, and code samples
-- **Practice questions** — MCQ and scenario-style questions with markdown explanations, filterable by domain
-- **Mock exam** — 20 random questions with a score breakdown by domain
-- **Dark mode** — System-aware theme toggle
-- **Azure branding** — Primary color `#0177d1`, custom logo, and favicon
+## Why use this?
 
-## Getting started
+AI-200 is a hands-on, back-end focused exam. You need to know containers, vector databases, messaging, serverless, security, and observability — not just theory. This site is built around that reality.
+
+- **Study with context** — Notes tied to real exam domains, not random blog posts
+- **Learn by doing** — Python and Azure CLI samples you can reference during labs and revision
+- **Practice under pressure** — Questions that mirror MCQ and scenario-style exam formats
+- **Find your weak spots** — Mock exam scores broken down by domain so you know where to focus
+- **Stay exam-aligned** — Content structured around the four official skill areas and their weights
+
+Whether you are refreshing after AZ-204, moving into Azure AI engineering, or sitting AI-200 for the first time, this repo gives you a clear path from reading → practicing → testing.
+
+---
+
+## What you get
+
+### Study guides
+In-depth notes across every AI-200 domain — concepts, key terms, exam tips, and links to Microsoft Learn. Code blocks include syntax highlighting, language labels (Python, Azure CLI, KQL), and one-click copy for quick use in your terminal or editor.
+
+### Practice questions
+MCQ and scenario-style questions with detailed explanations after each answer. Filter by domain to drill the areas you struggle with most — containers, data management, Azure services, or security and monitoring.
+
+### Mock exam
+A timed-style practice run of 20 random questions pulled from all domains. Finish with a score and a per-domain breakdown so you can prioritize revision before exam day.
+
+### Built for long study sessions
+Dark mode, clean layout, and a distraction-free reading experience — no clutter, no paywalls, no account required.
+
+---
+
+## Exam coverage
+
+| Domain | Weight | What you'll study |
+|--------|--------|-------------------|
+| **Containerized Solutions** | 20–25% | ACR, Container Apps, AKS, KEDA |
+| **Data Management for AI** | 25–30% | Cosmos DB, PostgreSQL pgvector, Managed Redis |
+| **Azure Services Integration** | 20–25% | Service Bus, Event Grid, Azure Functions |
+| **Secure, Monitor & Troubleshoot** | 20–25% | Key Vault, App Configuration, OpenTelemetry, KQL |
+
+Content lives in plain markdown and JSON under `content/` — easy to extend, fix, and keep accurate as the exam evolves.
+
+---
+
+## Get started
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) and start with **Study**, then **Questions**, then the **Mock exam**.
 
-### Other commands
-
-```bash
-npm run build   # Production build
-npm run start   # Start production server
-npm run lint    # Run ESLint
-```
-
-## Exam domains
-
-| Domain | Weight | Topics covered |
-|--------|--------|----------------|
-| Containerized Solutions | 20–25% | ACR, Container Apps, AKS, KEDA |
-| Data Management for AI | 25–30% | Cosmos DB, PostgreSQL pgvector, Managed Redis |
-| Azure Services Integration | 20–25% | Service Bus, Event Grid, Azure Functions |
-| Secure, Monitor & Troubleshoot | 20–25% | Key Vault, App Configuration, OpenTelemetry, KQL |
-
-## Project structure
-
-```
-app/
-├── page.tsx              # Home
-├── study/                # Study materials list & topic pages
-├── questions/            # Practice questions
-├── exam/                 # Mock exam
-└── icon.svg              # Tab favicon
-
-content/
-├── study/                # Markdown study guides
-└── questions/            # JSON question banks (one file per domain)
-
-components/               # UI components (shadcn)
-lib/                      # Content loaders, domain config
-```
-
-## Adding content
-
-### Study guide
-
-Create a `.md` file in `content/study/`:
-
-```yaml
----
-title: Your Topic Title
-domain: data-management
-description: Short summary shown on the study list page
-order: 9
 ---
 
-## Overview
-Your markdown content here...
-```
+## Who is this for?
 
-**Domain values:** `containers` · `data-management` · `azure-services` · `secure-monitor`
+- Developers preparing for **AI-200** or the **Azure AI Cloud Developer Associate** credential
+- Engineers transitioning from general Azure development (e.g. AZ-204) into AI solution back-ends
+- Anyone who wants a **self-hosted, customizable** study tool they can fork and grow with the community
 
-### Practice question
+---
 
-Add to the matching JSON file in `content/questions/`:
-
-```json
-{
-  "id": "unique-id",
-  "domain": "containers",
-  "type": "mcq",
-  "question": "Question text?",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "answer": 0,
-  "explanation": "Markdown explanation shown after answering."
-}
-```
-
-**Type values:** `mcq` · `scenario`
-
-## Tech stack
-
-- [Next.js 16](https://nextjs.org) (App Router)
-- [React 19](https://react.dev)
-- [Tailwind CSS 4](https://tailwindcss.com)
-- [shadcn/ui](https://ui.shadcn.com)
-- [gray-matter](https://github.com/jonschlinkert/gray-matter) + [react-markdown](https://github.com/remarkjs/react-markdown) for content
-- [next-themes](https://github.com/pacocoursey/next-themes) for dark mode
-
-## Official resources
+## Official Microsoft resources
 
 - [AI-200 study guide](https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200)
 - [Azure AI Cloud Developer Associate certification](https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-cloud-developer-associate/)
+
+---
+
+*This is an independent study project — not affiliated with Microsoft. Always cross-check with the latest official study guide before your exam.*
