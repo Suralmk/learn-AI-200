@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { QuestionCard } from "@/components/question-card";
-import { QuestionFilter } from "@/components/exam-session";
+import { DomainFilter } from "@/components/domain-filter";
 import type { Question } from "@/lib/questions";
 import type { DomainId } from "@/lib/domains";
 import { DOMAINS } from "@/lib/domains";
@@ -30,7 +30,7 @@ export default function QuestionsPage({
       </div>
 
       <div className="mb-6">
-        <QuestionFilter
+        <DomainFilter
           domains={DOMAINS.map((d) => d.id)}
           selected={filter}
           onChange={setFilter}
