@@ -1,0 +1,44 @@
+[
+  {
+    "id": "svc-001",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "A blob upload should trigger an asynchronous embedding pipeline. Which Azure service routes the storage event to your processing code?",
+    "options": [
+      "Azure Event Grid",
+      "Azure VPN Gateway",
+      "Azure Bastion",
+      "Azure Policy"
+    ],
+    "answer": 0,
+    "explanation": "**Event Grid** is an event routing service ideal for reacting to storage events (blob created) and forwarding them to Functions, webhooks, or queues."
+  },
+  {
+    "id": "svc-002",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "Multiple microservices must each receive a copy of every 'document-processed' message. Which Service Bus feature should you use?",
+    "options": [
+      "Topics with subscriptions",
+      "A single queue with one consumer",
+      "Azure DNS zones",
+      "Azure Disk Encryption"
+    ],
+    "answer": 0,
+    "explanation": "**Topics and subscriptions** implement publish/subscribe — each subscription receives a copy of messages published to the topic.\n\nA queue delivers each message to only one consumer."
+  },
+  {
+    "id": "svc-003",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "You need a serverless function triggered when messages arrive on a Service Bus queue. Which Azure service provides this?",
+    "options": [
+      "Azure Functions with a Service Bus trigger",
+      "Azure Virtual Network",
+      "Azure Resource Manager templates only",
+      "Azure Migrate"
+    ],
+    "answer": 0,
+    "explanation": "**Azure Functions** supports Service Bus queue/topic triggers — the standard pattern for serverless AI workers processing embedding jobs."
+  }
+]

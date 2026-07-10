@@ -1,0 +1,44 @@
+[
+  {
+    "id": "sec-001",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "Your Container App needs to read an OpenAI API key without storing it in environment variables or source code. What is the recommended approach?",
+    "options": [
+      "Store the key in Azure Key Vault and access it using managed identity",
+      "Commit the key to a public Git repository",
+      "Hard-code the key in the Dockerfile",
+      "Email the key to all developers"
+    ],
+    "answer": 0,
+    "explanation": "**Key Vault + managed identity** is the secure pattern: secrets stay in Key Vault; the app authenticates via its identity without credentials in code."
+  },
+  {
+    "id": "sec-002",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You need to find the 95th percentile latency of your `/embed` API over the last 24 hours. Which tool and language should you use in Application Insights?",
+    "options": [
+      "KQL (Kusto Query Language) against the requests table",
+      "Azure CLI `az network watcher` only",
+      "PowerShell Get-Process",
+      "Windows Event Viewer"
+    ],
+    "answer": 0,
+    "explanation": "**KQL** queries Application Insights / Log Analytics data. Use `percentile(duration, 95)` on the `requests` table to analyze API latency."
+  },
+  {
+    "id": "sec-003",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "Which service lets you toggle AI feature flags (e.g., enable a new model version) without redeploying your container app?",
+    "options": [
+      "Azure App Configuration",
+      "Azure Container Registry",
+      "Azure DNS",
+      "Azure Disk Storage"
+    ],
+    "answer": 0,
+    "explanation": "**Azure App Configuration** provides feature flags and dynamic settings that apps can refresh at runtime — useful for rolling out new models safely."
+  }
+]

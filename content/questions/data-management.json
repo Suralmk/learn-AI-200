@@ -1,0 +1,44 @@
+[
+  {
+    "id": "data-001",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "You are building a RAG solution that stores document chunks with embeddings and supports cross-partition vector similarity search. Which Azure service is designed for this?",
+    "options": [
+      "Azure Cosmos DB for NoSQL with vector search",
+      "Azure Files",
+      "Azure DNS",
+      "Azure VPN Gateway"
+    ],
+    "answer": 0,
+    "explanation": "**Cosmos DB for NoSQL** supports vector indexing and similarity search, making it suitable for RAG document stores at scale."
+  },
+  {
+    "id": "data-002",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need SQL-based metadata filtering combined with pgvector similarity search on Azure. Which database should you use?",
+    "options": [
+      "Azure Database for PostgreSQL Flexible Server with pgvector",
+      "Azure Cosmos DB for Table API only",
+      "Azure Cache for Redis without vector support",
+      "Azure Data Lake Storage Gen2 alone"
+    ],
+    "answer": 0,
+    "explanation": "**PostgreSQL with pgvector** lets you combine relational metadata filters (`WHERE tenant_id = ...`) with vector distance queries — a common RAG pattern on Azure."
+  },
+  {
+    "id": "data-003",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Which scenario is the best use of Azure Managed Redis in an AI solution?",
+    "options": [
+      "Cache frequently requested embedding results to reduce model API calls",
+      "Primary long-term storage for all training datasets",
+      "Replace Cosmos DB for all document storage",
+      "Host container images"
+    ],
+    "answer": 0,
+    "explanation": "Redis excels at **low-latency caching** — e.g., caching embeddings or retrieval results. It complements primary stores like Cosmos DB or PostgreSQL rather than replacing them."
+  }
+]

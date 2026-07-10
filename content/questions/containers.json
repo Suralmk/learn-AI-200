@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cont-001",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "You need to deploy a Python FastAPI inference service that scales to zero when idle and supports HTTP ingress. Which Azure service is the best fit?",
+    "options": [
+      "Azure Container Apps",
+      "Azure Virtual Machines",
+      "Azure Batch",
+      "Azure SQL Database"
+    ],
+    "answer": 0,
+    "explanation": "**Azure Container Apps** supports containerized HTTP services with scale-to-zero, built-in ingress, and KEDA-based autoscaling — ideal for AI APIs.\n\nVMs require more management; Batch is for job compute; SQL is not for hosting APIs."
+  },
+  {
+    "id": "cont-002",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Your embedding worker container should scale out when the Service Bus queue depth exceeds 100 messages. Which technology enables this scaling behavior on Container Apps or AKS?",
+    "options": [
+      "KEDA (Kubernetes Event-driven Autoscaling)",
+      "Azure Load Balancer only",
+      "Azure Front Door",
+      "Azure DNS"
+    ],
+    "answer": 0,
+    "explanation": "**KEDA** scales workloads based on external event sources such as Service Bus queue length, not just CPU/memory.\n\nThis is a common AI-200 pattern for queue-driven embedding pipelines."
+  },
+  {
+    "id": "cont-003",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "Where should you store private Docker images for your AI solution before deploying to Container Apps?",
+    "options": [
+      "Azure Container Registry",
+      "Azure Blob Storage public container",
+      "GitHub Issues",
+      "Azure Table Storage"
+    ],
+    "answer": 0,
+    "explanation": "**Azure Container Registry (ACR)** is the managed private registry for container images integrated with Container Apps and AKS.\n\nBlob Storage can store files but is not a container image registry."
+  }
+]

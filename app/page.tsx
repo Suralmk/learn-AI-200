@@ -1,65 +1,137 @@
+import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
+import { BookOpen, ClipboardList, GraduationCap } from "lucide-react";
+import azureLogo from "@/app/asset/Microsoft_Azure-Logo.wine.png";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { DOMAINS } from "@/lib/domains";
+import { getStudyTopics } from "@/lib/content";
+import { getAllQuestions } from "@/lib/questions";
 
-export default function Home() {
+export default function HomePage() {
+  const topics = getStudyTopics();
+  const questions = getAllQuestions();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="mx-auto max-w-5xl px-4 py-10">
+      <section className="mb-12">
+        <div className="mb-6 flex items-center gap-4">
+          <Image
+            src={azureLogo}
+            alt="Microsoft Azure"
+            className="h-8 w-auto dark:brightness-110"
+            priority
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
+        <h1 className="mb-3 text-3xl font-semibold tracking-tight">
+          Learn AI-200
+        </h1>
+        <p className="mb-2 max-w-2xl text-muted-foreground">
+          Prepare for{" "}
+          <strong className="text-foreground">
+            Microsoft AI-200: Developing AI Cloud Solutions on Azure
+          </strong>{" "}
+          — the Azure AI Cloud Developer Associate certification. Study guides
+          with code samples, practice questions, and a mock exam.
+        </p>
+        <p className="mb-6 text-sm text-muted-foreground">
+          For developers building back-end AI solutions with Python, containers,
+          vector databases, and Azure services.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button render={<Link href="/study" />}>
+            <BookOpen data-icon="inline-start" />
+            Study materials
+          </Button>
+          <Button variant="outline" render={<Link href="/questions" />}>
+            <ClipboardList data-icon="inline-start" />
+            Practice questions
+          </Button>
+          <Button variant="outline" render={<Link href="/exam" />}>
+            <GraduationCap data-icon="inline-start" />
+            Mock exam
+          </Button>
+        </div>
+        <p className="mt-4 text-sm">
           <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            href="https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200"
             target="_blank"
             rel="noopener noreferrer"
+            className="text-[#2596be] hover:underline"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
+            Official AI-200 study guide →
           </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        </p>
+      </section>
+
+      <section className="mb-12">
+        <h2 className="mb-4 text-xl font-semibold">Exam domains</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {DOMAINS.map((domain) => (
+            <Card key={domain.id}>
+              <CardHeader>
+                <CardTitle className="text-base">{domain.title}</CardTitle>
+                <CardDescription>{domain.weight} of exam</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {domain.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </main>
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-xl font-semibold">What&apos;s included</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Study guides</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-[#2596be]">
+                {topics.length}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Topics with Python, az CLI, and concepts
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Questions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-[#2596be]">
+                {questions.length}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                MCQ and scenario-style with explanations
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Mock exam</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-[#2596be]">20</p>
+              <p className="text-sm text-muted-foreground">
+                Random questions across all domains
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
     </div>
   );
 }
