@@ -6,7 +6,7 @@ const logoFont = Space_Grotesk({
   weight: ["600", "700"],
 });
 
-const AZURE_BLUE = "#2596be";
+const AZURE_BLUE = "#0177d1";
 
 export function Logo({
   className,

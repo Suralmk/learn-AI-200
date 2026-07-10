@@ -66,7 +66,7 @@ export function ExamSession({ questions }: { questions: Question[] }) {
           <CardTitle>Exam complete</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-3xl font-semibold text-[#2596be]">
+          <p className="text-3xl font-semibold text-primary">
             {score}/{examQuestions.length} ({pct}%)
           </p>
           <div className="space-y-2">
@@ -128,9 +128,9 @@ export function ExamSession({ questions }: { questions: Question[] }) {
               onClick={() =>
                 setAnswers((prev) => ({ ...prev, [current.id]: index }))
               }
-              className={`flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-colors hover:border-[#2596be]/50 ${
+              className={`flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 ${
                 selected === index
-                  ? "border-[#2596be] bg-[#2596be]/5"
+                  ? "border-primary bg-primary/5"
                   : "border-border"
               }`}
             >

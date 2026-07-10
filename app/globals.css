@@ -55,9 +55,9 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #2596be;
+  --primary: #0177d1;
   --primary-foreground: #ffffff;
-  --azure: #2596be;
+  --azure: #0177d1;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -91,9 +91,9 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: #2596be;
+  --primary: #0177d1;
   --primary-foreground: #ffffff;
-  --azure: #2596be;
+  --azure: #0177d1;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -164,7 +164,7 @@
     @apply font-medium text-foreground;
   }
   .prose blockquote {
-    @apply mb-4 border-l-2 border-[#2596be] pl-4 italic text-muted-foreground;
+    @apply mb-4 border-l-2 border-primary pl-4 italic text-muted-foreground;
   }
   .prose hr {
     @apply my-6 border-border;

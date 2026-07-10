@@ -10,7 +10,7 @@ Study guides with code samples (Python & Azure CLI), practice questions with exp
 - **Practice questions** — MCQ and scenario-style questions with markdown explanations, filterable by domain
 - **Mock exam** — 20 random questions with a score breakdown by domain
 - **Dark mode** — System-aware theme toggle
-- **Azure branding** — Primary color `#2596be`, custom logo, and favicon
+- **Azure branding** — Primary color `#0177d1`, custom logo, and favicon
 
 ## Getting started
 

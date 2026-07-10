@@ -48,7 +48,7 @@ export function MarkdownContent({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#2596be] underline-offset-4 hover:underline"
+                className="text-primary underline-offset-4 hover:underline"
                 {...props}
               >
                 {children}

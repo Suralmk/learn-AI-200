@@ -47,8 +47,8 @@ export function QuestionCard({
                 onClick={() => setSelected(index)}
                 className={cn(
                   "flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-colors",
-                  !answered && "hover:border-[#2596be]/50 hover:bg-muted/50",
-                  isSelected && !answered && "border-[#2596be] bg-[#2596be]/5",
+                  !answered && "hover:border-primary/50 hover:bg-muted/50",
+                  isSelected && !answered && "border-primary bg-primary/5",
                   answered && isAnswer && "border-green-600 bg-green-500/10",
                   answered &&
                     isSelected &&

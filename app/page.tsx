@@ -64,7 +64,7 @@ export default function HomePage() {
             href="https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#2596be] hover:underline"
+            className="text-primary hover:underline"
           >
             Official AI-200 study guide →
           </a>
@@ -98,7 +98,7 @@ export default function HomePage() {
               <CardTitle className="text-base">Study guides</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-[#2596be]">
+              <p className="text-2xl font-semibold text-primary">
                 {topics.length}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -111,7 +111,7 @@ export default function HomePage() {
               <CardTitle className="text-base">Questions</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-[#2596be]">
+              <p className="text-2xl font-semibold text-primary">
                 {questions.length}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -124,7 +124,7 @@ export default function HomePage() {
               <CardTitle className="text-base">Mock exam</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-[#2596be]">20</p>
+              <p className="text-2xl font-semibold text-primary">20</p>
               <p className="text-sm text-muted-foreground">
                 Random questions across all domains
               </p>

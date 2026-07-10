@@ -32,7 +32,7 @@ export default function StudyPage() {
             <div className="grid gap-3">
               {domainTopics.map((topic) => (
                 <Link key={topic.slug} href={`/study/${topic.slug}`}>
-                  <Card className="transition-colors hover:border-[#2596be]/50">
+                  <Card className="transition-colors hover:border-primary/50">
                     <CardHeader className="flex-row items-center justify-between">
                       <div>
                         <CardTitle className="text-base">{topic.title}</CardTitle>

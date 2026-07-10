@@ -18,7 +18,7 @@ export function DomainBadge({
         className
       )}
     >
-      <span className="size-1.5 rounded-full bg-[#2596be]" />
+      <span className="size-1.5 rounded-full bg-primary" />
       {title}
       <span className="text-muted-foreground/70">({weight})</span>
     </span>
