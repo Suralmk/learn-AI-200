@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import type { Question } from "@/lib/questions";
-import type { DomainId } from "@/lib/domains";
 import { DOMAINS } from "@/lib/domains";
-import { QuestionCard } from "@/components/question-card";
+import { ExamResults } from "@/components/exam-results";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const EXAM_SIZE = 20;
 
@@ -25,6 +25,13 @@ export function ExamSession({ questions }: { questions: Question[] }) {
   const score = examQuestions.filter(
     (q) => answers[q.id] === q.answer
   ).length;
+
+  function handleRetake() {
+    setStarted(false);
+    setCurrentIndex(0);
+    setAnswers({});
+    setFinished(false);
+  }
 
   if (!started) {
     return (
@@ -51,8 +58,7 @@ export function ExamSession({ questions }: { questions: Question[] }) {
   }
 
   if (finished) {
-    const pct = Math.round((score / examQuestions.length) * 100);
-    const weakDomains = DOMAINS.map((d) => {
+    const domainScores = DOMAINS.map((d) => {
       const domainQs = examQuestions.filter((q) => q.domain === d.id);
       const domainScore = domainQs.filter(
         (q) => answers[q.id] === q.answer
@@ -61,40 +67,12 @@ export function ExamSession({ questions }: { questions: Question[] }) {
     }).filter((d) => d.total > 0);
 
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Exam complete</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-3xl font-semibold text-primary">
-            {score}/{examQuestions.length} ({pct}%)
-          </p>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">By domain</p>
-            {weakDomains.map(({ domain, total, correct }) => (
-              <div
-                key={domain.id}
-                className="flex items-center justify-between text-sm"
-              >
-                <span>{domain.title}</span>
-                <span className="text-muted-foreground">
-                  {correct}/{total}
-                </span>
-              </div>
-            ))}
-          </div>
-          <Button
-            onClick={() => {
-              setStarted(false);
-              setCurrentIndex(0);
-              setAnswers({});
-              setFinished(false);
-            }}
-          >
-            Retake exam
-          </Button>
-        </CardContent>
-      </Card>
+      <ExamResults
+        score={score}
+        total={examQuestions.length}
+        domainScores={domainScores}
+        onRetake={handleRetake}
+      />
     );
   }
 
@@ -104,7 +82,7 @@ export function ExamSession({ questions }: { questions: Question[] }) {
   const answered = selected !== null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
           Question {currentIndex + 1} of {examQuestions.length}
@@ -114,13 +92,9 @@ export function ExamSession({ questions }: { questions: Question[] }) {
         </span>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base leading-relaxed font-normal">
-            {current.question}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
+      <div className="rounded-lg border border-border bg-card p-6 sm:p-8">
+        <p className="mb-6 text-lg leading-relaxed">{current.question}</p>
+        <div className="space-y-3">
           {current.options.map((option, index) => (
             <button
               key={index}
@@ -128,20 +102,21 @@ export function ExamSession({ questions }: { questions: Question[] }) {
               onClick={() =>
                 setAnswers((prev) => ({ ...prev, [current.id]: index }))
               }
-              className={`flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 ${
+              className={cn(
+                "flex w-full items-start gap-4 rounded-md border px-4 py-3.5 text-left text-base transition-colors hover:border-primary/50",
                 selected === index
                   ? "border-primary bg-primary/5"
                   : "border-border"
-              }`}
+              )}
             >
-              <span className="font-mono text-xs text-muted-foreground">
+              <span className="mt-0.5 font-mono text-sm text-muted-foreground">
                 {String.fromCharCode(65 + index)}.
               </span>
-              <span>{option}</span>
+              <span className="leading-relaxed">{option}</span>
             </button>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <div className="flex justify-between">
         <Button
