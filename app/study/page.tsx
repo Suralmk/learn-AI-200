@@ -33,14 +33,14 @@ export default function StudyPage() {
               {domainTopics.map((topic) => (
                 <Link key={topic.slug} href={`/study/${topic.slug}`}>
                   <Card className="transition-colors hover:border-primary/50">
-                    <CardHeader className="flex-row items-center justify-between">
-                      <div>
+                    <CardHeader className="!flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-3">
                         <CardTitle className="text-base">{topic.title}</CardTitle>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {topic.description}
-                        </p>
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                       </div>
-                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        {topic.description}
+                      </p>
                     </CardHeader>
                   </Card>
                 </Link>

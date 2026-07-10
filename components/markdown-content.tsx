@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CodeBlock } from "@/components/code-block";
 import { cn } from "@/lib/utils";
 
 export function MarkdownContent({
@@ -14,25 +15,17 @@ export function MarkdownContent({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          pre({ children, ...props }) {
-            return (
-              <pre
-                className="overflow-x-auto rounded-md border border-border bg-muted/50 p-4 text-sm"
-                {...props}
-              >
-                {children}
-              </pre>
-            );
+          pre({ children }) {
+            return <>{children}</>;
           },
           code({ className, children, ...props }) {
-            const isBlock = className?.includes("language-");
-            if (isBlock) {
-              return (
-                <code className={cn("font-mono text-sm", className)} {...props}>
-                  {children}
-                </code>
-              );
+            const match = /language-(\w+)/.exec(className || "");
+            const code = String(children).replace(/\n$/, "");
+
+            if (match) {
+              return <CodeBlock code={code} language={match[1]} />;
             }
+
             return (
               <code
                 className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm"
