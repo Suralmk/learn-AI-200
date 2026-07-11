@@ -1,55 +1,69 @@
 ---
-title: "Develop AI solutions with Azure Cosmos DB for NoSQL"
-slug: "develop-ai-solutions-with-azure-cosmos-db-for-nosql"
-certification: "AI-200"
-duration: "4 hr 12 min"
-level: "Intermediate"
-description: "This learning path guides you through developing AI solutions using Azure Cosmos DB for NoSQL: building a data foundation with the resource model, SDK integration, CRUD, and SQL queries; implementing vector search for embeddings, similarity queries, hybrid search, and change-feed sync; and optimizing query performance via indexing and consistency levels."
+title: Develop AI solutions with Azure Cosmos DB for NoSQL
+slug: develop-ai-solutions-with-azure-cosmos-db-for-nosql
+certification: AI-200
+duration: 4 hr 12 min
+level: Intermediate
+description: >-
+  This learning path guides you through developing AI solutions using Azure
+  Cosmos DB for NoSQL: building a data foundation with the resource model, SDK
+  integration, CRUD, and SQL queries; implementing vector search for embeddings,
+  similarity queries, hybrid search, and change-feed sync; and optimizing query
+  performance via indexing and consistency levels.
 tags:
-  - "Azure Cosmos DB"
-  - "Databases"
-  - "Artificial Intelligence"
-  - "Developer"
-  - "Intermediate"
+  - Azure Cosmos DB
+  - Databases
+  - Artificial Intelligence
+  - Developer
+  - Intermediate
 filterTags:
-  - "cosmos-db"
-  - "vector"
-  - "rag"
-  - "embeddings"
-  - "databases"
-skillFocus: "vector-databases"
+  - cosmos-db
+  - vector
+  - rag
+  - embeddings
+  - databases
+skillFocus: vector-databases
 order: 3
 modules:
-  - name: "Build queries for Azure Cosmos DB for NoSQL"
-    duration: "1 hr 12 min"
-    description: "Learn how to connect to Azure Cosmos DB for NoSQL using the SDK, perform data operations on items, and write efficient SQL queries to retrieve document data for AI applications."
+  - name: Build queries for Azure Cosmos DB for NoSQL
+    duration: 1 hr 12 min
+    description: >-
+      Learn how to connect to Azure Cosmos DB for NoSQL using the SDK, perform
+      data operations on items, and write efficient SQL queries to retrieve
+      document data for AI applications.
     topics:
-      - "Introduction"
-      - "Explore Azure Cosmos DB for NoSQL"
-      - "Implement the Azure Cosmos DB for NoSQL SDK"
-      - "Query Azure Cosmos DB for NoSQL"
-      - "Exercise - Build a RAG document store on Azure Cosmos DB for NoSQL"
-  - name: "Implement vector search on Azure Cosmos DB for NoSQL"
-    duration: "1 hr 24 min"
-    description: "Learn how to store vector embeddings, execute similarity queries using the VectorDistance function, combine vector search with metadata filters and hybrid search, and use the change feed to keep embeddings synchronized."
+      - Explore Azure Cosmos DB for NoSQL
+      - Implement the Azure Cosmos DB for NoSQL SDK
+      - Query Azure Cosmos DB for NoSQL
+      - Exercise - Build a RAG document store on Azure Cosmos DB for NoSQL
+  - name: Implement vector search on Azure Cosmos DB for NoSQL
+    duration: 1 hr 24 min
+    description: >-
+      Learn how to store vector embeddings, execute similarity queries using the
+      VectorDistance function, combine vector search with metadata filters and
+      hybrid search, and use the change feed to keep embeddings synchronized.
     topics:
-      - "Introduction"
-      - "Store and retrieve embeddings in Azure Cosmos DB"
-      - "Execute vector similarity queries for semantic search"
-      - "Combine vector similarity results with metadata filtering"
-      - "Use the change feed to trigger embedding refresh"
-      - "Exercise - Build a semantic search application with Azure Cosmos DB for NoSQL"
-      - "Module assessment"
-      - "Summary"
-  - name: "Optimize query performance for Azure Cosmos DB for NoSQL"
-    duration: "1 hr 36 min"
-    description: "Learn how to optimize query performance by analyzing query patterns, configuring range and composite indexes, selecting vector index types, and choosing consistency levels that balance freshness with cost efficiency."
+      - Store and retrieve embeddings in Azure Cosmos DB
+      - Execute vector similarity queries for semantic search
+      - Combine vector similarity results with metadata filtering
+      - Use the change feed to trigger embedding refresh
+      - >-
+        Exercise - Build a semantic search application with Azure Cosmos DB for
+        NoSQL
+  - name: Optimize query performance for Azure Cosmos DB for NoSQL
+    duration: 1 hr 36 min
+    description: >-
+      Learn how to optimize query performance by analyzing query patterns,
+      configuring range and composite indexes, selecting vector index types, and
+      choosing consistency levels that balance freshness with cost efficiency.
     topics:
-      - "Introduction"
-      - "Understand indexes in Azure Cosmos DB"
-      - "Configure range and composite indexes"
-      - "Tune vector indexes for embedding workloads"
-      - "Reduce RU costs with strategic indexing"
-      - "Choose consistency levels for optimal performance"
-      - "Exercise - Optimize query performance with vector indexes on Azure Cosmos DB"
+      - Understand indexes in Azure Cosmos DB
+      - Configure range and composite indexes
+      - Tune vector indexes for embedding workloads
+      - Reduce RU costs with strategic indexing
+      - Choose consistency levels for optimal performance
+      - >-
+        Exercise - Optimize query performance with vector indexes on Azure
+        Cosmos DB
 ---
+
