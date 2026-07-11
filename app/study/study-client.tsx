@@ -1,95 +1,161 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
-import { DomainFilter } from "@/components/domain-filter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { StudyTopic } from "@/lib/content";
-import type { DomainId } from "@/lib/domains";
-import { DOMAINS } from "@/lib/domains";
+import type { LearningPath } from "@/lib/content";
+import { ModuleAccordion } from "@/components/module-accordion";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-function TopicCard({ topic }: { topic: StudyTopic }) {
+function TagPill({ tag }: { tag: string }) {
   return (
-    <Link href={`/study/${topic.slug}`}>
-      <Card className="transition-colors hover:border-primary/50">
-        <CardHeader className="!flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="text-base">{topic.title}</CardTitle>
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-          </div>
-          <p className="text-sm text-muted-foreground">{topic.description}</p>
-        </CardHeader>
-      </Card>
-    </Link>
+    <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
+      {tag}
+    </span>
   );
 }
 
-export default function StudyClient({ topics }: { topics: StudyTopic[] }) {
-  const [filter, setFilter] = useState<DomainId | "all">("all");
+function FilterTagButton({
+  tag,
+  selected,
+  onClick,
+}: {
+  tag: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant={selected ? "default" : "outline"}
+      size="sm"
+      onClick={onClick}
+      className="capitalize"
+    >
+      {tag}
+    </Button>
+  );
+}
+
+function LearningPathCard({ path }: { path: LearningPath }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {path.level && <span>{path.level}</span>}
+          {path.level && path.duration && <span>·</span>}
+          {path.duration && <span>{path.duration}</span>}
+          {(path.level || path.duration) && <span>·</span>}
+          <span>{path.certification}</span>
+        </div>
+        <CardTitle className="text-lg">{path.title}</CardTitle>
+        <CardDescription className="text-sm leading-relaxed">
+          {path.description}
+        </CardDescription>
+        <div className="flex flex-wrap gap-1.5 pt-2">
+          {path.tags.map((tag) => (
+            <TagPill key={tag} tag={tag} />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {path.filterTags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-md bg-primary/10 px-2 py-0.5 text-xs capitalize text-primary"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-3 text-sm font-medium">Modules</p>
+        <ModuleAccordion modules={path.modules} />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function StudyClient({
+  paths,
+  filterTags,
+  areas,
+}: {
+  paths: LearningPath[];
+  filterTags: string[];
+  areas: string[];
+}) {
+  const [filter, setFilter] = useState<string | "all">("all");
 
   const filtered = useMemo(() => {
-    if (filter === "all") return topics;
-    return topics.filter((t) => t.domain === filter);
-  }, [topics, filter]);
-
-  const visibleDomains = useMemo(() => {
-    if (filter === "all") return DOMAINS;
-    return DOMAINS.filter((d) => d.id === filter);
-  }, [filter]);
+    if (filter === "all") return paths;
+    return paths.filter((p) => p.filterTags.includes(filter));
+  }, [paths, filter]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8">
         <h1 className="mb-2 text-2xl font-semibold">Study materials</h1>
         <p className="text-muted-foreground">
-          Notes organized by AI-200 exam domain. Each guide includes concepts,
-          exam tips, and code samples (Python &amp; Azure CLI).
+          Official Microsoft Learn AI-200 learning paths. Expand each module to
+          see full details and sub-topics.
         </p>
       </div>
 
       <div className="mb-6">
-        <DomainFilter
-          domains={DOMAINS.map((d) => d.id)}
-          selected={filter}
-          onChange={setFilter}
-        />
+        <p className="mb-2 text-sm font-medium">Filter by topic</p>
+        <div className="flex flex-wrap gap-2">
+          <FilterTagButton
+            tag="All"
+            selected={filter === "all"}
+            onClick={() => setFilter("all")}
+          />
+          {filterTags.map((tag) => (
+            <FilterTagButton
+              key={tag}
+              tag={tag}
+              selected={filter === tag}
+              onClick={() => setFilter(tag)}
+            />
+          ))}
+        </div>
       </div>
 
       <p className="mb-6 text-sm text-muted-foreground">
-        Showing {filtered.length} topic{filtered.length !== 1 && "s"}
+        Showing {filtered.length} learning path
+        {filtered.length !== 1 && "s"}
       </p>
 
-      {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No study materials for this domain yet.
-          </CardContent>
-        </Card>
-      ) : (
-        visibleDomains.map((domain) => {
-          const domainTopics = filtered.filter((t) => t.domain === domain.id);
-          if (domainTopics.length === 0) return null;
+      <div className="space-y-6">
+        {filtered.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              No learning paths match this filter.
+            </CardContent>
+          </Card>
+        ) : (
+          filtered.map((path) => (
+            <LearningPathCard key={path.slug} path={path} />
+          ))
+        )}
+      </div>
 
-          return (
-            <section key={domain.id} className="mb-10 last:mb-0">
-              {filter === "all" && (
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold">{domain.title}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {domain.weight} · {domain.description}
-                  </p>
-                </div>
-              )}
-              <div className="grid gap-3">
-                {domainTopics.map((topic) => (
-                  <TopicCard key={topic.slug} topic={topic} />
-                ))}
-              </div>
-            </section>
-          );
-        })
-      )}
+      <section className="mt-12 rounded-lg border border-border p-6">
+        <h2 className="mb-2 text-lg font-semibold">Areas covered</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          All topics across the AI-200 learning paths.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {areas.map((area) => (
+            <TagPill key={area} tag={area} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,0 +1,50 @@
+---
+title: "Implement container application hosting on Azure"
+slug: "implement-container-application-hosting-on-azure"
+certification: "AI-200"
+duration: ""
+level: ""
+description: "Use Azure Container Registry to store, build, and manage container images for AI applications; learn the registry hierarchy, build images with ACR Tasks, and implement tagging strategies for reliable deployments. Also covers deploying and managing containerized applications on Azure App Service and Azure Container Apps."
+tags:
+  - "Azure Container Registry"
+  - "Azure App Service"
+  - "Azure Container Apps"
+  - "Containers"
+  - "Developer"
+filterTags:
+  - "containers"
+  - "acr"
+  - "app-service"
+  - "container-apps"
+order: 1
+modules:
+  - name: "Deploy containers to Azure App Service"
+    duration: ""
+    description: "Deploy and manage containerized applications on Azure App Service by configuring container sources, runtime settings, application configuration, and diagnostics."
+    topics:
+      - "Explore Container Apps environments"
+      - "Deploy a container app using the Azure CLI and YAML"
+      - "Configure runtime settings with environment variables and secrets"
+      - "Configure image pull authentication for private registries"
+      - "Verify deployments with logs and status"
+  - name: "Manage containers in Azure Container Apps"
+    duration: "1 hr 8 min"
+    description: "Manage container apps across the day-two lifecycle. Update images, manage revisions, diagnose failing deployments, tune resources and scaling, and troubleshoot with logs and health probes."
+    topics:
+      - "Introduction"
+      - "Update images and manage revisions safely"
+      - "Manage the container app lifecycle"
+      - "Monitor logs and troubleshoot issues"
+      - "Configure health probes and troubleshoot failures"
+      - "Optimize container resources and scaling"
+  - name: "Scale containers in Azure Container Apps"
+    duration: "1 hr 27 min"
+    description: "Learn how to configure automatic horizontal scaling for containerized applications in Azure Container Apps. Configure HTTP, TCP, CPU, and memory scale rules, implement event-driven scaling with KEDA, optimize compute resources, and apply revision modes for traffic management."
+    topics:
+      - "Introduction"
+      - "Configure scale rules"
+      - "Implement event-driven scaling with KEDA"
+      - "Apply KEDA scalers for custom workloads"
+      - "Select compute resources for performance and cost"
+      - "Choose and apply revision modes"
+---

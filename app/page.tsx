@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/card";
 import { DOMAINS } from "@/lib/domains";
 import { EXAMS } from "@/lib/exams";
-import { getStudyTopics } from "@/lib/content";
+import { getLearningPaths } from "@/lib/content";
 import { getAllQuestions } from "@/lib/questions";
 
 export default function HomePage() {
-  const topics = getStudyTopics();
+  const paths = getLearningPaths();
   const questions = getAllQuestions();
 
   return (
@@ -100,10 +100,10 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-primary">
-                {topics.length}
+                {paths.length}
               </p>
               <p className="text-sm text-muted-foreground">
-                Topics with Python, az CLI, and concepts
+                Official Microsoft Learn learning paths
               </p>
             </CardContent>
           </Card>
