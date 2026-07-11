@@ -18,6 +18,7 @@ filterTags:
   - "rag"
   - "embeddings"
   - "databases"
+skillFocus: "vector-databases"
 order: 4
 modules:
   - name: "Build and query with Azure Database for PostgreSQL"

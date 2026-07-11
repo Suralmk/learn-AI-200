@@ -18,6 +18,7 @@ filterTags:
   - "event-grid"
   - "azure-functions"
   - "backend"
+skillFocus: "ai-development"
 order: 6
 modules:
   - name: "Queue and process AI operations with Azure Service Bus"

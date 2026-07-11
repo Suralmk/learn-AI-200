@@ -16,6 +16,7 @@ filterTags:
   - "cache"
   - "vector"
   - "embeddings"
+skillFocus: "vector-databases"
 order: 5
 modules:
   - name: "Implement data operations in Azure Managed Redis"

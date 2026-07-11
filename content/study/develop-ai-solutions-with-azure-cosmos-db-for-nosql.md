@@ -17,6 +17,7 @@ filterTags:
   - "rag"
   - "embeddings"
   - "databases"
+skillFocus: "vector-databases"
 order: 3
 modules:
   - name: "Build queries for Azure Cosmos DB for NoSQL"

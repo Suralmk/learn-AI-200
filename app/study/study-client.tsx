@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { LearningPath } from "@/lib/content";
+import type { SkillFocusId } from "@/lib/skill-focus";
+import { SKILL_FOCUS_AREAS } from "@/lib/skill-focus";
 import { ModuleAccordion } from "@/components/module-accordion";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,8 +45,10 @@ function FilterTagButton({
 }
 
 function LearningPathCard({ path }: { path: LearningPath }) {
+  const skillArea = SKILL_FOCUS_AREAS.find((s) => s.id === path.skillFocus);
+
   return (
-    <Card>
+    <Card id={path.slug}>
       <CardHeader>
         <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {path.level && <span>{path.level}</span>}
@@ -53,6 +57,11 @@ function LearningPathCard({ path }: { path: LearningPath }) {
           {(path.level || path.duration) && <span>·</span>}
           <span>{path.certification}</span>
         </div>
+        {skillArea && (
+          <span className="mb-2 inline-block rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs text-primary">
+            {skillArea.title}
+          </span>
+        )}
         <CardTitle className="text-lg">{path.title}</CardTitle>
         <CardDescription className="text-sm leading-relaxed">
           {path.description}
@@ -90,12 +99,18 @@ export default function StudyClient({
   filterTags: string[];
   areas: string[];
 }) {
-  const [filter, setFilter] = useState<string | "all">("all");
+  const [tagFilter, setTagFilter] = useState<string | "all">("all");
+  const [skillFilter, setSkillFilter] = useState<SkillFocusId | "all">("all");
 
   const filtered = useMemo(() => {
-    if (filter === "all") return paths;
-    return paths.filter((p) => p.filterTags.includes(filter));
-  }, [paths, filter]);
+    return paths.filter((p) => {
+      const matchesTag =
+        tagFilter === "all" || p.filterTags.includes(tagFilter);
+      const matchesSkill =
+        skillFilter === "all" || p.skillFocus === skillFilter;
+      return matchesTag && matchesSkill;
+    });
+  }, [paths, tagFilter, skillFilter]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -108,19 +123,35 @@ export default function StudyClient({
       </div>
 
       <div className="mb-6">
+        <p className="mb-2 text-sm font-medium">Filter by skill area</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <FilterTagButton
+            tag="All skills"
+            selected={skillFilter === "all"}
+            onClick={() => setSkillFilter("all")}
+          />
+          {SKILL_FOCUS_AREAS.map((area) => (
+            <FilterTagButton
+              key={area.id}
+              tag={area.title.split(" & ")[0]}
+              selected={skillFilter === area.id}
+              onClick={() => setSkillFilter(area.id)}
+            />
+          ))}
+        </div>
         <p className="mb-2 text-sm font-medium">Filter by topic</p>
         <div className="flex flex-wrap gap-2">
           <FilterTagButton
             tag="All"
-            selected={filter === "all"}
-            onClick={() => setFilter("all")}
+            selected={tagFilter === "all"}
+            onClick={() => setTagFilter("all")}
           />
           {filterTags.map((tag) => (
             <FilterTagButton
               key={tag}
               tag={tag}
-              selected={filter === tag}
-              onClick={() => setFilter(tag)}
+              selected={tagFilter === tag}
+              onClick={() => setTagFilter(tag)}
             />
           ))}
         </div>

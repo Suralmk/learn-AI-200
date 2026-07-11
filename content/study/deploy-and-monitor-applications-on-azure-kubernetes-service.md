@@ -14,6 +14,7 @@ filterTags:
   - "containers"
   - "aks"
   - "kubernetes"
+skillFocus: "ai-development"
 order: 2
 modules:
   - name: "Deploy applications to Azure Kubernetes Service"

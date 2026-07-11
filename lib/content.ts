@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import type { DomainId } from "./domains";
+import type { SkillFocusId } from "./skill-focus";
 
 export interface LearningModule {
   name: string;
@@ -19,6 +20,7 @@ export interface LearningPath {
   description: string;
   tags: string[];
   filterTags: string[];
+  skillFocus: SkillFocusId;
   modules: LearningModule[];
   order: number;
 }
@@ -60,6 +62,7 @@ export function getLearningPaths(): LearningPath[] {
         description: data.description as string,
         tags: (data.tags as string[]) ?? [],
         filterTags: (data.filterTags as string[]) ?? [],
+        skillFocus: data.skillFocus as SkillFocusId,
         modules: data.modules as LearningModule[],
         order: (data.order as number) ?? 99,
       };

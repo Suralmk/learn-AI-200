@@ -16,6 +16,7 @@ filterTags:
   - "acr"
   - "app-service"
   - "container-apps"
+skillFocus: "ai-development"
 order: 1
 modules:
   - name: "Deploy containers to Azure App Service"

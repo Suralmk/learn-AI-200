@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DOMAINS } from "@/lib/domains";
+import { SkillFocusSection } from "@/components/skill-focus-section";
 import { EXAMS } from "@/lib/exams";
 import { getLearningPaths } from "@/lib/content";
 import { getAllQuestions } from "@/lib/questions";
@@ -81,6 +82,10 @@ export default function HomePage() {
             priority
           />
         </div>
+      </section>
+
+      <section className="mb-12">
+        <SkillFocusSection />
       </section>
 
       <section className="mb-12">

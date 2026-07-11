@@ -16,6 +16,7 @@ filterTags:
   - "opentelemetry"
   - "kql"
   - "observability"
+skillFocus: "observability"
 order: 8
 modules:
   - name: "Instrument an app with OpenTelemetry"
