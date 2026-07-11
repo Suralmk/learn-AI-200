@@ -47,7 +47,7 @@ export function SkillFocusSection({
                   {area.pathSlugs.map((slug) => (
                     <Link
                       key={slug}
-                      href={`/study#${slug}`}
+                      href={`/study/${slug}`}
                       className="text-xs text-primary hover:underline"
                     >
                       View →

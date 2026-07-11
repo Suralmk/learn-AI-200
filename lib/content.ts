@@ -38,70 +38,39 @@ export interface StudyGuide {
 export type StudyTopic = StudyGuide;
 
 const STUDY_DIR = path.join(process.cwd(), "content", "study");
+const PATHS_DIR = path.join(STUDY_DIR, "learning-paths");
+const GUIDES_DIR = path.join(STUDY_DIR, "guides");
 
-function readStudyFiles() {
-  if (!fs.existsSync(STUDY_DIR)) return [];
-  return fs.readdirSync(STUDY_DIR).filter((f) => f.endsWith(".md"));
+function readMdFiles(dir: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
 }
 
-export function getLearningPaths(): LearningPath[] {
-  return readStudyFiles()
-    .map((filename) => {
-      const slug = filename.replace(/\.md$/, "");
-      const raw = fs.readFileSync(path.join(STUDY_DIR, filename), "utf-8");
-      const { data } = matter(raw);
+function parseLearningPath(filename: string): LearningPath | null {
+  const slug = filename.replace(/\.md$/, "");
+  const raw = fs.readFileSync(path.join(PATHS_DIR, filename), "utf-8");
+  const { data } = matter(raw);
 
-      if (!data.modules) return null;
+  if (!data.modules) return null;
 
-      return {
-        slug: (data.slug as string) ?? slug,
-        title: data.title as string,
-        certification: (data.certification as string) ?? "AI-200",
-        duration: (data.duration as string) ?? "",
-        level: (data.level as string) ?? "",
-        description: data.description as string,
-        tags: (data.tags as string[]) ?? [],
-        filterTags: (data.filterTags as string[]) ?? [],
-        skillFocus: data.skillFocus as SkillFocusId,
-        modules: data.modules as LearningModule[],
-        order: (data.order as number) ?? 99,
-      };
-    })
-    .filter((p): p is LearningPath => p !== null)
-    .sort((a, b) => a.order - b.order);
+  return {
+    slug: (data.slug as string) ?? slug,
+    title: data.title as string,
+    certification: (data.certification as string) ?? "AI-200",
+    duration: (data.duration as string) ?? "",
+    level: (data.level as string) ?? "",
+    description: data.description as string,
+    tags: (data.tags as string[]) ?? [],
+    filterTags: (data.filterTags as string[]) ?? [],
+    skillFocus: data.skillFocus as SkillFocusId,
+    modules: data.modules as LearningModule[],
+    order: (data.order as number) ?? 99,
+  };
 }
 
-export function getLearningPath(slug: string): LearningPath | null {
-  return getLearningPaths().find((p) => p.slug === slug) ?? null;
-}
-
-export function getStudyGuides(): StudyGuide[] {
-  return readStudyFiles()
-    .map((filename) => {
-      const slug = filename.replace(/\.md$/, "");
-      const raw = fs.readFileSync(path.join(STUDY_DIR, filename), "utf-8");
-      const { data, content } = matter(raw);
-
-      if (data.modules) return null;
-
-      return {
-        slug,
-        title: data.title as string,
-        domain: data.domain as DomainId,
-        description: data.description as string,
-        order: (data.order as number) ?? 99,
-        content,
-      };
-    })
-    .filter((g): g is StudyGuide => g !== null)
-    .sort((a, b) => a.order - b.order);
-}
-
-export function getStudyGuide(slug: string): StudyGuide | null {
-  const filePath = path.join(STUDY_DIR, `${slug}.md`);
-  if (!fs.existsSync(filePath)) return null;
-
-  const raw = fs.readFileSync(filePath, "utf-8");
+function parseStudyGuide(filename: string): StudyGuide | null {
+  const slug = filename.replace(/\.md$/, "");
+  const raw = fs.readFileSync(path.join(GUIDES_DIR, filename), "utf-8");
   const { data, content } = matter(raw);
 
   if (data.modules) return null;
@@ -114,6 +83,35 @@ export function getStudyGuide(slug: string): StudyGuide | null {
     order: (data.order as number) ?? 99,
     content,
   };
+}
+
+export function getLearningPaths(): LearningPath[] {
+  return readMdFiles(PATHS_DIR)
+    .map(parseLearningPath)
+    .filter((p): p is LearningPath => p !== null)
+    .sort((a, b) => a.order - b.order);
+}
+
+export function getLearningPath(slug: string): LearningPath | null {
+  const filePath = path.join(PATHS_DIR, `${slug}.md`);
+  if (!fs.existsSync(filePath)) {
+    return getLearningPaths().find((p) => p.slug === slug) ?? null;
+  }
+  return parseLearningPath(`${slug}.md`);
+}
+
+export function getStudyGuides(): StudyGuide[] {
+  return readMdFiles(GUIDES_DIR)
+    .map(parseStudyGuide)
+    .filter((g): g is StudyGuide => g !== null)
+    .sort((a, b) => a.order - b.order);
+}
+
+export function getStudyGuide(slug: string): StudyGuide | null {
+  const filePath = path.join(GUIDES_DIR, `${slug}.md`);
+  if (!fs.existsSync(filePath)) return null;
+
+  return parseStudyGuide(`${slug}.md`);
 }
 
 export function getAllFilterTags(): string[] {
