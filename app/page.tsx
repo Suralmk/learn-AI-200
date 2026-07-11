@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, ClipboardList, GraduationCap } from "lucide-react";
 import azureLogo from "@/app/asset/Microsoft_Azure-Logo.wine.png";
+import ai200Badge from "@/app/asset/ai_200_badge.png";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,45 +32,55 @@ export default function HomePage() {
             priority
           />
         </div>
-        <h1 className="mb-3 text-3xl font-semibold tracking-tight">
-          Learn AI-200
-        </h1>
-        <p className="mb-2 max-w-2xl text-muted-foreground">
-          Prepare for{" "}
-          <strong className="text-foreground">
-            Microsoft AI-200: Developing AI Cloud Solutions on Azure
-          </strong>{" "}
-          — the Azure AI Cloud Developer Associate certification. Study guides
-          with code samples, practice questions, and a mock exam.
-        </p>
-        <p className="mb-6 text-sm text-muted-foreground">
-          For developers building back-end AI solutions with Python, containers,
-          vector databases, and Azure services.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <Button render={<Link href="/study" />}>
-            <BookOpen data-icon="inline-start" />
-            Study materials
-          </Button>
-          <Button variant="outline" render={<Link href="/questions" />}>
-            <ClipboardList data-icon="inline-start" />
-            Practice questions
-          </Button>
-          <Button variant="outline" render={<Link href="/exam" />}>
-            <GraduationCap data-icon="inline-start" />
-            Practice exams
-          </Button>
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <h1 className="mb-3 text-3xl font-semibold tracking-tight">
+              Learn AI-200
+            </h1>
+            <p className="mb-2 max-w-2xl text-muted-foreground">
+              Prepare for{" "}
+              <strong className="text-foreground">
+                Microsoft AI-200: Developing AI Cloud Solutions on Azure
+              </strong>{" "}
+              — the Azure AI Cloud Developer Associate certification. Study guides
+              with code samples, practice questions, and a mock exam.
+            </p>
+            <p className="mb-6 text-sm text-muted-foreground">
+              For developers building back-end AI solutions with Python, containers,
+              vector databases, and Azure services.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button render={<Link href="/study" />}>
+                <BookOpen data-icon="inline-start" />
+                Study materials
+              </Button>
+              <Button variant="outline" render={<Link href="/questions" />}>
+                <ClipboardList data-icon="inline-start" />
+                Practice questions
+              </Button>
+              <Button variant="outline" render={<Link href="/exam" />}>
+                <GraduationCap data-icon="inline-start" />
+                Practice exams
+              </Button>
+            </div>
+            <p className="mt-4 text-sm">
+              <a
+                href="https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Official AI-200 study guide →
+              </a>
+            </p>
+          </div>
+          <Image
+            src={ai200Badge}
+            alt="Microsoft Certified Azure AI Cloud Developer Associate badge"
+            className="mx-auto h-auto w-40 shrink-0 sm:mx-0 sm:w-44"
+            priority
+          />
         </div>
-        <p className="mt-4 text-sm">
-          <a
-            href="https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
-          >
-            Official AI-200 study guide →
-          </a>
-        </p>
       </section>
 
       <section className="mb-12">
