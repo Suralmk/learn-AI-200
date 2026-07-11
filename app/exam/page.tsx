@@ -1,20 +1,23 @@
-import { ExamSession } from "@/components/exam-session";
-import { getAllQuestions } from "@/lib/questions";
+import { EXAMS, getExamQuestionCount } from "@/lib/exams";
+import ExamListClient from "./exam-list-client";
 
 export default function ExamPage() {
-  const questions = getAllQuestions();
+  const exams = EXAMS.map((exam) => ({
+    ...exam,
+    availableQuestions: getExamQuestionCount(exam),
+  }));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="mb-2 text-2xl font-semibold">Mock exam</h1>
+        <h1 className="mb-2 text-2xl font-semibold">Practice exams</h1>
         <p className="text-muted-foreground">
-          Simulate the AI-200 exam with a random set of questions across all
-          domains. Review your score by domain when finished.
+          Choose a topic-focused exam or take the full mock test. Each exam can
+          be completed separately with its own score.
         </p>
       </div>
 
-      <ExamSession questions={questions} />
+      <ExamListClient exams={exams} />
     </div>
   );
 }

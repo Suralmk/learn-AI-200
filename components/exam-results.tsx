@@ -62,11 +62,15 @@ export function ExamResults({
   score,
   total,
   domainScores,
+  studySlug,
+  showDomainBreakdown = true,
   onRetake,
 }: {
   score: number;
   total: number;
   domainScores: DomainScore[];
+  studySlug?: string;
+  showDomainBreakdown?: boolean;
   onRetake: () => void;
 }) {
   const pct = Math.round((score / total) * 100);
@@ -143,39 +147,41 @@ export function ExamResults({
         </p>
       </div>
 
-      <div className="space-y-3">
-        <p className="text-sm font-medium">Score by domain</p>
-        <div className="space-y-2">
-          {domainScores.map(({ domain, total: domainTotal, correct }) => {
-            const domainPct =
-              domainTotal > 0
-                ? Math.round((correct / domainTotal) * 100)
-                : 0;
-            const domainPassed = domainPct >= PASS_THRESHOLD;
+      {showDomainBreakdown && domainScores.length > 1 && (
+        <div className="space-y-3">
+          <p className="text-sm font-medium">Score by domain</p>
+          <div className="space-y-2">
+            {domainScores.map(({ domain, total: domainTotal, correct }) => {
+              const domainPct =
+                domainTotal > 0
+                  ? Math.round((correct / domainTotal) * 100)
+                  : 0;
+              const domainPassed = domainPct >= PASS_THRESHOLD;
 
-            return (
-              <div
-                key={domain.id}
-                className="flex items-center justify-between rounded-md border border-border px-4 py-3 text-sm"
-              >
-                <span>{domain.title}</span>
-                <span
-                  className={cn(
-                    "font-medium",
-                    domainPassed
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-amber-600 dark:text-amber-400"
-                  )}
+              return (
+                <div
+                  key={domain.id}
+                  className="flex items-center justify-between rounded-md border border-border px-4 py-3 text-sm"
                 >
-                  {correct}/{domainTotal} ({domainPct}%)
-                </span>
-              </div>
-            );
-          })}
+                  <span>{domain.title}</span>
+                  <span
+                    className={cn(
+                      "font-medium",
+                      domainPassed
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    )}
+                  >
+                    {correct}/{domainTotal} ({domainPct}%)
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {!passed && weakDomains.length > 0 && (
+      {!passed && showDomainBreakdown && weakDomains.length > 0 && (
         <p className="text-sm text-muted-foreground">
           Focus on:{" "}
           {weakDomains.map((d) => d.domain.title).join(", ")}.
@@ -187,13 +193,23 @@ export function ExamResults({
           {passed ? "Keep going" : "Recommended next steps"}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button render={<Link href="/study" />}>
-            <BookOpen data-icon="inline-start" />
-            Study materials
-          </Button>
+          {studySlug ? (
+            <Button render={<Link href={`/study/${studySlug}`} />}>
+              <BookOpen data-icon="inline-start" />
+              Review study guide
+            </Button>
+          ) : (
+            <Button render={<Link href="/study" />}>
+              <BookOpen data-icon="inline-start" />
+              Study materials
+            </Button>
+          )}
           <Button variant="outline" render={<Link href="/questions" />}>
             <ClipboardList data-icon="inline-start" />
             Practice questions
+          </Button>
+          <Button variant="outline" render={<Link href="/exam" />}>
+            All exams
           </Button>
           <Button
             variant="outline"

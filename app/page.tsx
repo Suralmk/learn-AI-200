@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DOMAINS } from "@/lib/domains";
+import { EXAMS } from "@/lib/exams";
 import { getStudyTopics } from "@/lib/content";
 import { getAllQuestions } from "@/lib/questions";
 
@@ -56,7 +57,7 @@ export default function HomePage() {
           </Button>
           <Button variant="outline" render={<Link href="/exam" />}>
             <GraduationCap data-icon="inline-start" />
-            Mock exam
+            Practice exams
           </Button>
         </div>
         <p className="mt-4 text-sm">
@@ -121,12 +122,14 @@ export default function HomePage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Mock exam</CardTitle>
+              <CardTitle className="text-base">Practice exams</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-primary">20</p>
+              <p className="text-2xl font-semibold text-primary">
+                {EXAMS.length}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Random questions across all domains
+                Topic-focused exams plus full mock test
               </p>
             </CardContent>
           </Card>

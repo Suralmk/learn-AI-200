@@ -2,24 +2,35 @@
 
 import { useMemo, useState } from "react";
 import type { Question } from "@/lib/questions";
+import type { Exam } from "@/lib/exams";
 import { DOMAINS } from "@/lib/domains";
 import { ExamResults } from "@/components/exam-results";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-const EXAM_SIZE = 20;
-
-export function ExamSession({ questions }: { questions: Question[] }) {
+export function ExamSession({
+  exam,
+  questions,
+  studySlug,
+}: {
+  exam: Exam;
+  questions: Question[];
+  studySlug?: string;
+}) {
   const [started, setStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [finished, setFinished] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   const examQuestions = useMemo(() => {
     const shuffled = [...questions].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(EXAM_SIZE, shuffled.length));
-  }, [questions]);
+    return shuffled.slice(
+      0,
+      Math.min(exam.questionCount, shuffled.length)
+    );
+  }, [questions, exam.questionCount, attempt]);
 
   const current = examQuestions[currentIndex];
   const score = examQuestions.filter(
@@ -31,26 +42,40 @@ export function ExamSession({ questions }: { questions: Question[] }) {
     setCurrentIndex(0);
     setAnswers({});
     setFinished(false);
+    setAttempt((a) => a + 1);
+  }
+
+  if (questions.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          No questions available for this exam yet.
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!started) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Practice Exam</CardTitle>
+          <CardTitle>Ready to start?</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {examQuestions.length} questions drawn from all AI-200 domains.
-            Answer each question, then review your score at the end.
+            {examQuestions.length} question
+            {examQuestions.length !== 1 && "s"} in this exam. Answer each one,
+            then review your score at the end.
           </p>
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            {DOMAINS.map((d) => (
-              <li key={d.id}>
-                • {d.title} ({d.weight})
-              </li>
-            ))}
-          </ul>
+          {exam.domains === "all" && (
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              {DOMAINS.map((d) => (
+                <li key={d.id}>
+                  • {d.title} ({d.weight})
+                </li>
+              ))}
+            </ul>
+          )}
           <Button onClick={() => setStarted(true)}>Start exam</Button>
         </CardContent>
       </Card>
@@ -71,6 +96,8 @@ export function ExamSession({ questions }: { questions: Question[] }) {
         score={score}
         total={examQuestions.length}
         domainScores={domainScores}
+        studySlug={studySlug}
+        showDomainBreakdown={exam.domains === "all"}
         onRetake={handleRetake}
       />
     );
