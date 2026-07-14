@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, ClipboardList, GraduationCap } from "lucide-react";
@@ -15,14 +14,8 @@ import {
 import { DOMAINS } from "@/lib/domains";
 import { SkillFocusSection } from "@/components/skill-focus-section";
 import { PreparedBy } from "@/components/site-footer";
-import { EXAMS } from "@/lib/exams";
-import { getLearningPaths } from "@/lib/content";
-import { getAllQuestions } from "@/lib/questions";
 
 export default function HomePage() {
-  const paths = getLearningPaths();
-  const questions = getAllQuestions();
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <section className="mb-12">
@@ -106,51 +99,6 @@ export default function HomePage() {
               </CardContent>
             </Card>
           ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-xl font-semibold">What&apos;s included</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Study guides</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-primary">
-                {paths.length}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Official Microsoft Learn learning paths
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Questions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-primary">
-                {questions.length}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                MCQ and scenario-style with explanations
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Practice exams</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-primary">
-                {EXAMS.length}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Topic-focused exams plus full mock test
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </section>
     </div>
