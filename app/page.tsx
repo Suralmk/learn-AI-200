@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { DOMAINS } from "@/lib/domains";
 import { SkillFocusSection } from "@/components/skill-focus-section";
+import { PreparedBy } from "@/components/site-footer";
 import { EXAMS } from "@/lib/exams";
 import { getLearningPaths } from "@/lib/content";
 import { getAllQuestions } from "@/lib/questions";
@@ -46,10 +47,11 @@ export default function HomePage() {
               — the Azure AI Cloud Developer Associate certification. Study guides
               with code samples, practice questions, and a mock exam.
             </p>
-            <p className="mb-6 text-sm text-muted-foreground">
+            <p className="mb-2 text-sm text-muted-foreground">
               For developers building back-end AI solutions with Python, containers,
               vector databases, and Azure services.
             </p>
+            <PreparedBy className="mb-6 text-sm text-muted-foreground" />
             <div className="flex flex-wrap gap-3">
               <Button render={<Link href="/study" />}>
                 <BookOpen data-icon="inline-start" />
