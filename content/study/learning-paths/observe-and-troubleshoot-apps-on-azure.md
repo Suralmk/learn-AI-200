@@ -2,7 +2,7 @@
 title: Observe and troubleshoot apps on Azure
 slug: observe-and-troubleshoot-apps-on-azure
 certification: AI-200
-duration: 2 hr 41 min
+duration: ''
 level: Intermediate
 description: >-
   This learning path teaches you how to gain end-to-end observability into
@@ -25,7 +25,7 @@ skillFocus: observability
 order: 8
 modules:
   - name: Instrument an app with OpenTelemetry
-    duration: 1 hr 19 min
+    duration: ''
     description: >-
       Learn how to instrument distributed applications with OpenTelemetry on
       Azure, create custom spans and traces, export telemetry to Azure Monitor
@@ -39,7 +39,7 @@ modules:
       - Debug distributed flows with trace data
       - Exercise - Instrument an app with the OpenTelemetry SDK
   - name: Analyze app telemetry with logs and metrics
-    duration: 1 hr 22 min
+    duration: ''
     description: >-
       Learn to write KQL queries against Application Insights logs, explore
       error patterns and performance trends, build dashboards and workbooks for

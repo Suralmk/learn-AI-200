@@ -2,7 +2,7 @@
 title: Develop AI solutions with Azure Database for PostgreSQL
 slug: develop-ai-solutions-with-azure-database-for-postgresql
 certification: AI-200
-duration: 4 hr 54 min
+duration: ''
 level: Intermediate
 description: >-
   This learning path guides you through developing AI solutions using Azure
@@ -28,7 +28,7 @@ skillFocus: vector-databases
 order: 4
 modules:
   - name: Build and query with Azure Database for PostgreSQL
-    duration: 1 hr 29 min
+    duration: ''
     description: >-
       Learn how to use Azure Database for PostgreSQL to build data foundations
       for AI applications. Design schemas, write efficient queries, and
@@ -41,7 +41,7 @@ modules:
       - Integrate SDKs and applications
       - Exercise - Build an agent tool backend on Azure Database for PostgreSQL
   - name: Implement vector search with Azure Database for PostgreSQL
-    duration: 1 hr 34 min
+    duration: ''
     description: >-
       Learn how to implement vector search using the pgvector extension in Azure
       Database for PostgreSQL. Store embeddings, create vector indexes, and
@@ -54,7 +54,7 @@ modules:
       - Implement retrieval patterns for RAG pipelines
       - Exercise - Implement vector search on Azure Database for PostgreSQL
   - name: Optimize vector search in Azure Database for PostgreSQL
-    duration: 1 hr 51 min
+    duration: ''
     description: >-
       Learn how to optimize vector search performance in Azure Database for
       PostgreSQL using pgvector. Tune configuration parameters, select and

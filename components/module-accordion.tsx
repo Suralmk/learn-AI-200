@@ -25,11 +25,6 @@ export function ModuleAccordion({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{module.name}</span>
-                {module.duration && (
-                  <span className="text-xs text-muted-foreground">
-                    {module.duration}
-                  </span>
-                )}
               </div>
               <p className="mt-1 line-clamp-1 text-sm text-muted-foreground group-open:hidden">
                 {module.description}

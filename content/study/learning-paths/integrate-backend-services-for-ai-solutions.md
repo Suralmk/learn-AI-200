@@ -2,7 +2,7 @@
 title: Integrate backend services for AI solutions
 slug: integrate-backend-services-for-ai-solutions
 certification: AI-200
-duration: 4 hr 23 min
+duration: ''
 level: Intermediate
 description: >-
   This learning path teaches you how to build and integrate backend services
@@ -26,7 +26,7 @@ skillFocus: ai-development
 order: 6
 modules:
   - name: Queue and process AI operations with Azure Service Bus
-    duration: 1 hr 21 min
+    duration: ''
     description: >-
       Learn how to use Azure Service Bus to decouple AI application components,
       queue inference requests, distribute processing workloads across competing
@@ -38,7 +38,7 @@ modules:
       - Process messages reliably
       - Exercise - Process messages with Azure Service Bus
   - name: Develop event-driven AI workflows with Azure Event Grid
-    duration: 1 hr 24 min
+    duration: ''
     description: >-
       Build reactive AI architectures using Azure Event Grid to route events
       from sources to handlers with low latency and high reliability. Configure

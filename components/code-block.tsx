@@ -11,60 +11,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const LANGUAGE_META: Record<
-  string,
-  { label: string; headerClass: string; prismLanguage: string }
-> = {
-  python: {
-    label: "Python",
-    headerClass: "bg-[#3776ab]",
-    prismLanguage: "python",
-  },
-  bash: {
-    label: "Azure CLI",
-    headerClass: "bg-[#0177d1]",
-    prismLanguage: "bash",
-  },
-  sh: {
-    label: "Azure CLI",
-    headerClass: "bg-[#0177d1]",
-    prismLanguage: "bash",
-  },
-  kusto: {
-    label: "KQL",
-    headerClass: "bg-[#55198b]",
-    prismLanguage: "sql",
-  },
-  csharp: {
-    label: "C#",
-    headerClass: "bg-[#68217a]",
-    prismLanguage: "csharp",
-  },
-  cs: {
-    label: "C#",
-    headerClass: "bg-[#68217a]",
-    prismLanguage: "csharp",
-  },
-  json: {
-    label: "JSON",
-    headerClass: "bg-[#292929]",
-    prismLanguage: "json",
-  },
-};
-
-const DEFAULT_META = {
-  label: "Code",
-  headerClass: "bg-muted-foreground/80",
-  prismLanguage: "text",
-};
+const LANGUAGE_LABELS: Record<string, { label: string; prismLanguage: string }> =
+  {
+    python: { label: "Python", prismLanguage: "python" },
+    bash: { label: "Azure CLI", prismLanguage: "bash" },
+    sh: { label: "Azure CLI", prismLanguage: "bash" },
+    kusto: { label: "KQL", prismLanguage: "sql" },
+    csharp: { label: "C#", prismLanguage: "csharp" },
+    cs: { label: "C#", prismLanguage: "csharp" },
+    json: { label: "JSON", prismLanguage: "json" },
+  };
 
 function getLanguageMeta(language: string) {
   const key = language.toLowerCase();
-  return LANGUAGE_META[key] ?? {
-    ...DEFAULT_META,
-    label: key.charAt(0).toUpperCase() + key.slice(1),
-    prismLanguage: key,
-  };
+  return (
+    LANGUAGE_LABELS[key] ?? {
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      prismLanguage: key,
+    }
+  );
 }
 
 export function CodeBlock({
@@ -94,18 +59,13 @@ export function CodeBlock({
         className
       )}
     >
-      <div
-        className={cn(
-          "flex items-center justify-between px-3 py-1.5 text-white",
-          meta.headerClass
-        )}
-      >
+      <div className="flex items-center justify-between bg-muted px-3 py-1.5 text-muted-foreground">
         <span className="text-xs font-medium tracking-wide">{meta.label}</span>
         <Button
           variant="ghost"
           size="icon-xs"
           onClick={handleCopy}
-          className="text-white hover:bg-white/15 hover:text-white"
+          className="text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
           aria-label="Copy code"
         >
           {copied ? <Check /> : <Copy />}
@@ -113,19 +73,19 @@ export function CodeBlock({
       </div>
       <div className="bg-muted/40 dark:bg-[#1e1e1e]">
         <SyntaxHighlighter
-        language={meta.prismLanguage}
-        style={isDark ? oneDark : oneLight}
-        customStyle={{
-          margin: 0,
-          padding: "1rem",
-          background: "transparent",
-          fontSize: "0.875rem",
-        }}
-        codeTagProps={{
-          className: "font-mono",
-        }}
-      >
-        {code}
+          language={meta.prismLanguage}
+          style={isDark ? oneDark : oneLight}
+          customStyle={{
+            margin: 0,
+            padding: "1rem",
+            background: "transparent",
+            fontSize: "0.875rem",
+          }}
+          codeTagProps={{
+            className: "font-mono",
+          }}
+        >
+          {code}
         </SyntaxHighlighter>
       </div>
     </div>

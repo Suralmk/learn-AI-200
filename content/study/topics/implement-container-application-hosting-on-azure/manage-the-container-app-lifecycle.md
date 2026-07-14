@@ -1,11 +1,11 @@
 ---
 title: Manage the container app lifecycle
 pathSlug: implement-container-application-hosting-on-azure
-moduleName: Manage containers in Azure Container Apps
+moduleName: Troubleshoot container apps
 ---
 ## Overview
 
-Study notes for **Manage the container app lifecycle** — part of the *Manage containers in Azure Container Apps* module in the Implement container application hosting on Azure learning path for AI-200 exam preparation.
+Study notes for **Manage the container app lifecycle** — part of the *Troubleshoot container apps* module in the Implement container application hosting on Azure learning path for AI-200 exam preparation.
 
 ## Key concepts
 

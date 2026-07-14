@@ -1,15 +1,18 @@
 ---
-title: Implement container application hosting on Azure
+title: Deploy and operate containers on Azure App Service
 slug: implement-container-application-hosting-on-azure
 certification: AI-200
 duration: ''
 level: ''
 description: >-
-  Use Azure Container Registry to store, build, and manage container images for
-  AI applications; learn the registry hierarchy, build images with ACR Tasks,
-  and implement tagging strategies for reliable deployments. Also covers
-  deploying and managing containerized applications on Azure App Service and
-  Azure Container Apps.
+  Deploy custom containers to Azure App Service from ACR (managed identity or
+  admin credentials), Docker Hub, and other registries using the portal and CLI.
+  Configure app settings, connection strings, slot settings, Key Vault
+  references, and runtime behavior (ports, startup, Always On, health checks,
+  persistent storage). Cover day-two operations—image updates, continuous
+  deployment, and pull behavior—plus troubleshooting with log stream, filesystem
+  logs, Kudu, and common failure patterns. Includes a hands-on Quote API project
+  that builds with ACR Tasks and runs on Azure Container Apps.
 tags:
   - Azure Container Registry
   - Azure App Service
@@ -32,34 +35,59 @@ modules:
       configuration, and diagnostics.
     topics:
       - Explore Container Apps environments
-      - Deploy a container app using the Azure CLI and YAML
-      - Configure runtime settings with environment variables and secrets
-      - Configure image pull authentication for private registries
-      - Verify deployments with logs and status
-  - name: Manage containers in Azure Container Apps
-    duration: 1 hr 8 min
+      - Deploy using the Azure portal
+      - Deploy to App Service using CLI
+      - Deploy from other container registries
+      - ACR authentication options
+  - name: Configure app settings for Azure container environments
+    duration: ''
     description: >-
-      Manage container apps across the day-two lifecycle. Update images, manage
-      revisions, diagnose failing deployments, tune resources and scaling, and
-      troubleshoot with logs and health probes.
+      Configure application settings, connection strings, slot settings, Key Vault
+      references, and container runtime behavior for App Service containers.
     topics:
-      - Update images and manage revisions safely
+      - App settings
+      - Connection strings
+      - Bulk editing
+      - Slot settings
+      - Key Vault references
+      - Configure container runtime behavior
+  - name: Manage containers in Azure Container Apps
+    duration: ''
+    description: >-
+      Manage day-two container hosting on App Service and Container Apps. Update
+      images, enable continuous deployment, understand image pull behavior, and
+      verify deployments.
+    topics:
+      - Update the container image
+      - Enable continuous deployment
+      - Image pull behavior
+      - Verify the deployment
+  - name: Troubleshoot container apps
+    duration: ''
+    description: >-
+      Diagnose and resolve common deployment and runtime issues in Azure Container
+      Apps. Manage the app lifecycle, monitor logs, configure health probes, and
+      troubleshoot failures with Azure monitoring tools.
+    topics:
       - Manage the container app lifecycle
       - Monitor logs and troubleshoot issues
       - Configure health probes and troubleshoot failures
-      - Optimize container resources and scaling
-  - name: Scale containers in Azure Container Apps
-    duration: 1 hr 27 min
+      - Troubleshoot container apps
+      - Stream container logs
+      - Configure container logs
+      - Diagnostic console (Kudu)
+      - Common issues and solutions
+  - name: 'Project: Example — Deploying a container to Azure Container Apps'
+    duration: ''
     description: >-
-      Learn how to configure automatic horizontal scaling for containerized
-      applications in Azure Container Apps. Configure HTTP, TCP, CPU, and memory
-      scale rules, implement event-driven scaling with KEDA, optimize compute
-      resources, and apply revision modes for traffic management.
+      Hands-on Quote API sample: build with ACR Tasks, push to Azure Container
+      Registry, and deploy to Azure Container Apps. Includes architecture,
+      local setup, deploy scripts, commands, and environment variables.
     topics:
-      - Configure scale rules
-      - Implement event-driven scaling with KEDA
-      - Apply KEDA scalers for custom workloads
-      - Select compute resources for performance and cost
-      - Choose and apply revision modes
+      - Project overview
+      - Architecture and folder structure
+      - Setup and local run
+      - Deploy script explained
+      - Commands reference
+      - Environment variables
 ---
-

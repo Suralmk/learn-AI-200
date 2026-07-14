@@ -1,11 +1,11 @@
 ---
-title: Verify deployments with logs and status
+title: Troubleshoot container apps
 pathSlug: implement-container-application-hosting-on-azure
-moduleName: Deploy containers to Azure App Service
+moduleName: Troubleshoot container apps
 ---
 ## Overview
 
-Study notes for **Verify deployments with logs and status** — part of the *Deploy containers to Azure App Service* module in the Implement container application hosting on Azure learning path for AI-200 exam preparation.
+Study notes for **Troubleshoot container apps** — part of the *Troubleshoot container apps* module in the Implement container application hosting on Azure learning path for AI-200 exam preparation.
 
 ## Key concepts
 
@@ -25,13 +25,13 @@ Study notes for **Verify deployments with logs and status** — part of the *Dep
 # Replace with resource group and names for your environment
 az group create --name rg-ai200 --location eastus
 
-# Add service-specific commands for: Verify deployments with logs and status
+# Add service-specific commands for: Troubleshoot container apps
 ```
 
 ## Python
 
 ```python
-# Example pattern for: Verify deployments with logs and status
+# Example pattern for: Troubleshoot container apps
 # Integrate with Azure SDKs using managed identity where possible
 
 def main():

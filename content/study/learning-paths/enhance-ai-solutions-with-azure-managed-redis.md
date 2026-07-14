@@ -2,7 +2,7 @@
 title: Enhance AI solutions with Azure Managed Redis
 slug: enhance-ai-solutions-with-azure-managed-redis
 certification: AI-200
-duration: 3 hr 42 min
+duration: ''
 level: Intermediate
 description: >-
   Learn how to use Azure Managed Redis to enhance your AI solutions, including
@@ -22,7 +22,7 @@ skillFocus: vector-databases
 order: 5
 modules:
   - name: Implement data operations in Azure Managed Redis
-    duration: 1 hr 1 min
+    duration: ''
     description: >-
       Learn how to implement data operations in Azure Managed Redis. Covers
       Azure Managed Redis features, client library best practices, and how to
@@ -33,7 +33,7 @@ modules:
       - Implement data operations
       - Exercise - Perform data operations in Azure Managed Redis
   - name: Implement event messaging with Azure Managed Redis
-    duration: 1 hr 21 min
+    duration: ''
     description: >-
       Learn how to implement event messaging with Azure Managed Redis, including
       pub/sub for broadcasting notifications and Redis Streams for reliable
@@ -44,7 +44,7 @@ modules:
       - Choose between broadcast and coordinated distribution
       - Exercise - Publish and subscribe to events in Azure Managed Redis
   - name: Implement vector storage in Azure Managed Redis
-    duration: 1 hr 20 min
+    duration: ''
     description: >-
       Learn how to implement vector storage and similarity search in Azure
       Managed Redis. Covers creating vector indexes, querying embeddings,

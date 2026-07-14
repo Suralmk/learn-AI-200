@@ -2,7 +2,7 @@
 title: Develop AI solutions with Azure Cosmos DB for NoSQL
 slug: develop-ai-solutions-with-azure-cosmos-db-for-nosql
 certification: AI-200
-duration: 4 hr 12 min
+duration: ''
 level: Intermediate
 description: >-
   This learning path guides you through developing AI solutions using Azure
@@ -26,7 +26,7 @@ skillFocus: vector-databases
 order: 3
 modules:
   - name: Build queries for Azure Cosmos DB for NoSQL
-    duration: 1 hr 12 min
+    duration: ''
     description: >-
       Learn how to connect to Azure Cosmos DB for NoSQL using the SDK, perform
       data operations on items, and write efficient SQL queries to retrieve
@@ -37,7 +37,7 @@ modules:
       - Query Azure Cosmos DB for NoSQL
       - Exercise - Build a RAG document store on Azure Cosmos DB for NoSQL
   - name: Implement vector search on Azure Cosmos DB for NoSQL
-    duration: 1 hr 24 min
+    duration: ''
     description: >-
       Learn how to store vector embeddings, execute similarity queries using the
       VectorDistance function, combine vector search with metadata filters and
@@ -51,7 +51,7 @@ modules:
         Exercise - Build a semantic search application with Azure Cosmos DB for
         NoSQL
   - name: Optimize query performance for Azure Cosmos DB for NoSQL
-    duration: 1 hr 36 min
+    duration: ''
     description: >-
       Learn how to optimize query performance by analyzing query patterns,
       configuring range and composite indexes, selecting vector index types, and

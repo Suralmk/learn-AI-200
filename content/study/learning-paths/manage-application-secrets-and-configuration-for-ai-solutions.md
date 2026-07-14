@@ -2,7 +2,7 @@
 title: Manage application secrets and configuration for AI solutions
 slug: manage-application-secrets-and-configuration-for-ai-solutions
 certification: AI-200
-duration: 2 hr 33 min
+duration: ''
 level: Intermediate
 description: >-
   This learning path teaches you how to securely manage secrets and centralize
@@ -24,7 +24,7 @@ skillFocus: security
 order: 7
 modules:
   - name: Manage application secrets with Azure Key Vault
-    duration: 1 hr 14 min
+    duration: ''
     description: >-
       Learn how to use Azure Key Vault to store, retrieve, and manage secrets in
       AI solutions on Azure. Covers vault organization, SDK-based secret
@@ -37,7 +37,7 @@ modules:
       - Implement caching strategies to reduce Key Vault calls
       - Exercise - Manage secrets with Azure Key Vault
   - name: Manage application settings with Azure App Configuration
-    duration: 1 hr 19 min
+    duration: ''
     description: >-
       Learn how to use Azure App Configuration to centralize application
       settings for AI solutions on Azure. Covers connecting from Python
