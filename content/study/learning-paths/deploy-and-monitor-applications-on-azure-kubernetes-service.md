@@ -21,7 +21,7 @@ filterTags:
   - aks
   - kubernetes
 skillFocus: ai-development
-order: 2
+order: 3
 modules:
   - name: Deploy applications to Azure Kubernetes Service
     duration: ''

@@ -19,6 +19,7 @@ export const SKILL_FOCUS_AREAS: SkillFocus[] = [
       "Build and integrate AI solutions on Azure by leveraging containerized compute, event-driven AI pipelines, and serverless functions for scalable AI deployments.",
     pathSlugs: [
       "implement-container-application-hosting-on-azure",
+      "deploy-and-manage-apps-on-azure-container-apps",
       "deploy-and-monitor-applications-on-azure-kubernetes-service",
       "integrate-backend-services-for-ai-solutions",
     ],

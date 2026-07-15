@@ -21,7 +21,7 @@ filterTags:
   - app-configuration
   - security
 skillFocus: security
-order: 7
+order: 8
 modules:
   - name: Manage application secrets with Azure Key Vault
     duration: ''

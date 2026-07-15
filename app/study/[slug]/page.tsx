@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { DomainBadge } from "@/components/domain-badge";
-import { MarkdownContent } from "@/components/markdown-content";
 import { ModuleAccordion } from "@/components/module-accordion";
+import { StudyArticle } from "@/components/study-article";
 import { Button } from "@/components/ui/button";
 import {
   getStudyGuide,
@@ -100,26 +100,28 @@ export default async function StudyDetailPage({
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-6 -ml-2"
-        render={<Link href="/study" />}
-      >
-        <ArrowLeft data-icon="inline-start" />
-        Back to study
-      </Button>
-
-      <header className="mb-8 border-b border-border pb-8">
-        <DomainBadge domain={guide!.domain} className="mb-3" />
-        <h1 className="text-2xl font-semibold">{guide!.title}</h1>
-        <p className="mt-3 leading-relaxed text-muted-foreground">
-          {guide!.description}
-        </p>
-      </header>
-
-      <MarkdownContent content={guide!.content} />
-    </div>
+    <StudyArticle
+      content={guide!.content}
+      header={
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-6 -ml-2"
+            render={<Link href="/study" />}
+          >
+            <ArrowLeft data-icon="inline-start" />
+            Back to study
+          </Button>
+          <header className="mb-8 max-w-3xl border-b border-border pb-8">
+            <DomainBadge domain={guide!.domain} className="mb-3" />
+            <h1 className="text-2xl font-semibold">{guide!.title}</h1>
+            <p className="mt-3 leading-relaxed text-muted-foreground">
+              {guide!.description}
+            </p>
+          </header>
+        </>
+      }
+    />
   );
 }

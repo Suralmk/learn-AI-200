@@ -20,6 +20,9 @@ const LANGUAGE_LABELS: Record<string, { label: string; prismLanguage: string }> 
     csharp: { label: "C#", prismLanguage: "csharp" },
     cs: { label: "C#", prismLanguage: "csharp" },
     json: { label: "JSON", prismLanguage: "json" },
+    env: { label: "Env", prismLanguage: "bash" },
+    dockerfile: { label: "Dockerfile", prismLanguage: "docker" },
+    text: { label: "Diagram", prismLanguage: "text" },
   };
 
 function getLanguageMeta(language: string) {

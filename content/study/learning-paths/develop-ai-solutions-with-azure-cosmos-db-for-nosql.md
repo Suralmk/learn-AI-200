@@ -23,7 +23,7 @@ filterTags:
   - embeddings
   - databases
 skillFocus: vector-databases
-order: 3
+order: 4
 modules:
   - name: Build queries for Azure Cosmos DB for NoSQL
     duration: ''

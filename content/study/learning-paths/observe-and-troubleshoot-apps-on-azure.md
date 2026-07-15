@@ -22,7 +22,7 @@ filterTags:
   - kql
   - observability
 skillFocus: observability
-order: 8
+order: 9
 modules:
   - name: Instrument an app with OpenTelemetry
     duration: ''

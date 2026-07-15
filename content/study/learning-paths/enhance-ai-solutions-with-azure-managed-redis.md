@@ -19,7 +19,7 @@ filterTags:
   - vector
   - embeddings
 skillFocus: vector-databases
-order: 5
+order: 6
 modules:
   - name: Implement data operations in Azure Managed Redis
     duration: ''

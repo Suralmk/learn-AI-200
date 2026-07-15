@@ -23,7 +23,7 @@ filterTags:
   - azure-functions
   - backend
 skillFocus: ai-development
-order: 6
+order: 7
 modules:
   - name: Queue and process AI operations with Azure Service Bus
     duration: ''
