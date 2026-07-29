@@ -16,9 +16,14 @@ export const EXAMS: Exam[] = [
     id: "full",
     title: "Full AI-200 Mock Exam",
     description:
-      "Random questions across all four exam domains — simulate the full certification test.",
-    domains: "all",
-    questionCount: 20,
+      "Mixed questions across all AI-200 exam domains — simulate the full certification test.",
+    domains: [
+      "containers",
+      "data-management",
+      "azure-services",
+      "secure-monitor",
+    ],
+    questionCount: 50,
   },
   {
     id: "containers",
@@ -26,16 +31,16 @@ export const EXAMS: Exam[] = [
     description:
       "Azure Container Registry, Container Apps, AKS, and KEDA for hosting AI workloads.",
     domains: ["containers"],
-    questionCount: 10,
+    questionCount: 35,
     studySlug: "container-apps",
   },
   {
     id: "rag-on-azure",
-    title: "RAG on Azure",
+    title: "Data Management for AI",
     description:
       "Cosmos DB vector search, PostgreSQL pgvector, and Managed Redis for retrieval-augmented generation.",
     domains: ["data-management"],
-    questionCount: 10,
+    questionCount: 42,
     studySlug: "cosmos-db-ai",
   },
   {
@@ -44,7 +49,7 @@ export const EXAMS: Exam[] = [
     description:
       "Service Bus, Event Grid, and Azure Functions for event-driven AI pipelines.",
     domains: ["azure-services"],
-    questionCount: 10,
+    questionCount: 34,
     studySlug: "service-bus-event-grid",
   },
   {
@@ -53,8 +58,16 @@ export const EXAMS: Exam[] = [
     description:
       "Key Vault, App Configuration, OpenTelemetry, and KQL for securing and observing AI solutions.",
     domains: ["secure-monitor"],
-    questionCount: 10,
+    questionCount: 36,
     studySlug: "security-keyvault",
+  },
+  {
+    id: "sdk-cli",
+    title: "Azure SDK and Azure CLI Quiz",
+    description:
+      "CLI commands and Python SDK classes/methods for deploying, configuring, authenticating, and troubleshooting AI solutions on Azure.",
+    domains: ["sdk-cli"],
+    questionCount: 63,
   },
 ];
 

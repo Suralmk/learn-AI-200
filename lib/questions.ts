@@ -3,6 +3,7 @@ import path from "path";
 import type { DomainId } from "./domains";
 
 export type QuestionType = "mcq" | "scenario";
+export type Difficulty = "Easy" | "Medium" | "Hard";
 
 export interface Question {
   id: string;
@@ -12,6 +13,9 @@ export interface Question {
   options: string[];
   answer: number;
   explanation: string;
+  difficulty?: Difficulty;
+  relatedService?: string;
+  relatedObjective?: string;
 }
 
 const QUESTIONS_DIR = path.join(process.cwd(), "content", "questions");
@@ -21,7 +25,8 @@ export function getAllQuestions(): Question[] {
 
   const files = fs
     .readdirSync(QUESTIONS_DIR)
-    .filter((f) => f.endsWith(".json"));
+    .filter((f) => f.endsWith(".json"))
+    .sort();
 
   const questions: Question[] = [];
 

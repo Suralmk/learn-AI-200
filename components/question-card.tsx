@@ -25,6 +25,21 @@ export function QuestionCard({
       <CardHeader className="gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <DomainBadge domain={question.domain} />
+          {question.difficulty && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-medium",
+                question.difficulty === "Easy" &&
+                  "bg-green-500/10 text-green-700 dark:text-green-400",
+                question.difficulty === "Medium" &&
+                  "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                question.difficulty === "Hard" &&
+                  "bg-red-500/10 text-red-700 dark:text-red-400"
+              )}
+            >
+              {question.difficulty}
+            </span>
+          )}
           <span className="text-xs uppercase tracking-wide text-muted-foreground">
             {question.type}
           </span>
@@ -84,6 +99,26 @@ export function QuestionCard({
               {isCorrect ? "Correct!" : "Incorrect"}
             </p>
             <MarkdownContent content={question.explanation} />
+            {(question.relatedService || question.relatedObjective) && (
+              <div className="mt-3 space-y-1 border-t pt-3 text-xs text-muted-foreground">
+                {question.relatedService && (
+                  <p>
+                    <span className="font-medium text-foreground">
+                      Related Azure Service:
+                    </span>{" "}
+                    {question.relatedService}
+                  </p>
+                )}
+                {question.relatedObjective && (
+                  <p>
+                    <span className="font-medium text-foreground">
+                      Related AI-200 Objective:
+                    </span>{" "}
+                    {question.relatedObjective}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

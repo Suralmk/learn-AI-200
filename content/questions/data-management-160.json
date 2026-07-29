@@ -1,0 +1,461 @@
+[
+  {
+    "id": "data-101",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Which Azure Cosmos DB API is purpose-built for flexible, schema-less JSON document storage commonly used to persist chat history and embeddings in AI applications?",
+    "options": [
+      "Azure Cosmos DB for NoSQL",
+      "Azure Cosmos DB for Table",
+      "Azure Cosmos DB for Cassandra",
+      "Azure Cosmos DB for Gremlin"
+    ],
+    "answer": 0,
+    "explanation": "The NoSQL (formerly SQL) API is the native, most feature-complete Cosmos DB API, offering JSON documents, SQL-like querying, and first-class vector search support widely used in RAG applications. Table API mimics key-value storage, Cassandra API targets wide-column workloads migrating from Cassandra, and Gremlin targets graph data — none are the primary recommended choice for flexible AI document + vector storage.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-102",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your Python application must connect to Azure Cosmos DB for NoSQL using Microsoft Entra ID rather than a primary key. Which SDK construct should you use?",
+    "options": [
+      "CosmosClient(url, credential=DefaultAzureCredential())",
+      "CosmosClient(url, credential=primary_key_string)",
+      "requests.get(url, headers={'key': primary_key})",
+      "CosmosClient.from_connection_string(conn_str)"
+    ],
+    "answer": 0,
+    "explanation": "Passing a DefaultAzureCredential (or another TokenCredential) as the credential parameter enables Entra ID / managed identity authentication instead of key-based auth, which is the Microsoft-recommended, more secure pattern. The other options rely on static keys or raw HTTP calls that bypass RBAC entirely.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL SDK",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-103",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A Cosmos DB for NoSQL container is consuming far more RUs than expected for point reads on a well-chosen partition key. What is the most likely cause?",
+    "options": [
+      "The indexing policy is indexing properties that are never queried, inflating write and read RU cost",
+      "The partition key is too selective",
+      "The container's default consistency level is set to Strong",
+      "The account is using the NoSQL API instead of Table API"
+    ],
+    "answer": 0,
+    "explanation": "An overly broad indexing policy (indexing every property by default) increases RU consumption for both writes and certain reads; narrowing the policy to only index queried paths reduces cost. A highly selective partition key is actually good for point reads, Strong consistency affects latency/availability trade-offs more than RU cost for reads directly tied to indexing, and API choice doesn't explain excess RU usage on an already-provisioned NoSQL container.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-104",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You are designing a RAG system storing 1536-dimension embeddings in Cosmos DB for NoSQL. Query latency for vector similarity search is too high at scale. What should you configure to improve it?",
+    "options": [
+      "A vector index (e.g., quantizedFlat or diskANN) defined in the container's indexing policy on the embedding path",
+      "A composite index on all string properties",
+      "A higher consistency level such as Strong",
+      "Switching the container to use hierarchical partition keys only, without a vector index"
+    ],
+    "answer": 0,
+    "explanation": "Cosmos DB for NoSQL requires an explicit vector index type (flat, quantizedFlat, or diskANN) configured in the vectorIndexes section of the indexing policy to efficiently perform vector similarity search at scale — without it, queries fall back to brute-force scans. Composite indexes address multi-property sort/filter queries, not vector search; higher consistency increases latency rather than improving vector search speed; and hierarchical partition keys alone don't accelerate similarity search without a vector index.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-105",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need your application to react in near-real time whenever new documents (containing chatbot transcripts) are inserted into a Cosmos DB for NoSQL container, so they can be embedded and indexed for search. What should you implement?",
+    "options": [
+      "A change feed processor listening on the container",
+      "A nightly scheduled batch export job",
+      "A polling loop that queries the container every hour",
+      "A Cosmos DB stored procedure triggered manually"
+    ],
+    "answer": 0,
+    "explanation": "The change feed processor provides a persistent, low-latency feed of inserts and updates in a container, ideal for driving downstream embedding/indexing pipelines in near real time. Nightly batch jobs and hourly polling introduce unacceptable latency for near-real-time requirements, and manually triggered stored procedures aren't an event-driven mechanism.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-106",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your globally distributed AI application reads from Cosmos DB for NoSQL and can tolerate slightly stale data in exchange for the lowest possible read latency and highest availability. Which consistency level should you choose?",
+    "options": [
+      "Eventual or Session consistency",
+      "Strong consistency",
+      "Bounded Staleness with a staleness window of zero",
+      "There is no way to trade consistency for latency in Cosmos DB"
+    ],
+    "answer": 0,
+    "explanation": "Eventual (or Session, which adds read-your-own-writes guarantees per client) offers the lowest latency and highest availability among Cosmos DB's five consistency levels, at the cost of potential staleness — an appropriate trade-off for latency-sensitive, staleness-tolerant workloads. Strong consistency maximizes correctness at the expense of latency/availability, a zero-staleness Bounded Staleness effectively behaves like Strong, and Cosmos DB explicitly offers this tunable trade-off.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-107",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Which Python package provides the client library to connect to Azure Database for PostgreSQL from application code?",
+    "options": [
+      "psycopg (or psycopg2) combined with azure-identity for token-based auth",
+      "azure-storage-blob",
+      "pymongo",
+      "azure-cosmos"
+    ],
+    "answer": 0,
+    "explanation": "psycopg/psycopg2 is the standard PostgreSQL driver for Python, and pairing it with azure-identity allows acquiring Entra ID access tokens for passwordless authentication to Azure Database for PostgreSQL. azure-storage-blob targets Blob Storage, pymongo targets MongoDB, and azure-cosmos targets Cosmos DB — none connect to PostgreSQL.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL SDK",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-108",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You are designing a table in Azure Database for PostgreSQL to store product embeddings for similarity search. Which extension must be enabled and which column type used?",
+    "options": [
+      "CREATE EXTENSION vector; and a column of type vector(n)",
+      "CREATE EXTENSION postgis; and a column of type geometry",
+      "CREATE EXTENSION pg_trgm; and a column of type text",
+      "No extension is required; use a standard numeric array"
+    ],
+    "answer": 0,
+    "explanation": "pgvector (CREATE EXTENSION vector) adds the vector(n) data type and similarity operators (<->, <=>, <#>) needed for efficient embedding storage and similarity search in PostgreSQL. PostGIS targets geospatial data, pg_trgm targets fuzzy text matching, and plain numeric arrays lack the indexing and distance operators pgvector provides.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-109",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A vector similarity search on a pgvector column in Azure Database for PostgreSQL is slow at scale (millions of rows) despite low compute overhead concerns. What is the most effective optimization?",
+    "options": [
+      "Create an HNSW (or IVFFlat) index on the vector column tuned with appropriate parameters",
+      "Add a B-tree index on the vector column",
+      "Increase the table's fill factor to 100",
+      "Convert the vector column to a JSONB column"
+    ],
+    "answer": 0,
+    "explanation": "pgvector supports approximate nearest-neighbor indexes — HNSW (generally higher recall/query speed) or IVFFlat (faster to build, needs tuning of 'lists') — which dramatically speed up similarity search versus a sequential scan. B-tree indexes don't support vector distance operators, fill factor tuning affects update performance not search speed, and JSONB removes the ability to use vector operators or indexes entirely.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-110",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your RAG pipeline needs to retrieve the top-k most relevant document chunks from PostgreSQL, but only within documents belonging to the current user's tenant. What is the recommended pattern?",
+    "options": [
+      "A vector similarity query combined with a WHERE clause filtering on tenant_id metadata, ideally with a supporting index on tenant_id",
+      "Retrieve all rows, then filter by tenant in application code after computing similarity",
+      "Use two completely separate PostgreSQL databases per tenant queried sequentially",
+      "Store tenant_id inside the embedding vector itself"
+    ],
+    "answer": 0,
+    "explanation": "Combining vector similarity search with metadata filtering (WHERE tenant_id = ...) in a single SQL query, backed by an index on tenant_id, implements RAG with metadata filtering efficiently and correctly scopes retrieval. Filtering in application code after full retrieval wastes compute and risks leaking cross-tenant data if a limit is hit early; per-tenant databases add operational overhead unnecessarily for this use case; and embedding tenant_id into the vector corrupts the semantic embedding.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-111",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your Azure Database for PostgreSQL instance is under heavy connection churn from a serverless AI application that opens many short-lived connections, causing latency spikes and occasional connection refusals. What should you implement to improve throughput?",
+    "options": [
+      "Connection pooling via PgBouncer (or the built-in Azure connection pooler) in transaction mode",
+      "Increase max_connections to an arbitrarily high value with no pooler",
+      "Switch the application to open a new database each time it connects",
+      "Disable SSL to reduce connection overhead"
+    ],
+    "answer": 0,
+    "explanation": "Connection pooling (e.g., PgBouncer in transaction pooling mode, or Azure's built-in pooler) reuses a smaller set of backend connections across many short-lived client connections, which is the standard, Microsoft-recommended fix for connection churn in serverless/high-concurrency scenarios. Simply raising max_connections increases memory/CPU overhead per connection without solving churn, creating new databases is irrelevant and harmful, and disabling SSL trades security for a negligible performance gain while not addressing the actual bottleneck.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-112",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "When modeling a schema in Azure Database for PostgreSQL for a document-chunking pipeline, which data type is most appropriate for storing large blocks of extracted text alongside metadata columns?",
+    "options": [
+      "text or varchar without an arbitrary length limit for the chunk content, with separate structured columns for metadata",
+      "A single JSONB blob containing both the chunk text and all metadata merged together",
+      "bytea for the text content",
+      "A vector column for the text content"
+    ],
+    "answer": 0,
+    "explanation": "Storing chunk text in a text/varchar column and metadata (source, page number, tenant, timestamps) in dedicated structured columns keeps queries efficient and indexable, following standard relational schema design. Merging everything into JSONB sacrifices type safety and indexing efficiency for structured fields, bytea is for binary data (not searchable text), and vector columns are reserved for embeddings, not raw text.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-113",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Which Azure service provides an in-memory data store commonly used to cache frequent AI application queries and reduce latency?",
+    "options": [
+      "Azure Managed Redis",
+      "Azure Data Lake Storage",
+      "Azure Database for PostgreSQL",
+      "Azure Files"
+    ],
+    "answer": 0,
+    "explanation": "Azure Managed Redis is the managed in-memory key-value store designed for caching, session state, and now vector search, ideal for reducing latency on repeated AI queries. Data Lake Storage and Azure Files are file/object storage systems (not in-memory caches), and PostgreSQL is a relational database better suited to durable structured storage than sub-millisecond caching.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Integrate Azure Managed Redis in AI solutions"
+  },
+  {
+    "id": "data-114",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You want cached AI-generated responses in Azure Managed Redis to automatically expire after 15 minutes so stale answers aren't served. What should you configure?",
+    "options": [
+      "A TTL (time-to-live/expiration) of 900 seconds on the cached key using EXPIRE or SETEX",
+      "A Redis keyspace notification with no expiration set",
+      "A manual cron job that scans and deletes all keys every 15 minutes",
+      "Redis persistence (RDB snapshotting) configured to run every 15 minutes"
+    ],
+    "answer": 0,
+    "explanation": "Setting a TTL via SETEX (or SET with EX) or the EXPIRE command causes Redis to automatically evict the key after the specified duration, which is the built-in, efficient mechanism for cache expiration. Keyspace notifications only announce events, they don't cause expiration; a manual scan-and-delete cron job is inefficient and error-prone compared to native TTL; and RDB persistence is about durability/snapshotting, not expiration.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Integrate Azure Managed Redis in AI solutions"
+  },
+  {
+    "id": "data-115",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your team wants to use Azure Managed Redis for both caching and low-latency vector similarity search of embeddings within the same cache tier. Which capability should you enable and use?",
+    "options": [
+      "RediSearch-based vector indexing (e.g., HNSW) on hash or JSON fields storing the embedding vector",
+      "Redis Sorted Sets scored purely by insertion order",
+      "Redis Pub/Sub channels to broadcast embeddings",
+      "Redis Streams with no index"
+    ],
+    "answer": 0,
+    "explanation": "Azure Managed Redis supports the search module enabling vector indexing (HNSW/flat) over hash or JSON documents, letting you run KNN/vector similarity queries directly against cached data. Sorted sets by insertion order don't support similarity search, Pub/Sub is a messaging pattern (not storage/search), and Streams without an index provide no similarity query capability.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Integrate Azure Managed Redis in AI solutions"
+  },
+  {
+    "id": "data-116",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "An application caches user session state in Azure Managed Redis and needs to invalidate a specific cached entry immediately when the underlying source record changes. What is the correct approach?",
+    "options": [
+      "Explicitly DEL (or UNLINK) the corresponding Redis key when the source record is updated",
+      "Wait for the TTL to naturally expire, even if it's several hours away",
+      "Restart the Redis instance to clear all cache entries",
+      "Rely on Redis eviction policy alone to remove the stale key"
+    ],
+    "answer": 0,
+    "explanation": "Explicit invalidation (DEL/UNLINK) at the moment of the source update is the standard cache-invalidation pattern for immediate consistency, rather than waiting on a long TTL. Waiting for TTL expiry leaves stale data served in the interim, restarting the instance is a heavy-handed operation that clears unrelated cached data too, and eviction policies (like LRU) only trigger under memory pressure, not on data changes.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Integrate Azure Managed Redis in AI solutions"
+  },
+  {
+    "id": "data-117",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need to implement retrieval-augmented generation where document chunks are filtered by both semantic similarity and a numeric 'publish_date' metadata range in Azure Database for PostgreSQL. Which query pattern is correct?",
+    "options": [
+      "SELECT ... ORDER BY embedding <=> query_vector LIMIT k combined with a WHERE clause on publish_date BETWEEN ... AND ...",
+      "Two separate unrelated queries whose results are unioned without any join key",
+      "A full table scan sorted only by publish_date, ignoring the embedding entirely",
+      "Store publish_date as text and use LIKE pattern matching for range filtering"
+    ],
+    "answer": 0,
+    "explanation": "Combining the pgvector distance operator (e.g., <=> for cosine distance) with a standard WHERE range filter in one SQL statement lets PostgreSQL's planner apply both the metadata filter and vector ranking efficiently in a single pass. Unrelated unioned queries don't correctly combine the two filter criteria, ignoring the embedding defeats the purpose of RAG, and text-based LIKE matching on dates is unreliable and can't express numeric range logic correctly.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-118",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Which Cosmos DB for NoSQL SDK method is used to execute a parameterized SQL query against a container from Python?",
+    "options": [
+      "container.query_items(query=..., parameters=[...])",
+      "container.upsert_item(body=...)",
+      "container.read_item(item=..., partition_key=...)",
+      "container.delete_item(item=..., partition_key=...)"
+    ],
+    "answer": 0,
+    "explanation": "query_items executes a SQL-like query (optionally parameterized) against the container and returns an iterable of matching items. upsert_item creates or replaces a single item, read_item fetches a single known item by id/partition key, and delete_item removes a single item — none of these run arbitrary queries.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL SDK",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-119",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A Cosmos DB for NoSQL change feed processor for an AI indexing pipeline occasionally reprocesses the same documents after a host restart. What is the most likely cause and fix?",
+    "options": [
+      "The lease container checkpoints weren't persisted frequently enough before the restart; ensure the lease container is properly provisioned and checkpointing is configured appropriately",
+      "The change feed is fundamentally at-most-once and reprocessing indicates a bug in Cosmos DB itself",
+      "The container's partition key was defined incorrectly",
+      "The consistency level should be lowered to Eventual to prevent reprocessing"
+    ],
+    "answer": 0,
+    "explanation": "The change feed processor uses a lease container to checkpoint progress; if checkpoints lag behind actual processing (e.g., due to infrequent checkpointing or an abrupt restart before a checkpoint), the processor resumes from the last saved checkpoint and reprocesses some documents — this is expected at-least-once semantics, and downstream consumers should be idempotent, while tuning checkpoint frequency reduces duplicate work. This isn't a Cosmos DB bug, the partition key design doesn't cause reprocessing, and lowering consistency level doesn't affect change feed checkpoint behavior.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-120",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your application performs frequent single-item lookups by a known 'userId' in Cosmos DB for NoSQL. To minimize RU cost, what should the partition key be?",
+    "options": [
+      "userId (or a property with similarly high cardinality and matching the lookup pattern)",
+      "A constant fixed value shared by all documents",
+      "A randomly generated GUID unrelated to any query pattern",
+      "The document's creation date only"
+    ],
+    "answer": 0,
+    "explanation": "Choosing userId as the partition key aligns the physical partitioning with the dominant access pattern (point reads by user), enabling efficient single-partition point reads at minimal RU cost. A constant partition key creates a hot partition and defeats horizontal scaling, an unrelated random GUID doesn't match query patterns and forces cross-partition fan-out, and partitioning solely by creation date doesn't align with the userId lookup pattern described.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-121",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You must reduce pgvector compute overhead for a write-heavy PostgreSQL table where embeddings are inserted in large nightly batches, but query latency during the day is not critical. What indexing strategy minimizes overhead?",
+    "options": [
+      "Use IVFFlat with a modest number of lists, and rebuild/REINDEX after each large nightly batch load",
+      "Use HNSW with maximum ef_construction and m values regardless of build cost",
+      "Avoid any vector index and always perform full sequential scans",
+      "Create a separate B-tree index for every column in the table"
+    ],
+    "answer": 0,
+    "explanation": "IVFFlat has a cheaper build cost than HNSW and is well suited to batch-oriented workloads where you can rebuild the index after loads to keep clustering accurate, trading some query recall for lower compute/maintenance overhead — appropriate given daytime latency isn't critical. Maximizing HNSW parameters increases build cost unnecessarily for this scenario, skipping indexing entirely causes slow scans on every query, and irrelevant B-tree indexes add overhead without helping vector search.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-122",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Which statement about Request Units (RUs) in Azure Cosmos DB for NoSQL is correct?",
+    "options": [
+      "RU consumption depends on item size, indexing policy, query complexity, and consistency level",
+      "RU consumption is fixed regardless of query complexity or item size",
+      "RUs only apply to write operations, not reads",
+      "RUs are only relevant when using the Table API"
+    ],
+    "answer": 0,
+    "explanation": "RU cost is influenced by multiple factors together: the size of items read/written, how many properties are indexed, query complexity (e.g., cross-partition, ORDER BY, aggregates), and the chosen consistency level. RUs apply to both reads and writes, are not fixed regardless of workload characteristics, and apply across all Cosmos DB APIs, not just Table.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-123",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "An AI application must guarantee that within a single client session, a user always sees their own writes to Cosmos DB for NoSQL immediately, while allowing other users to see slightly stale data for lower latency. Which consistency level fits best?",
+    "options": [
+      "Session consistency",
+      "Eventual consistency",
+      "Strong consistency across all clients",
+      "Consistent Prefix only"
+    ],
+    "answer": 0,
+    "explanation": "Session consistency guarantees read-your-own-writes and monotonic reads within the same session token/client, while still allowing lower latency and higher availability than Strong for other sessions — matching the described requirement precisely. Eventual consistency doesn't guarantee a user sees their own writes immediately, Strong consistency applies the strictest guarantee to every client (higher latency, unnecessary here), and Consistent Prefix only guarantees ordering without the read-your-own-writes guarantee needed.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-124",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "To store and retrieve embeddings in Cosmos DB for NoSQL, which container-level configuration must be defined before inserting vector data for it to be queryable via vector search?",
+    "options": [
+      "A vectorEmbeddingPolicy defining the embedding path, data type, dimensions, and distance function, plus a corresponding vector index in the indexing policy",
+      "A unique key constraint on the embedding property",
+      "A stored procedure that manually computes cosine similarity in JavaScript for every query",
+      "Nothing extra is required; any array property is automatically vector-searchable"
+    ],
+    "answer": 0,
+    "explanation": "Cosmos DB for NoSQL requires an explicit vectorEmbeddingPolicy (specifying path, dataType, dimensions, distanceFunction) at container creation, plus a matching vector index, before VectorDistance()-based queries can run efficiently. A unique key constraint doesn't enable vector search, hand-written stored procedures computing similarity in JavaScript would be far slower and isn't the supported approach, and arrays are not automatically vector-indexed without this configuration.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-125",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your application connects to Azure Database for PostgreSQL and experiences elevated latency due to establishing a new TCP+SSL handshake for every short-lived query. Besides pooling, what connection-level optimization helps?",
+    "options": [
+      "Reuse a persistent connection or pooled connection across requests instead of opening/closing per query",
+      "Disable TCP keepalives entirely",
+      "Force every connection to renegotiate SSL certificates on each query",
+      "Open connections using the deprecated SSL mode 'disable' for all traffic"
+    ],
+    "answer": 0,
+    "explanation": "Reusing persistent (or pooled) connections avoids the repeated overhead of TCP and SSL/TLS handshakes on every query, directly improving throughput and reducing latency. Disabling keepalives can lead to connections being dropped unexpectedly, forcing renegotiation increases overhead rather than reducing it, and disabling SSL removes encryption in transit, a security regression not aligned with best practice.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  },
+  {
+    "id": "data-126",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "In Azure Cosmos DB for NoSQL, what mechanism allows an application to detect and react to newly inserted or updated items in near real time?",
+    "options": [
+      "Change feed",
+      "Time to Live (TTL)",
+      "Partition key range",
+      "Indexing policy"
+    ],
+    "answer": 0,
+    "explanation": "The change feed is Cosmos DB's built-in, ordered log of inserts and updates per partition key range, designed specifically for building event-driven downstream processing. TTL controls automatic item expiration (not change detection), partition key ranges define physical data distribution, and the indexing policy governs which properties are indexed for queries.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL"
+  },
+  {
+    "id": "data-127",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your team must choose between Cosmos DB for NoSQL and Azure Database for PostgreSQL with pgvector for a new RAG application requiring complex relational joins across normalized tables in addition to vector search. Which is the better fit, and why?",
+    "options": [
+      "Azure Database for PostgreSQL with pgvector, because it natively supports relational joins and transactional integrity across normalized tables alongside vector search",
+      "Cosmos DB for NoSQL, because it is always faster for every workload type",
+      "Neither service supports vector search, so a third-party vector database is mandatory",
+      "Azure Managed Redis alone is sufficient for both relational joins and durable storage"
+    ],
+    "answer": 0,
+    "explanation": "When a workload requires genuine multi-table relational joins and ACID transactions across normalized schemas in addition to vector similarity search, PostgreSQL with pgvector is the better architectural fit since Cosmos DB's document model doesn't support cross-container joins natively. Cosmos DB isn't universally faster for every workload (especially relational join-heavy ones), both Cosmos DB and PostgreSQL do support native vector search as described in the exam objectives, and Redis is an in-memory cache/vector store, not a durable relational system for joins.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL vs Cosmos DB",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL"
+  }
+]

@@ -2,43 +2,141 @@
   {
     "id": "svc-001",
     "domain": "azure-services",
-    "type": "mcq",
-    "question": "A blob upload should trigger an asynchronous embedding pipeline. Which Azure service routes the storage event to your processing code?",
+    "type": "scenario",
+    "question": "You are configuring an Azure Function to process images uploaded to a Blob container and generate descriptions using a vision model. Which binding configuration parameter is most efficient to minimize memory overhead when handling large images in Python?",
     "options": [
-      "Azure Event Grid",
-      "Azure VPN Gateway",
-      "Azure Bastion",
-      "Azure Policy"
+      "dataType: binary",
+      "dataType: stream",
+      "dataType: string",
+      "dataType: base64"
     ],
-    "answer": 0,
-    "explanation": "**Event Grid** is an event routing service ideal for reacting to storage events (blob created) and forwarding them to Functions, webhooks, or queues."
+    "answer": 1,
+    "explanation": "Reading large blobs as a **stream** (`dataType: stream`) processes data in chunks and avoids loading the entire image into function memory."
   },
   {
     "id": "svc-002",
     "domain": "azure-services",
-    "type": "scenario",
-    "question": "Multiple microservices must each receive a copy of every 'document-processed' message. Which Service Bus feature should you use?",
+    "type": "mcq",
+    "question": "You are developing an AI solution that uses Azure Event Grid to route customer feedback. You want to filter events so only those with a subject ending in .json are sent to a specific Azure Function. Which property of the Event Subscription must you configure?",
     "options": [
-      "Topics with subscriptions",
-      "A single queue with one consumer",
-      "Azure DNS zones",
-      "Azure Disk Encryption"
+      "subjectEndsWith",
+      "subjectBeginsWith",
+      "advancedFilters.stringContains",
+      "topicSuffix"
     ],
     "answer": 0,
-    "explanation": "**Topics and subscriptions** implement publish/subscribe — each subscription receives a copy of messages published to the topic.\n\nA queue delivers each message to only one consumer."
+    "explanation": "Event Grid subscriptions support subject filters such as `subjectBeginsWith` and **subjectEndsWith** to route matching subjects to an endpoint."
   },
   {
     "id": "svc-003",
     "domain": "azure-services",
-    "type": "mcq",
-    "question": "You need a serverless function triggered when messages arrive on a Service Bus queue. Which Azure service provides this?",
+    "type": "scenario",
+    "question": "In the Azure Service Bus Python SDK, you want to ensure that a message is not processed by other workers while your current worker is handling it, but can be abandoned if processing fails. Which mode should you use when receiving the message?",
     "options": [
-      "Azure Functions with a Service Bus trigger",
-      "Azure Virtual Network",
-      "Azure Resource Manager templates only",
-      "Azure Migrate"
+      "PEEK_LOCK",
+      "RECEIVE_AND_DELETE",
+      "READ_COMMITTED",
+      "DEFERRED"
     ],
     "answer": 0,
-    "explanation": "**Azure Functions** supports Service Bus queue/topic triggers — the standard pattern for serverless AI workers processing embedding jobs."
+    "explanation": "In **PEEK_LOCK** mode the receiver locks the message. Call `complete_message()` on success or `abandon_message()` on failure so another worker can retry.\n\n```python\nfrom azure.servicebus import ServiceBusClient\n\nservicebus_client = ServiceBusClient.from_connection_string(CONN_STR)\nwith servicebus_client:\n    receiver = servicebus_client.get_queue_receiver(\n        queue_name=QUEUE_NAME, receive_mode=\"peek_lock\"\n    )\n    with receiver:\n        for msg in receiver:\n            # Process message\n            receiver.complete_message(msg)\n```"
+  },
+  {
+    "id": "svc-004",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "An AI solution uses Azure Service Bus to decouple a web front-end from a slow AI processing backend. If a message fails processing repeatedly beyond maxDeliveryCount, where does Service Bus automatically move the message?",
+    "options": [
+      "Dead-letter queue",
+      "Quarantine queue",
+      "Poison topic",
+      "Service Bus Storage"
+    ],
+    "answer": 0,
+    "explanation": "When delivery attempts exceed **MaxDeliveryCount**, Service Bus moves the message to the **dead-letter queue (DLQ)** for inspection and remediation."
+  },
+  {
+    "id": "svc-005",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "You are implementing an Azure Function that needs to store and retrieve high-frequency AI model state. Which trigger/binding combination provides direct, low-latency integration with Redis?",
+    "options": [
+      "Redis input/output bindings",
+      "HTTP Trigger calling REST Redis APIs",
+      "Blob Binding redirecting to Redis",
+      "Event Hubs Redis Extensions"
+    ],
+    "answer": 0,
+    "explanation": "Azure Functions supports official **Redis input/output bindings**, so you can read and write Redis data without manually managing client connection pools."
+  },
+  {
+    "id": "svc-006",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "You are implementing an event-driven AI workflow. You want to use Azure Event Grid to handle events published from an external custom microservice. Which Event Grid resource must you create first?",
+    "options": [
+      "Custom Topic",
+      "System Topic",
+      "Event Domain",
+      "Partner Topic"
+    ],
+    "answer": 0,
+    "explanation": "Custom apps publish to an Event Grid **Custom Topic**, which exposes an HTTP endpoint for your event payloads. System topics are for Azure resource events."
+  },
+  {
+    "id": "svc-007",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "An Azure Service Bus subscription is configured with a filter to only receive messages where Region = 'EastUS'. If a message arrives with Region = 'WestUS', what happens to the message relative to that subscription?",
+    "options": [
+      "It is ignored and not delivered to this subscription",
+      "It is moved to the dead-letter queue immediately",
+      "It throws an exception at the sender",
+      "It is placed in a hold state for 24 hours"
+    ],
+    "answer": 0,
+    "explanation": "Subscription filters decide which topic messages are copied into that subscription. Messages that do not match are simply skipped for that subscription — no error and no DLQ."
+  },
+  {
+    "id": "svc-008",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "In an Azure Functions app using Python, which file defines the triggers, bindings, and function entry point when using the V2 programming model?",
+    "options": [
+      "function_app.py",
+      "function.json",
+      "host.json",
+      "local.settings.json"
+    ],
+    "answer": 0,
+    "explanation": "The Python **V2** model uses decorators in **function_app.py** instead of the legacy `function.json` files.\n\n```python\nimport azure.functions as func\n\napp = func.FunctionApp()\n\n@app.service_bus_queue_trigger(\n    arg_name=\"msg\",\n    queue_name=\"inputqueue\",\n    connection=\"ServiceBusConnectionString\",\n)\ndef main(msg: func.ServiceBusMessage):\n    print(msg.get_body().decode(\"utf-8\"))\n```"
+  },
+  {
+    "id": "svc-009",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "You are configuring an Event Grid event subscription to retry failed deliveries to a handler. What is the default maximum number of delivery attempts made by Event Grid before dropping or dead-lettering the event?",
+    "options": [
+      "30",
+      "10",
+      "5",
+      "100"
+    ],
+    "answer": 0,
+    "explanation": "Event Grid retries delivery up to **30** times (or until event TTL expires, default 1440 minutes) with exponential backoff before dead-lettering if configured."
+  },
+  {
+    "id": "svc-010",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You need to pass messages larger than the standard 1 MB payload limit supported by Azure Service Bus Standard. Which tier or approach should you adopt?",
+    "options": [
+      "Service Bus Premium tier (supports messages up to 100 MB)",
+      "Service Bus Basic tier",
+      "Store in Service Bus System Memory",
+      "Compress using GZip inside Standard tier"
+    ],
+    "answer": 0,
+    "explanation": "**Service Bus Premium** supports large messages up to **100 MB**. Standard tier is limited to much smaller payloads (historically 256 KB / 1 MB depending on settings)."
   }
 ]

@@ -1,0 +1,376 @@
+[
+  {
+    "id": "cont-101",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "Your team needs a private registry to store and version container images for an AI inference service before deploying to Azure Container Apps. Which service should you provision?",
+    "options": [
+      "Azure Container Registry",
+      "Azure Artifacts",
+      "Docker Hub",
+      "Azure Blob Storage"
+    ],
+    "answer": 0,
+    "explanation": "Azure Container Registry (ACR) is the managed private registry for building, storing, and versioning container images inside Azure, with tight IAM and Container Apps/AKS integration. Azure Artifacts targets NuGet/npm packages, Docker Hub is a public third-party registry lacking native Azure RBAC integration, and Blob Storage is unstructured object storage, not an OCI image registry.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-102",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "You want to build a container image in the cloud without maintaining local Docker tooling, and have the resulting image pushed automatically to your registry. Which ACR feature should you use?",
+    "options": [
+      "ACR Tasks",
+      "ACR Repositories",
+      "ACR Webhooks",
+      "ACR Content Trust"
+    ],
+    "answer": 0,
+    "explanation": "ACR Tasks (az acr build / az acr task create) performs cloud-based image builds and can push directly to the registry, including automated builds triggered by source commits or base-image updates. Repositories only store existing images, Webhooks notify external systems of registry events, and Content Trust handles image signing, not building.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Registry Tasks",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-103",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A development team wants an ACR Task that automatically rebuilds and pushes an image whenever the base image (e.g., a Python runtime image) receives a security patch. What should they configure?",
+    "options": [
+      "A base image update trigger on an ACR Task",
+      "A manual az acr build run on a schedule",
+      "An Event Grid subscription to Blob Storage",
+      "A Container Apps revision rule"
+    ],
+    "answer": 0,
+    "explanation": "ACR Tasks support base image update triggers, which automatically detect when a referenced base image changes in the registry (or in a public registry it tracks) and rebuild dependent images. Manual scheduled builds don't react to base image changes, Blob Storage events are unrelated, and Container Apps revision rules govern traffic splitting, not image builds.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry Tasks",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-104",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You are deploying a containerized AI model-serving API to Azure App Service. The image requires an OPENAI_API_KEY at runtime that should not be stored in source control. What is the recommended approach?",
+    "options": [
+      "Set the value as an App Service application setting sourced from Key Vault reference",
+      "Bake the key into the Dockerfile as an ENV instruction",
+      "Store the key in a public GitHub Gist and fetch it at container start",
+      "Hardcode the key in the application's requirements.txt"
+    ],
+    "answer": 0,
+    "explanation": "App Service application settings support Key Vault references (@Microsoft.KeyVault(...)), which inject secrets as environment variables at runtime without exposing them in the image or source. Baking secrets into the Dockerfile embeds them permanently in image layers, and the Gist/requirements.txt options expose the secret publicly or are not designed for runtime configuration.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-105",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Your organization requires that container images deployed to App Service can only be pulled using a managed identity rather than admin credentials stored on the registry. Which configuration satisfies this?",
+    "options": [
+      "Enable ACR admin user and store the username/password in App Service settings",
+      "Assign the App Service's system-assigned managed identity the AcrPull role on the registry and configure App Service to use it for image pulls",
+      "Create a service principal with Owner rights on the subscription",
+      "Store the ACR password as a GitHub Actions secret"
+    ],
+    "answer": 1,
+    "explanation": "Assigning AcrPull to the App Service's managed identity, then configuring the App Service container settings to authenticate via that identity, eliminates the need for admin credentials entirely and follows least-privilege practice. Enabling the admin user reintroduces static credentials, an Owner-level service principal is excessive privilege, and a GitHub Actions secret addresses CI/CD, not the App Service runtime pull.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-106",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "Which Azure service lets you run containerized microservices with built-in autoscaling and traffic splitting between revisions, without managing the underlying Kubernetes cluster?",
+    "options": [
+      "Azure Container Apps",
+      "Azure Kubernetes Service",
+      "Azure Virtual Machine Scale Sets",
+      "Azure Batch"
+    ],
+    "answer": 0,
+    "explanation": "Azure Container Apps is a fully managed serverless container platform built on Kubernetes and KEDA that abstracts cluster management while providing revisions and traffic splitting. AKS requires you to manage the cluster, VM Scale Sets manage VMs (not containers directly), and Batch targets large-scale parallel/batch compute jobs.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-107",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You need an AI inference container in Azure Container Apps to scale out based on the depth of an Azure Service Bus queue rather than CPU usage. What should you configure?",
+    "options": [
+      "A KEDA scale rule of type azure-servicebus on the Container App",
+      "An HTTP scale rule with a high concurrent request threshold",
+      "A manual scale setting fixed at the maximum replica count",
+      "An Azure Monitor autoscale setting based on CPU percentage"
+    ],
+    "answer": 0,
+    "explanation": "Container Apps uses KEDA under the hood; configuring a custom scale rule of type azure-servicebus lets replicas scale based on queue message count. HTTP scale rules react to request concurrency, not queue depth; manual fixed scaling wastes resources or under-provisions; and CPU-based autoscale doesn't reflect the actual event-driven workload.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps (KEDA)",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-108",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You deployed a new version of a container image to Azure Container Apps and want to gradually shift 10% of production traffic to it while keeping 90% on the stable version. What should you configure?",
+    "options": [
+      "Multiple revisions with weighted traffic splitting",
+      "A separate Container App with its own custom domain",
+      "An Azure Front Door origin group with 90/10 priority",
+      "Two AKS deployments behind an Ingress"
+    ],
+    "answer": 0,
+    "explanation": "Container Apps supports multiple active revisions with configurable traffic weights, letting you route a percentage of traffic to a new revision for canary-style rollouts within a single app. A separate app or Front Door origin group adds unnecessary infrastructure, and AKS Ingress is a different orchestration platform entirely.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-109",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "An AKS-hosted RAG (retrieval-augmented generation) API intermittently fails to reach Azure Cosmos DB. You need to diagnose whether the issue is DNS resolution, network policy, or application-level, using data already available in the cluster. What is the best first step?",
+    "options": [
+      "Inspect pod logs, then use kubectl exec to test DNS resolution and connectivity from within the failing pod",
+      "Delete and recreate the AKS cluster",
+      "Immediately open a support ticket without gathering diagnostics",
+      "Increase the pod replica count to see if the issue disappears"
+    ],
+    "answer": 0,
+    "explanation": "Structured troubleshooting starts with kubectl logs to check application-level errors, then kubectl exec into the pod to test DNS (nslookup) and connectivity (curl/telnet) to isolate whether the failure is network, DNS, or app-level before escalating. Recreating the cluster or scaling replicas doesn't diagnose root cause and risks masking the real issue.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-110",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You need to deploy a set of Kubernetes resources (Deployment, Service, ConfigMap) to an AKS cluster from files checked into source control. Which command applies them?",
+    "options": [
+      "kubectl apply -f manifests/",
+      "az aks create --manifest manifests/",
+      "az acr import --manifest manifests/",
+      "kubectl create cluster -f manifests/"
+    ],
+    "answer": 0,
+    "explanation": "kubectl apply -f applies one or more manifest files (or a directory of them) declaratively to the cluster, creating or updating resources to match the desired state. az aks create provisions the cluster itself (not workloads), az acr import copies images between registries, and 'kubectl create cluster' is not a valid kubectl subcommand.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-111",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Your AKS-hosted AI service needs to autoscale pods based on GPU utilization metrics that aren't exposed by the default Kubernetes Metrics Server. What should you implement?",
+    "options": [
+      "A custom metrics adapter feeding Prometheus/Azure Monitor metrics into the Horizontal Pod Autoscaler",
+      "A Vertical Pod Autoscaler with fixed CPU requests",
+      "Cluster Autoscaler alone, without a Horizontal Pod Autoscaler",
+      "A cron job that restarts pods every five minutes"
+    ],
+    "answer": 0,
+    "explanation": "HPA scales on CPU/memory by default; to scale on custom metrics like GPU utilization, you need a custom metrics adapter (e.g., Prometheus Adapter or KEDA) exposing that metric to the HPA. Vertical Pod Autoscaler adjusts resource requests rather than replica count, Cluster Autoscaler only adds/removes nodes (not pods) and doesn't address pod-level GPU scaling, and cron-based restarts don't scale capacity at all.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-112",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You need to verify end-to-end connectivity between an Azure Container Apps environment and a private Azure Database for PostgreSQL instance that has public access disabled. What should you check first?",
+    "options": [
+      "Whether the Container Apps environment is integrated with the VNet containing a private endpoint or delegated subnet to PostgreSQL",
+      "Whether the container image is tagged 'latest'",
+      "Whether ACR Content Trust is enabled",
+      "Whether the Container App has more than one replica"
+    ],
+    "answer": 0,
+    "explanation": "When public network access is disabled on PostgreSQL, connectivity requires the Container Apps environment to be VNet-integrated and able to route to the database's private endpoint (or delegated subnet with private access). Image tagging, Content Trust, and replica count have no bearing on network-layer reachability.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Monitor and troubleshoot solutions on AKS and Container Apps"
+  },
+  {
+    "id": "cont-113",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "Which command builds a container image using ACR's cloud build compute and pushes it directly to the registry, without requiring a local Docker daemon?",
+    "options": [
+      "az acr build --registry myregistry --image myapp:v1 .",
+      "docker build -t myapp:v1 .",
+      "az acr login --name myregistry",
+      "az acr repository list --name myregistry"
+    ],
+    "answer": 0,
+    "explanation": "az acr build submits the build context to ACR Tasks, which builds the image in Azure and pushes it to the specified registry — no local Docker engine required. docker build runs locally, az acr login only authenticates the local Docker CLI, and az acr repository list just lists existing repositories.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Registry Tasks",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-114",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "An AI batch-scoring workload runs as a scheduled job rather than a long-running service. Which Container Apps feature best fits this pattern?",
+    "options": [
+      "Container Apps Jobs",
+      "Container Apps ingress with sticky sessions",
+      "A Dapr binding component",
+      "A Container Apps revision label"
+    ],
+    "answer": 0,
+    "explanation": "Container Apps Jobs are purpose-built for finite, run-to-completion or scheduled workloads (manual, scheduled via cron, or event-driven), unlike the always-on revision model used for services. Ingress/sticky sessions serve long-running HTTP apps, Dapr bindings integrate with external systems but don't define job execution, and revision labels just tag stable revision endpoints.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-115",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You must ensure that an Azure Container Apps environment used for a healthcare AI application has no public inbound access and all outbound traffic is routed through a network virtual appliance for inspection. What deployment model should you choose?",
+    "options": [
+      "A Container Apps environment with VNet integration using a custom (workload profiles) environment with user-defined routes on the subnet",
+      "The default Consumption-only environment with no VNet",
+      "A Container Apps environment exposed only via a public FQDN with IP restrictions",
+      "An AKS cluster with no network policy configured"
+    ],
+    "answer": 0,
+    "explanation": "For full control over inbound isolation and outbound inspection, Container Apps must be deployed into a custom VNet-integrated environment (workload profiles or internal environment) so subnet-level NSGs and user-defined routes (UDR) can force egress through an NVA. The default consumption environment lacks VNet integration, IP restrictions alone don't remove public exposure, and switching to AKS doesn't answer the Container Apps networking question being asked.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-116",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Which command retrieves the credentials needed for kubectl to communicate with an AKS cluster?",
+    "options": [
+      "az aks get-credentials --resource-group myRG --name myCluster",
+      "az aks show --resource-group myRG --name myCluster",
+      "kubectl config get-contexts",
+      "az acr credential show --name myregistry"
+    ],
+    "answer": 0,
+    "explanation": "az aks get-credentials merges the cluster's kubeconfig into your local kubectl config so subsequent kubectl commands target that cluster. az aks show only displays cluster properties, kubectl config get-contexts lists contexts already configured (doesn't fetch new ones), and az acr credential show retrieves registry admin credentials, unrelated to AKS auth.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "cont-117",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Your Container Apps-hosted AI service logs show intermittent 502 errors correlating with new revision deployments. You suspect the new revision isn't passing its readiness probe before receiving traffic. What should you configure to prevent this?",
+    "options": [
+      "A readiness probe on the container with an appropriate initialDelaySeconds and failureThreshold, combined with min replica warm-up before traffic shift",
+      "Increase the max replica count",
+      "Disable revision mode and use single revision only",
+      "Reduce the container's CPU allocation"
+    ],
+    "answer": 0,
+    "explanation": "A properly tuned readiness probe ensures Container Apps only routes traffic to replicas that report ready, preventing 502s during cold start; combined with adequate warm-up this smooths deployments. Increasing max replicas doesn't address readiness timing, disabling multiple revisions removes the ability to do safe rollouts, and reducing CPU would likely worsen startup latency.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Monitor and troubleshoot solutions on AKS and Container Apps"
+  },
+  {
+    "id": "cont-118",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "What is the primary purpose of Azure Container Registry Tasks (ACR Tasks) in an AI development workflow?",
+    "options": [
+      "Automating container image builds, testing, and pushes triggered by code or base-image changes",
+      "Running scheduled batch inference jobs at scale",
+      "Storing vector embeddings for semantic search",
+      "Managing secrets used by containerized applications"
+    ],
+    "answer": 0,
+    "explanation": "ACR Tasks automates the build-test-push pipeline for container images, often triggered by Git commits or base image updates, which is central to CI/CD for containerized AI services. Batch inference is better suited to Azure Batch or Container Apps Jobs, vector embeddings belong in Cosmos DB/PostgreSQL/AI Search, and secrets management is Key Vault's role.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Registry Tasks",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-119",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You want App Service to automatically restart and pull the newest image tag whenever a new image is pushed to ACR, without manual redeployment. What should you enable?",
+    "options": [
+      "Continuous deployment with an ACR webhook that triggers App Service on new image pushes",
+      "A static image tag pinned in the App Service configuration",
+      "ACR geo-replication",
+      "App Service's 'Always On' setting only"
+    ],
+    "answer": 0,
+    "explanation": "Enabling continuous deployment for App Service's container configuration creates a webhook in ACR that notifies App Service whenever the tracked tag is updated, triggering an automatic pull and restart. A pinned static tag with no webhook won't auto-update, geo-replication only copies images across regions, and 'Always On' just prevents idle unloading, unrelated to deployment triggers.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-120",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A team runs both an AKS cluster and Container Apps environment for different AI microservices and needs a single command-line-driven way to confirm end-to-end connectivity, DNS resolution, and recent error events across both platforms during an incident. Which combination of steps is correct?",
+    "options": [
+      "Use kubectl logs/describe and Container Apps 'az containerapp logs show' together with Azure Monitor Log Analytics KQL queries to correlate errors across both platforms",
+      "Only check the Azure portal Activity Log",
+      "Only restart both platforms simultaneously",
+      "Rely solely on ACR repository logs"
+    ],
+    "answer": 0,
+    "explanation": "Effective cross-platform troubleshooting combines platform-native diagnostics (kubectl logs/describe for AKS, az containerapp logs show for Container Apps) with centralized KQL queries in Log Analytics to correlate timelines and root cause across services. The Activity Log only captures control-plane operations, blind restarts don't diagnose anything, and ACR logs only cover registry operations, not application errors.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service and Container Apps",
+    "relatedObjective": "Monitor and troubleshoot solutions on AKS and Container Apps"
+  },
+  {
+    "id": "cont-121",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Which ACR feature helps enforce that only signed, trusted images can be deployed to production AKS or Container Apps environments?",
+    "options": [
+      "ACR Content Trust / image signing with policy enforcement",
+      "ACR geo-replication",
+      "ACR Tasks scheduled builds",
+      "ACR repository quarantine without any policy enabled"
+    ],
+    "answer": 0,
+    "explanation": "Content Trust enables image signing, and combined with Azure Policy or admission controllers, ensures only verified, signed images are deployable, supporting supply-chain security. Geo-replication addresses availability/latency, scheduled Tasks just build images on a timer, and quarantine alone (without policy) doesn't enforce a trust requirement.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "cont-122",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A Container Apps-hosted inference API needs to scale to zero when idle to reduce cost, then scale up on the first incoming HTTP request. Which configuration supports this?",
+    "options": [
+      "Set minReplicas to 0 with an HTTP scale rule",
+      "Set minReplicas to 1 with a CPU-based scale rule",
+      "Disable autoscaling entirely",
+      "Deploy to AKS with Cluster Autoscaler only"
+    ],
+    "answer": 0,
+    "explanation": "Container Apps supports scale-to-zero when minReplicas is set to 0; an HTTP scale rule then triggers cold-start scale-up on incoming requests, which AKS's Cluster Autoscaler (node-level, not pod-level scale-to-zero for HTTP) does not natively provide as simply. minReplicas of 1 keeps a replica always running, incurring idle cost, and disabling autoscaling removes elasticity altogether.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps (KEDA)",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  }
+]

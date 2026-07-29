@@ -47,7 +47,7 @@ export function ExamSession({
 
   if (questions.length === 0) {
     return (
-      <Card>
+      <Card className="border-0 bg-transparent shadow-none">
         <CardContent className="py-8 text-center text-muted-foreground">
           No questions available for this exam yet.
         </CardContent>
@@ -57,7 +57,7 @@ export function ExamSession({
 
   if (!started) {
     return (
-      <Card>
+      <Card className="border-0 bg-transparent shadow-none">
         <CardHeader>
           <CardTitle>Ready to start?</CardTitle>
         </CardHeader>
@@ -119,7 +119,7 @@ export function ExamSession({
         </span>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6 sm:p-8">
+      <div className="bg-transparent p-0 sm:p-0">
         <p className="mb-6 text-lg leading-relaxed">{current.question}</p>
         <div className="space-y-3">
           {current.options.map((option, index) => (
@@ -148,6 +148,7 @@ export function ExamSession({
       <div className="flex justify-between">
         <Button
           variant="outline"
+          size="lg"
           disabled={currentIndex === 0}
           onClick={() => setCurrentIndex((i) => i - 1)}
         >
@@ -155,6 +156,8 @@ export function ExamSession({
         </Button>
         {currentIndex < examQuestions.length - 1 ? (
           <Button
+            size="lg"
+            className="min-w-36 px-8 text-base"
             disabled={!answered}
             onClick={() => setCurrentIndex((i) => i + 1)}
           >
@@ -162,6 +165,8 @@ export function ExamSession({
           </Button>
         ) : (
           <Button
+            size="lg"
+            className="min-w-36 px-8 text-base"
             disabled={Object.keys(answers).length < examQuestions.length}
             onClick={() => setFinished(true)}
           >

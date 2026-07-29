@@ -1,0 +1,512 @@
+[
+  {
+    "id": "sdk-034",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Azure CLI command lists all secrets that currently exist, including their versions, within a Key Vault (troubleshooting a missing-secret issue)?",
+    "options": [
+      "az keyvault secret list --vault-name myVault",
+      "az keyvault secret show --vault-name myVault --name mySecret --version all",
+      "az keyvault secret restore --vault-name myVault",
+      "az keyvault list-deleted-secrets --vault-name myVault (checking active secrets)"
+    ],
+    "answer": 0,
+    "explanation": "az keyvault secret list is the correct command to enumerate all currently active secrets in a vault as a first troubleshooting step. Showing one specific secret's versions requires already knowing its name, secret restore recovers a soft-deleted secret (not for listing), and listing deleted secrets checks the recycle bin rather than active secrets.\n\n```bash\naz keyvault secret list --vault-name myVault --query \"[].{name:name, enabled:attributes.enabled}\"\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-035",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command configures HTTPS-only traffic (rejecting plain HTTP) on an App Service hosting an AI API?",
+    "options": [
+      "az webapp update --name myApp --resource-group myRG --set httpsOnly=true",
+      "az webapp config set --name myApp --https-only false",
+      "az webapp ssl bind --name myApp --certificate-thumbprint <thumbprint> only, with no httpsOnly flag",
+      "az network application-gateway create --name myApp --https-only true"
+    ],
+    "answer": 0,
+    "explanation": "az webapp update with --set httpsOnly=true enforces HTTPS-only access on the App Service, redirecting or rejecting plain HTTP requests. Setting --https-only false explicitly disables the enforcement (the opposite of the goal), binding an SSL certificate alone doesn't force HTTPS-only redirection without the httpsOnly flag, and provisioning an Application Gateway is a much larger, unrelated networking change not required simply to enforce HTTPS on the app itself.\n\n```bash\naz webapp update --name myApp --resource-group myRG --set httpsOnly=true\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-036",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a private endpoint connecting a virtual network subnet to an Azure Database for PostgreSQL flexible server, disabling public access?",
+    "options": [
+      "az network private-endpoint create --name myEndpoint --resource-group myRG --vnet-name myVnet --subnet mySubnet --private-connection-resource-id <postgresResourceId> --group-id postgresqlServer --connection-name myConnection",
+      "az postgres flexible-server create --public-access none only, with no private endpoint",
+      "az network vnet create --name myVnet",
+      "az postgres server firewall-rule create --name allow-all"
+    ],
+    "answer": 0,
+    "explanation": "az network private-endpoint create establishes the actual private link between a subnet and the PostgreSQL flexible server's private endpoint group, which is required for true private network connectivity. Simply setting --public-access none on the server restricts public access but doesn't by itself establish private connectivity, creating a VNet alone doesn't connect it to PostgreSQL, and creating a firewall rule (especially an 'allow-all' one) is the opposite of restricting access privately.\n\n```bash\naz network private-endpoint create --name myEndpoint --resource-group myRG --vnet-name myVnet --subnet mySubnet --private-connection-resource-id <postgresResourceId> --group-id postgresqlServer --connection-name myConnection\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL / Networking",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-037",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which method call correctly performs a synchronous chat completion request against an Azure OpenAI deployment using the OpenAI Python SDK configured for Azure?",
+    "options": [
+      "client.chat.completions.create(model=\"my-deployment\", messages=[{\"role\": \"user\", \"content\": \"Hello\"}])",
+      "client.completions.create(engine=\"my-deployment\", prompt=\"Hello\") as the only supported modern method",
+      "client.embeddings.create(model=\"my-deployment\", input=\"Hello\")",
+      "client.moderations.create(input=\"Hello\")"
+    ],
+    "answer": 0,
+    "explanation": "chat.completions.create with a messages array is the current standard method for chat-style completions against Azure OpenAI chat models. The legacy completions.create/engine-based call targets older non-chat completion models and isn't the modern default, embeddings.create returns vector embeddings (not a chat response), and moderations.create checks content policy compliance rather than generating a completion.",
+    "difficulty": "Medium",
+    "relatedService": "Azure OpenAI SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Methods"
+  },
+  {
+    "id": "sdk-038",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command configures autoscaling on an AKS node pool to scale between 2 and 8 nodes based on cluster resource pressure?",
+    "options": [
+      "az aks nodepool update --resource-group myRG --cluster-name myCluster --name nodepool1 --enable-cluster-autoscaler --min-count 2 --max-count 8",
+      "az aks scale --resource-group myRG --name myCluster --node-count 8 only, as a one-time fixed scale",
+      "az vmss scale --name myCluster --new-capacity 8",
+      "az monitor autoscale create --resource myCluster --min-count 2 --max-count 8"
+    ],
+    "answer": 0,
+    "explanation": "az aks nodepool update with --enable-cluster-autoscaler and --min-count/--max-count configures the Cluster Autoscaler to dynamically adjust node count within the specified bounds based on pending pod resource demand. az aks scale performs a one-time, fixed manual scale (not dynamic autoscaling), az vmss scale operates on the underlying scale set directly and bypasses AKS-aware autoscaling logic, and az monitor autoscale targets classic Azure Monitor autoscale, not AKS's built-in Cluster Autoscaler.\n\n```bash\naz aks nodepool update --resource-group myRG --cluster-name myCluster --name nodepool1 --enable-cluster-autoscaler --min-count 2 --max-count 8\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-039",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command retrieves the current deployment status of a Container App to troubleshoot a failed rollout?",
+    "options": [
+      "az containerapp revision list --name myApp --resource-group myRG",
+      "az containerapp delete --name myApp",
+      "az group deployment list --resource-group myRG only, with no app-specific filter",
+      "az acr repository show-tags --name myregistry"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp revision list shows all revisions along with their provisioning state, active status, and traffic weight, which is the direct way to see whether a new rollout succeeded or failed. Deleting the app obviously doesn't help troubleshoot it, listing generic resource group deployments doesn't give Container-App-specific revision health, and checking ACR repository tags only confirms the image exists, not whether the deployment to Container Apps succeeded.\n\n```bash\naz containerapp revision list --name myApp --resource-group myRG -o table\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-040",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Azure CLI command creates an Azure Function App backed by a Consumption (serverless) hosting plan?",
+    "options": [
+      "az functionapp create --name myFuncApp --resource-group myRG --consumption-plan-location eastus --runtime python --storage-account mystorage",
+      "az webapp create --name myFuncApp --plan Consumption",
+      "az functionapp plan create --name myFuncApp --sku Consumption",
+      "az function create --name myFuncApp --plan Consumption"
+    ],
+    "answer": 0,
+    "explanation": "az functionapp create with --consumption-plan-location provisions a new Function App on the Consumption plan, requiring an associated storage account and runtime stack. az webapp create targets generic App Service web apps (not Function Apps specifically), az functionapp plan create provisions a hosting plan resource but not the function app itself in this simple form, and 'az function create' is not a valid Azure CLI command.\n\n```bash\naz functionapp create --name myFuncApp --resource-group myRG --consumption-plan-location eastus --runtime python --storage-account mystorage\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-041",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command configures environment variables (app settings) for an Azure Function App, such as an OpenAI endpoint URL?",
+    "options": [
+      "az functionapp config appsettings set --name myFuncApp --resource-group myRG --settings OPENAI_ENDPOINT=https://myendpoint.openai.azure.com/",
+      "az functionapp create --settings OPENAI_ENDPOINT=... on an already-existing app",
+      "az functionapp update --env OPENAI_ENDPOINT=...",
+      "az keyvault secret set --name OPENAI_ENDPOINT"
+    ],
+    "answer": 0,
+    "explanation": "az functionapp config appsettings set adds/updates application settings (surfaced as environment variables) on an existing Function App, mirroring the App Service pattern. Re-running functionapp create against an existing app isn't the correct update path, 'az functionapp update' doesn't take a generic --env flag, and az keyvault secret set stores a Key Vault secret rather than configuring the Function App's environment directly (though it could be referenced from a setting).\n\n```bash\naz functionapp config appsettings set --name myFuncApp --resource-group myRG --settings OPENAI_ENDPOINT=https://myendpoint.openai.azure.com/\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-042",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a private DNS zone link required so resources in a VNet can resolve the private endpoint FQDN of an Azure service like Cosmos DB?",
+    "options": [
+      "az network private-dns link vnet create --resource-group myRG --zone-name privatelink.documents.azure.com --name myLink --virtual-network myVnet --registration-enabled false",
+      "az network dns zone create --name mydomain.com",
+      "az network vnet create --name myVnet",
+      "az network private-endpoint dns-zone-group create --name myGroup only, with no VNet link step"
+    ],
+    "answer": 0,
+    "explanation": "az network private-dns link vnet create links a private DNS zone (e.g., privatelink.documents.azure.com for Cosmos DB) to a VNet, enabling name resolution of the private endpoint's FQDN from within that network — a required step for private endpoint DNS to function. A public DNS zone (az network dns zone create) doesn't handle private-link resolution, creating the VNet alone doesn't establish the DNS link, and creating a private-endpoint DNS zone group without first linking the zone to the VNet leaves resolution incomplete.\n\n```bash\naz network private-dns link vnet create --resource-group myRG --zone-name privatelink.documents.azure.com --name myLink --virtual-network myVnet --registration-enabled false\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Networking / Private Endpoints",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-043",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command retrieves recent metric data (e.g., CPU percentage) for a resource, useful for quick troubleshooting without opening the portal?",
+    "options": [
+      "az monitor metrics list --resource <resourceId> --metric \"CpuPercentage\"",
+      "az monitor activity-log list --resource-group myRG",
+      "az resource show --ids <resourceId>",
+      "az monitor log-analytics query --workspace <id> --analytics-query \"AppRequests\""
+    ],
+    "answer": 0,
+    "explanation": "az monitor metrics list retrieves numeric platform metrics (like CPU percentage) directly for a specified resource ID via the command line. Activity Log only shows control-plane operations (not performance metrics), az resource show returns static resource configuration, and the Log Analytics query command retrieves log/telemetry data rather than platform metrics directly.\n\n```bash\naz monitor metrics list --resource <resourceId> --metric \"CpuPercentage\" --interval PT1M\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Monitor",
+    "relatedObjective": "Azure SDK/CLI mastery – Monitoring Questions"
+  },
+  {
+    "id": "sdk-044",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command lists all role assignments currently granted to a specific managed identity, useful when troubleshooting an 'access denied' error?",
+    "options": [
+      "az role assignment list --assignee <principalId> --all",
+      "az ad sp list --display-name <principalId>",
+      "az role definition list",
+      "az keyvault show --name <principalId>"
+    ],
+    "answer": 0,
+    "explanation": "az role assignment list --assignee <principalId> shows exactly which roles and scopes have been granted to that identity, which is the direct troubleshooting step for access-denied issues. az ad sp list searches for service principal objects by name (not role assignments), az role definition list only enumerates available role definitions (not what's actually assigned), and az keyvault show returns vault configuration, unrelated to identity role assignments.\n\n```bash\naz role assignment list --assignee <principalId> --all -o table\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure RBAC",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-045",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command configures a Container App to use only an internal (private) ingress, unreachable from the public internet, while still being reachable within the VNet?",
+    "options": [
+      "az containerapp ingress enable --name myApp --resource-group myRG --type internal --target-port 8080 --transport auto",
+      "az containerapp ingress enable --name myApp --type external",
+      "az containerapp update --name myApp --set publicNetworkAccess=Enabled",
+      "az network nsg rule create --name DenyAll --priority 100"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp ingress enable with --type internal restricts the app's ingress endpoint to be resolvable and reachable only from within the Container Apps environment's VNet. --type external is the opposite of the requirement (it exposes the app publicly), setting publicNetworkAccess=Enabled also runs counter to the private-only requirement, and manually adding an NSG deny rule doesn't configure Container Apps ingress mode itself and could conflict with the platform's own routing.\n\n```bash\naz containerapp ingress enable --name myApp --resource-group myRG --type internal --target-port 8080 --transport auto\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-046",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command shows the current status (running, failed, succeeded) of an ACR Task run, useful when a build appears stuck?",
+    "options": [
+      "az acr task list-runs --registry myregistry --output table",
+      "az acr task create --registry myregistry",
+      "az acr repository show --name myregistry",
+      "az acr login --name myregistry"
+    ],
+    "answer": 0,
+    "explanation": "az acr task list-runs returns the run history and current status for tasks executed against the registry, which is the direct way to check whether a build is running, succeeded, or failed. az acr task create defines a new task (doesn't show run status), az acr repository show returns repository metadata (not build/task run status), and az acr login only authenticates the local Docker client.\n\n```bash\naz acr task list-runs --registry myregistry --output table\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry Tasks",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-047",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command retrieves logs for a specific Azure Function's recent executions, filtered to only error-level entries, via Log Analytics KQL?",
+    "options": [
+      "az monitor log-analytics query --workspace <workspaceId> --analytics-query \"FunctionAppLogs | where Level == 'Error' | order by TimeGenerated desc\"",
+      "az functionapp log deployment show --name myFuncApp",
+      "az webapp log download --name myFuncApp",
+      "az monitor activity-log list --resource-group myRG --status Error"
+    ],
+    "answer": 0,
+    "explanation": "az monitor log-analytics query runs an arbitrary KQL query (here filtering FunctionAppLogs by Level == 'Error') directly against the connected workspace, giving precise, filtered error diagnostics. Deployment log show only covers deployment operations (not runtime execution errors), log download exports raw log files without server-side filtering, and Activity Log tracks management-plane operations, not application-level function errors.\n\n```bash\naz monitor log-analytics query --workspace <workspaceId> --analytics-query \"FunctionAppLogs | where Level == 'Error' | order by TimeGenerated desc\" -o table\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions / Azure Monitor",
+    "relatedObjective": "Azure SDK/CLI mastery – Monitoring Questions"
+  },
+  {
+    "id": "sdk-048",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Azure CLI command creates a resource group-scoped assignment giving a user the built-in 'Reader' role, for read-only troubleshooting access?",
+    "options": [
+      "az role assignment create --assignee <userPrincipalNameOrId> --role Reader --resource-group myRG",
+      "az role assignment create --assignee <userId> --role Owner --resource-group myRG",
+      "az ad user create --display-name Reader",
+      "az group create --name Reader"
+    ],
+    "answer": 0,
+    "explanation": "az role assignment create with --role Reader and --resource-group scopes the assignment to read-only access on that resource group, matching least-privilege troubleshooting access. Assigning Owner grants far more than read access, az ad user create provisions a new user account (unrelated to role assignment), and az group create merely creates a resource group, not a role assignment.\n\n```bash\naz role assignment create --assignee user@contoso.com --role Reader --resource-group myRG\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure RBAC",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-049",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Python SDK method call correctly performs a vector similarity search directly against a Cosmos DB for NoSQL container using the SDK's query capability?",
+    "options": [
+      "container.query_items(query=\"SELECT TOP 5 c.id, VectorDistance(c.embedding, @queryVector) AS score FROM c ORDER BY VectorDistance(c.embedding, @queryVector)\", parameters=[{\"name\":\"@queryVector\",\"value\":query_vector}])",
+      "container.read_item(item=\"embedding\", partition_key=\"vector\")",
+      "container.upsert_item(body={\"embedding\": query_vector})",
+      "container.delete_item(item=\"embedding\", partition_key=\"vector\")"
+    ],
+    "answer": 0,
+    "explanation": "Cosmos DB for NoSQL exposes the VectorDistance() SQL function usable directly inside query_items to rank items by similarity to a query vector, which is the SDK-supported way to run vector search. read_item retrieves a single known item (not a similarity search), upsert_item performs a write (not a query), and delete_item removes an item — none perform vector similarity search.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Methods"
+  },
+  {
+    "id": "sdk-050",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command configures continuous deployment from Azure Container Registry to an App Service, so a new image push triggers an automatic redeploy?",
+    "options": [
+      "az webapp deployment container config --name myApp --resource-group myRG --enable-cd true",
+      "az webapp config container set --name myApp --docker-custom-image-name myimage:v1 only, with no CD flag",
+      "az acr webhook create --name myHook --registry myregistry --actions push",
+      "Both A and C together, since continuous deployment requires both enabling CD on the App Service and (optionally inspectable via) the ACR webhook it manages"
+    ],
+    "answer": 3,
+    "explanation": "Enabling continuous deployment on the App Service side (az webapp deployment container config --enable-cd true) is what actually creates and manages the underlying ACR webhook that triggers redeployment on push; option C describes manually creating a similar webhook, and understanding both mechanisms together is the complete picture, though in practice --enable-cd true is the primary action needed since it provisions the webhook automatically. Setting only the container image name without enabling CD leaves the app on a static image with no auto-redeploy on push.\n\n```bash\naz webapp deployment container config --name myApp --resource-group myRG --enable-cd true\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure App Service / Azure Container Registry",
+    "relatedObjective": "Azure SDK/CLI mastery – Deployment Questions"
+  },
+  {
+    "id": "sdk-051",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a Cosmos DB SQL (NoSQL) container with a specified partition key and throughput?",
+    "options": [
+      "az cosmosdb sql container create --account-name myaccount --database-name mydb --name mycontainer --partition-key-path /userId --throughput 400",
+      "az cosmosdb sql database create --account-name myaccount --name mycontainer",
+      "az cosmosdb collection create --account-name myaccount --name mycontainer",
+      "az cosmosdb create --name mycontainer --partition-key /userId"
+    ],
+    "answer": 0,
+    "explanation": "az cosmosdb sql container create is the specific command for creating a container within an existing SQL/NoSQL API database, taking --partition-key-path and --throughput. az cosmosdb sql database create creates a database (a level above containers, not a container itself), 'az cosmosdb collection create' is not valid modern CLI syntax, and az cosmosdb create provisions the account, not an individual container.\n\n```bash\naz cosmosdb sql container create --account-name myaccount --database-name mydb --name mycontainer --partition-key-path /userId --throughput 400\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-052",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a new App Configuration store to centrally hold feature flags for an AI application?",
+    "options": [
+      "az appconfig create --name myAppConfig --resource-group myRG --location eastus --sku standard",
+      "az appconfig store new --name myAppConfig",
+      "az config create --name myAppConfig",
+      "az keyvault create --name myAppConfig"
+    ],
+    "answer": 0,
+    "explanation": "az appconfig create provisions a new App Configuration store resource, with --sku controlling the pricing tier (standard supports feature management at scale). 'az appconfig store new' and 'az config create' aren't valid command names, and az keyvault create provisions a Key Vault, a different secrets-focused service.\n\n```bash\naz appconfig create --name myAppConfig --resource-group myRG --location eastus --sku standard\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Configuration",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-053",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command retrieves the effective role assignments (including inherited ones from management group/subscription level) for a resource, to troubleshoot unexpected access?",
+    "options": [
+      "az role assignment list --scope <resourceId> --include-inherited",
+      "az role assignment list --scope <resourceId> only, without any inheritance flag",
+      "az resource show --ids <resourceId>",
+      "az account show"
+    ],
+    "answer": 0,
+    "explanation": "Including --include-inherited (alongside --scope) surfaces role assignments granted at higher scopes (subscription, management group) that also apply to the resource, which is essential when troubleshooting unexpected access that isn't explained by resource-level assignments alone. Omitting that flag only shows assignments made directly at that exact scope, resource show returns configuration (not access), and account show just displays the current subscription context.\n\n```bash\naz role assignment list --scope <resourceId> --include-inherited -o table\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure RBAC",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-054",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a new subscription (in the Service Bus sense) on an existing topic?",
+    "options": [
+      "az servicebus topic subscription create --resource-group myRG --namespace-name myNamespace --topic-name myTopic --name mySubscription",
+      "az servicebus namespace create --name mySubscription",
+      "az servicebus queue create --name mySubscription",
+      "az servicebus topic create --name mySubscription"
+    ],
+    "answer": 0,
+    "explanation": "az servicebus topic subscription create adds a new subscription under a specific existing topic within a namespace, which is exactly the entity needed for pub/sub fan-out. Creating a namespace or a queue doesn't create a topic subscription, and az servicebus topic create makes a new topic, not a subscription on an existing one.\n\n```bash\naz servicebus topic subscription create --resource-group myRG --namespace-name myNamespace --topic-name myTopic --name mySubscription\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Service Bus",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-055",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command retrieves the public/outbound IP addresses used by an App Service, needed to allowlist it on a downstream firewall (e.g., PostgreSQL)?",
+    "options": [
+      "az webapp show --name myApp --resource-group myRG --query outboundIpAddresses",
+      "az webapp config show --name myApp",
+      "az network public-ip list --resource-group myRG",
+      "az webapp log tail --name myApp"
+    ],
+    "answer": 0,
+    "explanation": "az webapp show exposes an outboundIpAddresses property listing the app's possible outbound IPs, which is exactly what's needed to configure downstream firewall allow rules. Generic config show doesn't surface this property directly, listing all public IPs in the resource group may include unrelated resources and isn't scoped to the app's actual outbound addresses, and log tail streams runtime logs, unrelated to IP addressing.\n\n```bash\naz webapp show --name myApp --resource-group myRG --query outboundIpAddresses -o tsv\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-056",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command restricts network access to a Storage Account so that only a specific VNet subnet and Azure trusted services can reach it, denying all other public traffic?",
+    "options": [
+      "az storage account network-rule add --resource-group myRG --account-name mystorageacct --vnet-name myVnet --subnet mySubnet, combined with az storage account update --default-action Deny",
+      "az storage account update --default-action Allow",
+      "az storage account delete --name mystorageacct",
+      "az network nsg create --name myNSG only, with no storage-account-level rule"
+    ],
+    "answer": 0,
+    "explanation": "Adding a specific VNet/subnet network rule and then setting the account's default-action to Deny closes off public access while allowing only the specified subnet (and any explicitly enabled trusted services) through, matching the described lockdown. Setting default-action to Allow does the opposite of restricting access, deleting the account isn't a network configuration change at all, and creating a standalone NSG doesn't by itself restrict traffic at the Storage Account resource-firewall level.\n\n```bash\naz storage account update --resource-group myRG --name mystorageacct --default-action Deny && az storage account network-rule add --resource-group myRG --account-name mystorageacct --vnet-name myVnet --subnet mySubnet\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Storage Accounts / Networking",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-057",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command lists the deployment history for an App Service, useful to identify when a bad deployment was introduced?",
+    "options": [
+      "az webapp deployment list --name myApp --resource-group myRG",
+      "az webapp show --name myApp",
+      "az webapp log tail --name myApp",
+      "az group deployment list --resource-group myRG (ARM template deployments, not app code deployments)"
+    ],
+    "answer": 0,
+    "explanation": "az webapp deployment list shows the history of code/package deployments to the App Service, including timestamps, which helps correlate an incident's start time with a specific deployment. az webapp show only returns current static configuration, log tail shows live logs (not deployment history), and az group deployment list tracks ARM/Bicep template deployments at the resource-group level, a different concept from app code deployments.\n\n```bash\naz webapp deployment list --name myApp --resource-group myRG\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-058",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command sequence correctly rotates a Storage Account access key without causing downtime for applications currently using the other key?",
+    "options": [
+      "az storage account keys renew --resource-group myRG --account-name mystorageacct --key key2, then update apps to use key2, then later renew key1",
+      "az storage account keys renew --resource-group myRG --account-name mystorageacct --key key1 (while apps are actively using key1) and key2 simultaneously",
+      "az storage account delete --name mystorageacct, then recreate it",
+      "az storage account update --sku Standard_GRS (changing redundancy instead of rotating keys)"
+    ],
+    "answer": 0,
+    "explanation": "The zero-downtime rotation pattern renews the key currently NOT in active use (e.g., key2) first, migrates applications to use that freshly rotated key, and only then rotates the original key (key1) they've since stopped using — preventing any window where the active key is invalidated out from under a running app. Renewing both keys simultaneously (or renewing the key actively in use) risks breaking active connections, deleting and recreating the account is drastic and destroys existing data/configuration, and changing the redundancy SKU has nothing to do with key rotation.\n\n```bash\naz storage account keys renew --resource-group myRG --account-name mystorageacct --key key2\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Storage Accounts",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-059",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates an ACR Task that automatically rebuilds an image whenever the associated Git repository receives a new commit?",
+    "options": [
+      "az acr task create --registry myregistry --name buildTask --image myapp:{{.Run.ID}} --context https://github.com/org/repo.git --file Dockerfile --git-access-token <token>",
+      "az acr build --registry myregistry --image myapp:v1 . (a one-time manual build)",
+      "az acr task run --registry myregistry --name buildTask",
+      "az acr repository show --name myregistry"
+    ],
+    "answer": 0,
+    "explanation": "az acr task create with a Git --context and access token establishes a persistent task that ACR monitors, automatically triggering rebuilds on new commits to the repository. az acr build performs a single, one-off manual build (not a persistent trigger), az acr task run manually invokes an already-defined task on demand (doesn't itself define the Git trigger), and az acr repository show only inspects existing repository metadata.\n\n```bash\naz acr task create --registry myregistry --name buildTask --image myapp:{{.Run.ID}} --context https://github.com/org/repo.git --file Dockerfile --git-access-token <token>\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry Tasks",
+    "relatedObjective": "Azure SDK/CLI mastery – Deployment Questions"
+  },
+  {
+    "id": "sdk-060",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Python SDK class and method combination correctly deletes a message from a Service Bus queue after successful processing (completing the message)?",
+    "options": [
+      "receiver.complete_message(message) using a ServiceBusReceiver",
+      "receiver.abandon_message(message)",
+      "receiver.dead_letter_message(message)",
+      "sender.send_messages(message)"
+    ],
+    "answer": 0,
+    "explanation": "complete_message on a ServiceBusReceiver settles the message as successfully processed, removing it from the queue permanently. abandon_message releases the lock so the message becomes available for redelivery (used on failure, not success), dead_letter_message explicitly moves it to the dead-letter sub-queue, and send_messages is a sender-side operation for publishing new messages, not completing received ones.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Service Bus SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Methods"
+  },
+  {
+    "id": "sdk-061",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command combination correctly configures an AKS cluster to pull images from ACR using AKS's managed identity, without storing a registry password anywhere?",
+    "options": [
+      "az aks update --name myCluster --resource-group myRG --attach-acr myregistry",
+      "az aks create --name myCluster --docker-bridge-address 172.17.0.1/16 (unrelated networking flag)",
+      "kubectl create secret docker-registry acr-secret --docker-username=<user> --docker-password=<password>",
+      "az acr update --name myregistry --admin-enabled true, then manually copy the password into a Kubernetes secret"
+    ],
+    "answer": 0,
+    "explanation": "az aks update --attach-acr grants the AKS cluster's managed identity the AcrPull role on the specified registry automatically, enabling image pulls with no stored credentials at all. The docker-bridge-address flag is an unrelated network configuration option, manually creating a docker-registry secret requires storing a static username/password (violating the 'no password stored' requirement), and enabling the ACR admin user and copying its password into a Kubernetes secret is exactly the credential-based anti-pattern being avoided.\n\n```bash\naz aks update --name myCluster --resource-group myRG --attach-acr myregistry\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service / Azure Container Registry",
+    "relatedObjective": "Azure SDK/CLI mastery – Authentication Questions"
+  },
+  {
+    "id": "sdk-062",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command shows the current health/provisioning state of an Azure Database for PostgreSQL flexible server, useful when troubleshooting connectivity issues?",
+    "options": [
+      "az postgres flexible-server show --name myserver --resource-group myRG --query state",
+      "az postgres flexible-server list-skus --location eastus",
+      "az postgres flexible-server delete --name myserver",
+      "az network private-endpoint list --resource-group myRG"
+    ],
+    "answer": 0,
+    "explanation": "az postgres flexible-server show with --query state returns the server's current provisioning/operational state, a direct first check when diagnosing connectivity problems. list-skus only shows available pricing tiers in a region (unrelated to a specific server's health), delete obviously doesn't diagnose anything, and listing private endpoints checks network configuration broadly rather than the server's own state directly.\n\n```bash\naz postgres flexible-server show --name myserver --resource-group myRG --query state -o tsv\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-063",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command configures a minimum and maximum replica count for an Azure Container App (general replica scaling bounds, separate from a specific scale rule)?",
+    "options": [
+      "az containerapp update --name myApp --resource-group myRG --min-replicas 1 --max-replicas 10",
+      "az containerapp create --name myApp --replicas 10 (a fixed, non-elastic count)",
+      "az aks nodepool update --min-count 1 --max-count 10",
+      "az vmss update --name myApp --capacity 10"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp update with --min-replicas and --max-replicas sets the elastic scaling bounds within which Container Apps' scale rules operate. Setting a fixed --replicas count on creation doesn't establish elastic min/max bounds, AKS nodepool scaling manages cluster nodes (not Container Apps replicas), and VMSS scaling targets a completely different compute resource (Virtual Machine Scale Sets).\n\n```bash\naz containerapp update --name myApp --resource-group myRG --min-replicas 1 --max-replicas 10\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  }
+]

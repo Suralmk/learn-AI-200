@@ -1,0 +1,410 @@
+[
+  {
+    "id": "sec-101",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "Which Azure service should be used to securely store and manage API keys, connection strings, and certificates used by an AI application?",
+    "options": [
+      "Azure Key Vault",
+      "Azure App Configuration",
+      "Azure Blob Storage",
+      "Azure Monitor"
+    ],
+    "answer": 0,
+    "explanation": "Key Vault is purpose-built for secrets, keys, and certificates, with access control, auditing, and automated rotation support. App Configuration targets non-secret configuration/feature flags, Blob Storage is general object storage without secret-specific protections, and Monitor is an observability service, not a secrets store.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-102",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You want a database connection secret stored in Key Vault to be automatically rotated on a schedule, with dependent applications picking up the new value without manual redeployment. What should you implement?",
+    "options": [
+      "Configure Key Vault secret rotation (via Event Grid notifications or an automation runbook) combined with app configuration that references the secret by name (not a cached static value)",
+      "Manually update the secret value once a year during a maintenance window",
+      "Store the secret as a plain environment variable baked into the container image",
+      "Disable versioning on the secret so only one value ever exists"
+    ],
+    "answer": 0,
+    "explanation": "Automated rotation (via a rotation policy/runbook, often triggered by Key Vault's Event Grid notifications) combined with apps that always resolve the latest secret version (rather than caching indefinitely) ensures rotated secrets propagate without manual redeployment. Manual annual updates don't meet 'scheduled automatic rotation,' baking secrets into images makes rotation require a rebuild/redeploy every time, and disabling versioning would break the ability to roll back or transition between old/new secret values safely.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-103",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "Which Azure CLI command retrieves the value of a secret stored in Key Vault?",
+    "options": [
+      "az keyvault secret show --vault-name myVault --name mySecret",
+      "az keyvault secret list --vault-name myVault",
+      "az keyvault create --name myVault",
+      "az keyvault secret delete --vault-name myVault --name mySecret"
+    ],
+    "answer": 0,
+    "explanation": "az keyvault secret show retrieves the details (including value, with --query) of a specific named secret from the vault. az keyvault secret list only enumerates secret names/metadata (not full values by default), az keyvault create provisions a new vault (not a secret operation), and az keyvault secret delete removes a secret rather than retrieving it.\n\n```bash\naz keyvault secret show --vault-name myVault --name mySecret --query value -o tsv\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-104",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "An application authenticates to Key Vault using DefaultAzureCredential. In local development it should use the developer's Azure CLI login, and in production it should use a managed identity, without code changes. Why does DefaultAzureCredential satisfy this requirement?",
+    "options": [
+      "It tries a sequence of credential sources (environment variables, managed identity, Azure CLI, etc.) in order and uses the first one that succeeds",
+      "It always requires an explicit client secret to be supplied in code",
+      "It only works with managed identity and fails locally",
+      "It requires a different SDK entirely for local vs. production environments"
+    ],
+    "answer": 0,
+    "explanation": "DefaultAzureCredential chains multiple credential providers and tries each in a defined order, automatically falling back from managed identity (available in Azure) to Azure CLI credentials (available locally), letting the same code work in both environments without modification. It doesn't require a hardcoded client secret, it does work locally via CLI/VS Code credentials (not just managed identity), and no SDK switch is needed since the chaining behavior is built into azure-identity itself.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Identity SDK / Managed Identity",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-105",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Your AI application's App Service must call Azure OpenAI, Key Vault, and Cosmos DB, and your organization requires strict least-privilege access with no long-lived credentials anywhere. What is the correct combination of steps?",
+    "options": [
+      "Enable a system-assigned managed identity on the App Service, then assign narrowly scoped RBAC roles (e.g., Cognitive Services OpenAI User, Key Vault Secrets User, Cosmos DB Built-in Data Contributor) on each target resource",
+      "Create one service principal with Owner role on the subscription and share its credentials across all services",
+      "Store a single master API key in application code for all three services",
+      "Grant Contributor role at the management group level to the App Service's identity"
+    ],
+    "answer": 0,
+    "explanation": "Enabling a managed identity and assigning resource-specific, least-privilege RBAC roles for each dependency is the Microsoft-recommended pattern — it avoids any stored credentials while granting only the exact permissions required per service. An Owner-level service principal or management-group Contributor role grossly over-provisions access, and hardcoding a master API key directly violates the 'no long-lived credentials' requirement.",
+    "difficulty": "Hard",
+    "relatedService": "Managed Identity / Azure RBAC",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-106",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Which Azure service centrally stores non-secret application settings, such as feature flags and endpoint URLs, and supports dynamic configuration refresh without app restarts?",
+    "options": [
+      "Azure App Configuration",
+      "Azure Key Vault",
+      "Azure Files",
+      "Azure Container Registry"
+    ],
+    "answer": 0,
+    "explanation": "App Configuration is designed for exactly this: centralized non-secret settings and feature flags with a dynamic refresh provider that lets applications pick up changes without restarting. Key Vault is meant for secrets specifically, Azure Files is a file share, and Container Registry stores images — none address dynamic app configuration.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Configuration",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-107",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You need to trace a request as it flows through an Azure Function, then a Service Bus message, then a downstream Container App, correlating all spans into a single distributed trace. What should you implement?",
+    "options": [
+      "OpenTelemetry instrumentation across all services, propagating trace context (e.g., W3C traceparent) through message headers",
+      "Independent, uncorrelated logging in each service with no shared trace ID",
+      "Only Application Insights on the Azure Function, with nothing on the other services",
+      "Manual timestamp comparison across separate log files after the fact"
+    ],
+    "answer": 0,
+    "explanation": "OpenTelemetry SDKs provide standardized instrumentation and context propagation (the W3C traceparent header) across heterogeneous services, letting a single trace ID link spans from the Function, the Service Bus message, and the Container App into one coherent distributed trace. Uncorrelated per-service logging, instrumenting only one component, or manually comparing timestamps after the fact all fail to produce a reliable, queryable end-to-end trace.",
+    "difficulty": "Medium",
+    "relatedService": "OpenTelemetry SDKs",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-108",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You need a KQL query in Log Analytics that finds all failed HTTP requests (5xx) to an App Service-hosted AI API in the last hour, sorted by most recent first. Which query is correct?",
+    "options": [
+      "AppRequests | where TimeGenerated > ago(1h) and ResultCode startswith \"5\" | order by TimeGenerated desc",
+      "AppRequests | where ResultCode == \"200\" | project TimeGenerated",
+      "AppExceptions | summarize count() by bin(TimeGenerated, 1d)",
+      "AppRequests | take 10"
+    ],
+    "answer": 0,
+    "explanation": "This query correctly filters AppRequests to the last hour with a ResultCode beginning with '5' (all 5xx codes) and sorts by TimeGenerated descending, exactly matching the requirement. Filtering for ResultCode == \"200\" returns successful (not failed) requests, summarizing AppExceptions by day doesn't isolate 5xx HTTP requests specifically, and 'take 10' returns an arbitrary unsorted, unfiltered sample.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Monitor / KQL",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-109",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Which Azure Monitor / Application Insights feature captures the full call chain (dependencies, exceptions, custom events) for an individual request to help debug a specific slow or failed transaction?",
+    "options": [
+      "End-to-end transaction details (backed by distributed tracing)",
+      "Metrics Explorer alone, with no request-level detail",
+      "Activity Log",
+      "Azure Advisor recommendations"
+    ],
+    "answer": 0,
+    "explanation": "Application Insights' end-to-end transaction view stitches together the request, its dependency calls, exceptions, and custom telemetry for a single operation using distributed tracing, which is exactly what's needed to debug one specific transaction. Metrics Explorer aggregates numeric metrics without per-transaction detail, the Activity Log records control-plane (management) operations rather than application telemetry, and Azure Advisor gives cost/security/performance recommendations, not per-request debugging.",
+    "difficulty": "Medium",
+    "relatedService": "Application Insights",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-110",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "An AI service's OpenTelemetry traces show high latency concentrated in a single span calling Azure Database for PostgreSQL, but the database's own server-side metrics show low CPU and query duration. What should you investigate next?",
+    "options": [
+      "Network latency and connection acquisition time between the application and the database (e.g., connection pool exhaustion, region mismatch)",
+      "Immediately scale up the compute tier of the PostgreSQL server",
+      "Assume the trace data is inaccurate and disable tracing",
+      "Rewrite the query to remove all WHERE clauses"
+    ],
+    "answer": 0,
+    "explanation": "When server-side query duration is low but the client-observed span is slow, the discrepancy typically points to time spent outside actual query execution — network round-trip latency, cross-region calls, or connection pool exhaustion waiting for an available connection — which OpenTelemetry span timing includes but server query metrics don't. Scaling compute doesn't address a network/connection-layer bottleneck, dismissing accurate trace data is not a valid diagnostic step, and removing WHERE clauses would harm correctness and likely worsen performance.",
+    "difficulty": "Hard",
+    "relatedService": "OpenTelemetry / Azure Database for PostgreSQL",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-111",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Which Key Vault access model is recommended over legacy Access Policies for fine-grained, auditable, role-based permission management aligned with the rest of Azure?",
+    "options": [
+      "Azure RBAC for Key Vault (role assignments like Key Vault Secrets Officer/User)",
+      "A shared master password distributed via email",
+      "Public network access with no authentication",
+      "Legacy Access Policies exclusively, with RBAC disabled"
+    ],
+    "answer": 0,
+    "explanation": "Microsoft recommends the Azure RBAC permission model for Key Vault because it integrates with the same role-assignment and auditing mechanisms used across Azure, offering finer granularity and centralized management compared to the legacy vault-specific Access Policy model. Sharing a master password or leaving public access unauthenticated are severe security anti-patterns, and continuing to rely exclusively on legacy Access Policies forgoes the improved auditability and consistency RBAC provides.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-112",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "Which Azure CLI command lists the secrets currently stored in a given Key Vault (names only, not values)?",
+    "options": [
+      "az keyvault secret list --vault-name myVault",
+      "az keyvault secret show --vault-name myVault",
+      "az keyvault list",
+      "az keyvault secret backup --vault-name myVault"
+    ],
+    "answer": 0,
+    "explanation": "az keyvault secret list enumerates the secrets (names, IDs, metadata) within a specified vault. az keyvault secret show requires a specific secret name and returns one secret's details, az keyvault list lists vault resources themselves (not their contained secrets), and az keyvault secret backup exports a specific secret's backup blob rather than listing all secrets.\n\n```bash\naz keyvault secret list --vault-name myVault\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-113",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Your team needs to be alerted automatically when Application Insights detects an anomalous spike in server-side exceptions for an AI API, without manually watching dashboards. What should you configure?",
+    "options": [
+      "An Azure Monitor alert rule based on a log query (or metric) with an appropriate threshold and action group for notification",
+      "A manually refreshed Azure Monitor Workbook that someone checks once a day",
+      "A static dashboard tile with no alerting logic",
+      "Increase the Application Insights sampling rate to 100%"
+    ],
+    "answer": 0,
+    "explanation": "Azure Monitor alert rules (log-search or metric-based) combined with an action group (email, SMS, webhook, etc.) provide automated, proactive notification when a defined threshold or anomaly condition is met. A manually checked workbook or a static dashboard tile both require someone to actively look at them, and increasing sampling rate affects telemetry fidelity/cost, not alerting itself.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Monitor",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-114",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You must ensure that diagnostic logs from AKS, Container Apps, Service Bus, and Key Vault are all centrally queryable together for a security investigation spanning multiple services. What should you configure?",
+    "options": [
+      "Diagnostic settings on each resource routing logs to a shared Log Analytics workspace",
+      "Separate storage accounts per resource with no shared query surface",
+      "Only enable Key Vault logging, since it's the most security-sensitive resource",
+      "Rely solely on each resource's built-in 7-day retention with no export"
+    ],
+    "answer": 0,
+    "explanation": "Configuring diagnostic settings on every relevant resource to send logs to the same Log Analytics workspace enables unified cross-resource KQL queries, which is essential for correlated security investigations. Routing to separate storage accounts per resource fragments the data and complicates correlation, enabling logging on only one resource leaves blind spots across the rest of the pipeline, and relying on short built-in retention without export risks losing data needed for the investigation.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Monitor / Log Analytics",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-115",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Which KQL operator would you use to calculate the 95th percentile response time for AI API requests over the last 24 hours, grouped by operation name?",
+    "options": [
+      "summarize percentile(duration, 95) by operation_Name",
+      "summarize avg(duration) by operation_Name",
+      "project duration, operation_Name",
+      "where duration > 95"
+    ],
+    "answer": 0,
+    "explanation": "The percentile() aggregation function within summarize computes the specified percentile (95th here) of a numeric column, grouped by the given dimension — exactly what's needed for P95 latency analysis. avg() only computes the mean (not a percentile), project merely selects columns without aggregation, and filtering 'where duration > 95' treats 95 as a literal duration threshold rather than computing a percentile.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Monitor / KQL",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-116",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "An AI application uses Managed Identity to access Key Vault, but calls started failing after a recent Key Vault firewall change with a 403 error, even though the RBAC role assignment is correct. What is the most likely cause?",
+    "options": [
+      "The Key Vault firewall now restricts network access and the calling resource's outbound IP/VNet isn't in the allowed list or trusted services exception",
+      "The managed identity's client ID changed automatically overnight",
+      "RBAC role assignments expire every 24 hours by design",
+      "Key Vault no longer supports managed identity authentication"
+    ],
+    "answer": 0,
+    "explanation": "A 403 despite correct RBAC strongly suggests a network-layer block: Key Vault firewall rules restrict access by IP/VNet, and unless the calling resource's identity is covered by an allowed virtual network, private endpoint, or the 'trusted Microsoft services' exception, requests are rejected at the network layer before RBAC is even evaluated in some configurations. Managed identity client IDs don't change automatically, RBAC role assignments don't expire every 24 hours, and Key Vault fully supports managed identity authentication — this isn't a service limitation.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Secure, monitor, and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-117",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Which OpenTelemetry component is responsible for exporting collected spans/traces from your application to a backend such as Azure Monitor?",
+    "options": [
+      "An exporter (e.g., the Azure Monitor OpenTelemetry Exporter)",
+      "A sampler with sampling ratio 0",
+      "A meter provider with no exporter configured",
+      "A logger with console output only"
+    ],
+    "answer": 0,
+    "explanation": "An exporter is the OpenTelemetry component responsible for sending collected telemetry (traces, metrics, logs) to a specific backend — here, the Azure Monitor Exporter sends data to Application Insights/Log Analytics. A sampler decides which traces are recorded (not where they're sent), a meter provider without a configured exporter has nowhere to send metrics, and console-only logging doesn't route data to Azure Monitor at all.",
+    "difficulty": "Medium",
+    "relatedService": "OpenTelemetry SDKs",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-118",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "What Azure Key Vault object type would you use to store an X.509 certificate along with its private key for use in TLS termination?",
+    "options": [
+      "A certificate object in Key Vault",
+      "A secret object storing only the public key",
+      "A key object of type RSA with no certificate metadata",
+      "An App Configuration key-value pair"
+    ],
+    "answer": 0,
+    "explanation": "Key Vault certificates are a first-class object type that stores the full certificate (including private key), manages its lifecycle, and can auto-create a corresponding secret/key — purpose-built for TLS scenarios. A plain secret storing only the public key omits the private key needed for TLS termination, a bare RSA key object without certificate metadata isn't a complete certificate, and App Configuration is not designed to securely store private key material.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-119",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You want distributed tracing enabled for a Python Azure Function calling Azure OpenAI and Cosmos DB, using open standards rather than a vendor-specific SDK. Which library should you use?",
+    "options": [
+      "The OpenTelemetry Python SDK with the Azure Monitor OpenTelemetry Distro",
+      "The legacy Application Insights Python SDK only, without OpenTelemetry",
+      "A custom print()-based logging system",
+      "No library is needed; tracing is automatic with zero configuration"
+    ],
+    "answer": 0,
+    "explanation": "The OpenTelemetry Python SDK (paired with the Azure Monitor OpenTelemetry Distro for exporting to Azure) provides open-standard, vendor-neutral distributed tracing that instruments common libraries automatically, which is the current Microsoft-recommended approach for Python. The legacy Application Insights SDK is being superseded by OpenTelemetry-based instrumentation, print()-based logging provides no structured trace correlation, and meaningful tracing always requires at least some SDK/library integration, not zero configuration.",
+    "difficulty": "Medium",
+    "relatedService": "OpenTelemetry SDKs",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-120",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Your organization requires that Key Vault secrets are never permanently deleted immediately, giving a recovery window in case of accidental or malicious deletion. What Key Vault feature must be enabled?",
+    "options": [
+      "Soft-delete (enabled by default) combined with purge protection",
+      "Geo-replication",
+      "A daily manual export of all secrets to a spreadsheet",
+      "Disabling versioning on all secrets"
+    ],
+    "answer": 0,
+    "explanation": "Soft-delete retains deleted secrets/keys/certificates for a recovery window (default 90 days), and purge protection additionally prevents anyone — including privileged admins — from permanently purging them before that window expires, directly satisfying the recovery requirement. Geo-replication addresses regional availability (not deletion protection), manually exporting to a spreadsheet is an insecure, unmanaged workaround, and disabling versioning has nothing to do with deletion recovery and would reduce operational safety.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions"
+  },
+  {
+    "id": "sec-121",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Which KQL command structure would you use to join telemetry from AppRequests with AppDependencies to see which downstream calls were made during slow requests?",
+    "options": [
+      "AppRequests | where duration > 1000 | join kind=inner AppDependencies on operation_Id",
+      "AppRequests | union AppDependencies",
+      "AppRequests | distinct operation_Id",
+      "AppDependencies | summarize count()"
+    ],
+    "answer": 0,
+    "explanation": "Joining AppRequests to AppDependencies on the shared operation_Id correlates a slow request with the specific downstream dependency calls made during that same operation, which is the standard KQL pattern for this kind of root-cause analysis. union simply stacks rows from both tables without correlating them by operation, distinct only deduplicates operation IDs without pulling in dependency data, and summarizing AppDependencies alone doesn't tie dependencies back to specific slow requests.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Monitor / KQL",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-122",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "An incident review shows that a security breach occurred because a developer's personal Azure CLI credentials (with broad permissions) were used to deploy a production AI service, and those credentials were later compromised. What combination of changes best prevents recurrence?",
+    "options": [
+      "Use CI/CD pipelines with federated workload identities (OIDC) scoped to least privilege, remove standing broad personal permissions, and require managed identities for runtime resource access",
+      "Ask the developer to change their password and continue using personal credentials for deployments",
+      "Grant the same broad permissions to all developers so no one feels singled out",
+      "Store the developer's credentials in a shared spreadsheet for backup"
+    ],
+    "answer": 0,
+    "explanation": "Replacing personal, broadly-privileged credentials with federated workload identities (OIDC-based, short-lived, pipeline-scoped) for CI/CD, combined with least-privilege role assignments and managed identities for runtime access, eliminates the standing long-lived credential risk that caused the breach. Simply changing a password leaves the same broad-permission pattern in place, granting broad access to everyone multiplies the risk rather than reducing it, and storing credentials in a spreadsheet is a severe security anti-pattern.",
+    "difficulty": "Hard",
+    "relatedService": "Managed Identity / Azure RBAC",
+    "relatedObjective": "Secure, monitor, and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-123",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Which Azure Monitor concept determines what percentage of telemetry (traces, requests) Application Insights actually collects and stores, to control cost on high-volume AI APIs?",
+    "options": [
+      "Sampling",
+      "Partitioning",
+      "Geo-replication",
+      "Soft-delete"
+    ],
+    "answer": 0,
+    "explanation": "Sampling (fixed-rate or adaptive) controls what fraction of telemetry events are actually recorded and billed, letting high-volume applications control Application Insights cost while retaining statistically representative data. Partitioning is a data-distribution concept in databases, geo-replication addresses regional redundancy, and soft-delete is a Key Vault/storage recovery feature — none control telemetry volume/cost.",
+    "difficulty": "Medium",
+    "relatedService": "Application Insights",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  },
+  {
+    "id": "sec-124",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "Your AI application logs show a spike in throttling errors (429) from Azure OpenAI. What is the recommended first mitigation?",
+    "options": [
+      "Implement exponential backoff retry logic and review/request a quota (TPM/RPM) increase if consistently near the limit",
+      "Immediately switch to a completely different AI provider with no retry logic added",
+      "Ignore the errors since they resolve themselves without any code change",
+      "Disable logging so the errors no longer appear"
+    ],
+    "answer": 0,
+    "explanation": "429 responses indicate rate limiting; the standard mitigation is implementing exponential backoff (often built into the SDK's retry policy) to smooth bursty traffic, combined with reviewing actual usage against provisioned quota and requesting an increase if sustained demand exceeds it. Switching providers is a drastic, unnecessary step before trying standard retry/quota remediation, ignoring the errors leaves the reliability problem unresolved, and disabling logging hides symptoms without fixing the underlying throttling.",
+    "difficulty": "Medium",
+    "relatedService": "Azure OpenAI",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions"
+  }
+]

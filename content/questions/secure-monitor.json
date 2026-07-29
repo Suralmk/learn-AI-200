@@ -3,42 +3,168 @@
     "id": "sec-001",
     "domain": "secure-monitor",
     "type": "mcq",
-    "question": "Your Container App needs to read an OpenAI API key without storing it in environment variables or source code. What is the recommended approach?",
+    "question": "You are using an OpenTelemetry Python SDK setup to monitor a distributed AI pipeline. Which component is responsible for extracting and injecting context (like trace parent IDs) across service boundaries?",
     "options": [
-      "Store the key in Azure Key Vault and access it using managed identity",
-      "Commit the key to a public Git repository",
-      "Hard-code the key in the Dockerfile",
-      "Email the key to all developers"
+      "Propagators",
+      "Exporters",
+      "Processors",
+      "Samplers"
     ],
     "answer": 0,
-    "explanation": "**Key Vault + managed identity** is the secure pattern: secrets stay in Key Vault; the app authenticates via its identity without credentials in code."
+    "explanation": "In OpenTelemetry, **Propagators** serialize and deserialize cross-cutting context (such as `traceparent` headers) across HTTP and messaging boundaries."
   },
   {
     "id": "sec-002",
     "domain": "secure-monitor",
     "type": "scenario",
-    "question": "You need to find the 95th percentile latency of your `/embed` API over the last 24 hours. Which tool and language should you use in Application Insights?",
+    "question": "You are writing a KQL query to analyze the performance of an AI model's inference endpoint in Application Insights. You need to calculate the 95th percentile of the duration column grouped into 5-minute bins. Which KQL query is correct?",
     "options": [
-      "KQL (Kusto Query Language) against the requests table",
-      "Azure CLI `az network watcher` only",
-      "PowerShell Get-Process",
-      "Windows Event Viewer"
+      "dependencies | summarize percentiles(duration, 95) by bin(timestamp, 5m)",
+      "dependencies | aggregate p95(duration) every 5m",
+      "dependencies | select percentile(duration, 0.95) group by bin(timestamp, 5m)",
+      "dependencies | summarize duration = p95 by timestamp, 5m"
     ],
     "answer": 0,
-    "explanation": "**KQL** queries Application Insights / Log Analytics data. Use `percentile(duration, 95)` on the `requests` table to analyze API latency."
+    "explanation": "Use `summarize` with `percentiles()` and `bin()` to aggregate over fixed time buckets.\n\n```kusto\ndependencies\n| where target == \"OpenAIInferenceEndpoint\"\n| summarize percentiles(duration, 95) by bin(timestamp, 5m)\n```"
   },
   {
     "id": "sec-003",
     "domain": "secure-monitor",
     "type": "mcq",
-    "question": "Which service lets you toggle AI feature flags (e.g., enable a new model version) without redeploying your container app?",
+    "question": "Your AI application uses Azure Key Vault to store an API key. You want to execute secret rotation logic automatically when a secret is rotated or expired. Which service directly emits Key Vault lifecycle events?",
     "options": [
-      "Azure App Configuration",
-      "Azure Container Registry",
-      "Azure DNS",
-      "Azure Disk Storage"
+      "Azure Event Grid",
+      "Azure Monitor",
+      "Azure Service Bus",
+      "Key Vault Sync Manager"
     ],
     "answer": 0,
-    "explanation": "**Azure App Configuration** provides feature flags and dynamic settings that apps can refresh at runtime — useful for rolling out new models safely."
+    "explanation": "Key Vault integrates with **Azure Event Grid** and emits events such as `Microsoft.KeyVault.SecretNearExpiry` and `Microsoft.KeyVault.SecretNewVersionCreated` that can trigger rotation workflows."
+  },
+  {
+    "id": "sec-004",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "To secure a vector database in Azure Database for PostgreSQL, you want to ensure that traffic between your backend service in an Azure VNet and the database does not traverse the public internet. Which feature should you use?",
+    "options": [
+      "Private Link / Private Endpoint",
+      "Network Security Group Rule",
+      "Azure Firewall Basic",
+      "Service Tags"
+    ],
+    "answer": 0,
+    "explanation": "**Private Link / Private Endpoint** places a private IP for PostgreSQL in your VNet so traffic stays on the Azure backbone instead of the public internet."
+  },
+  {
+    "id": "sec-005",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "You are setting up an OpenTelemetry Python script to send distributed traces to Azure Monitor Application Insights. Which package provides the standard exporter connection for Azure Monitor?",
+    "options": [
+      "azure-monitor-opentelemetry-exporter",
+      "azure-applicationinsights-sdk",
+      "opentelemetry-azure-appinsights",
+      "azure-telemetry-collector"
+    ],
+    "answer": 0,
+    "explanation": "The official exporter package is **azure-monitor-opentelemetry-exporter** (also commonly used via the `azure-monitor-opentelemetry` distribution)."
+  },
+  {
+    "id": "sec-006",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You are deploying an AI backend to Azure App Service. You want the app to retrieve a secret from Key Vault automatically using the app's System-Assigned Identity. What must be configured?",
+    "options": [
+      "Managed Identity enabled on App Service + Key Vault Access Policy/RBAC + Key Vault Reference syntax in App Settings",
+      "Storage Account link only",
+      "Application Key Vault Client Secret",
+      "Public ingress on Key Vault"
+    ],
+    "answer": 0,
+    "explanation": "Enable the app’s **Managed Identity**, grant it Key Vault access (for example Key Vault Secrets User), and use Key Vault reference syntax (`@Microsoft.KeyVault(...)`) in Application Settings."
+  },
+  {
+    "id": "sec-007",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "In a KQL query, you want to correlate entry requests with downstream database dependency calls in Application Insights. Which column is standard for linking operation contexts across telemetry tables?",
+    "options": [
+      "operation_Id",
+      "client_IP",
+      "session_Id",
+      "trace_Name"
+    ],
+    "answer": 0,
+    "explanation": "**operation_Id** is the shared correlation ID across Application Insights tables (`requests`, `dependencies`, `traces`, `exceptions`) for one end-to-end operation."
+  },
+  {
+    "id": "sec-008",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "In OpenTelemetry, you want to add custom key-value metadata (such as the specific LLM model version used) to an active trace span. Which method should you use?",
+    "options": [
+      "span.set_attribute(\"model_version\", \"v2.5\")",
+      "span.add_metadata(\"model_version\", \"v2.5\")",
+      "span.append_tag(\"model_version\", \"v2.5\")",
+      "span.set_property(\"model_version\", \"v2.5\")"
+    ],
+    "answer": 0,
+    "explanation": "OpenTelemetry spans store custom metadata as attributes via **`span.set_attribute(key, value)`**."
+  },
+  {
+    "id": "sec-009",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "In a distributed AI trace, which standard HTTP header key is used by OpenTelemetry W3C Trace Context specification to propagate context between services?",
+    "options": [
+      "traceparent",
+      "x-correlation-id",
+      "x-ms-request-id",
+      "x-opentelemetry-id"
+    ],
+    "answer": 0,
+    "explanation": "W3C Trace Context uses the **`traceparent`** HTTP header (trace ID, parent span ID, and flags) to propagate context across services."
+  },
+  {
+    "id": "sec-010",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "You are using Azure App Configuration in Python. You want your application to automatically reload configuration changes when a designated key changes without restarting the container. What capability is this?",
+    "options": [
+      "Dynamic Configuration Refresh",
+      "Static Configuration Pooling",
+      "Lazy Key Vault Injection",
+      "Polling Middleware"
+    ],
+    "answer": 0,
+    "explanation": "**Dynamic Configuration Refresh** watches keys (often a sentinel key) and updates in-memory settings periodically without restarting the app."
+  },
+  {
+    "id": "sec-011",
+    "domain": "secure-monitor",
+    "type": "mcq",
+    "question": "An AI application generates telemetry in Azure Monitor. You want to use KQL to count the number of unique user IDs that queried the service in the last 24 hours. Which aggregation function should you use?",
+    "options": [
+      "dcount(user_Id)",
+      "count(user_Id)",
+      "sum(user_Id)",
+      "distinct_count(user_Id)"
+    ],
+    "answer": 0,
+    "explanation": "In KQL, **`dcount()`** estimates the distinct count of values. `count()` counts rows, not unique users.\n\n```kusto\nrequests\n| where timestamp > ago(24h)\n| summarize UniqueUsers = dcount(user_Id)\n```"
+  },
+  {
+    "id": "sec-012",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You are configuring Azure Key Vault to ensure that deleted vaults or secrets can be recovered within a retention window and cannot be permanently destroyed immediately by unauthorized actors. Which features must be enabled?",
+    "options": [
+      "Soft Delete and Purge Protection",
+      "Firewall and Private Endpoints",
+      "RBAC and Access Policies",
+      "Auto-Rotation and Versioning"
+    ],
+    "answer": 0,
+    "explanation": "**Soft Delete** retains deleted vaults/secrets for a retention period (default 90 days). **Purge Protection** blocks permanent deletion until that retention period ends."
   }
 ]

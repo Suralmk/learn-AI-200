@@ -2,7 +2,8 @@ export type DomainId =
   | "containers"
   | "data-management"
   | "azure-services"
-  | "secure-monitor";
+  | "secure-monitor"
+  | "sdk-cli";
 
 export interface Domain {
   id: DomainId;
@@ -39,6 +40,13 @@ export const DOMAINS: Domain[] = [
     weight: "20–25%",
     description:
       "Key Vault, App Configuration, OpenTelemetry, and KQL for observability.",
+  },
+  {
+    id: "sdk-cli",
+    title: "Azure SDK and Azure CLI",
+    weight: "Quiz",
+    description:
+      "Azure CLI commands and Python SDK classes/methods for deploying, configuring, and troubleshooting AI solutions.",
   },
 ];
 

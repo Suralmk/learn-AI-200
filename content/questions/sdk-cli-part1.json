@@ -1,0 +1,563 @@
+[
+  {
+    "id": "sdk-001",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Azure CLI command creates a new resource group?",
+    "options": [
+      "az group create --name myRG --location eastus",
+      "az resource create --group myRG",
+      "az rg new --name myRG",
+      "az account create --name myRG"
+    ],
+    "answer": 0,
+    "explanation": "az group create is the correct command to create a resource group, requiring --name and --location. az resource create manages generic individual resources (not groups), 'az rg new' isn't valid syntax, and az account create doesn't exist as a resource-group operation.\n\n```bash\naz group create --name myRG --location eastus\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Resource Groups",
+    "relatedObjective": "Azure SDK/CLI mastery – Deployment/Configuration"
+  },
+  {
+    "id": "sdk-002",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which command creates a new Azure Storage Account?",
+    "options": [
+      "az storage account create --name mystorageacct --resource-group myRG --location eastus --sku Standard_LRS",
+      "az storage create --name mystorageacct",
+      "az storage container create --name mystorageacct",
+      "az blob account create --name mystorageacct"
+    ],
+    "answer": 0,
+    "explanation": "az storage account create provisions the storage account itself with required --sku and --location. 'az storage create' isn't valid, az storage container create makes a blob container inside an existing account (not the account itself), and 'az blob account create' isn't a real command.\n\n```bash\naz storage account create --name mystorageacct123 --resource-group myRG --location eastus --sku Standard_LRS\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Storage Accounts",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-003",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which command creates an Azure Key Vault?",
+    "options": [
+      "az keyvault create --name myVault --resource-group myRG --location eastus",
+      "az kv new --name myVault",
+      "az keyvault secret create --name myVault",
+      "az security keyvault create --name myVault"
+    ],
+    "answer": 0,
+    "explanation": "az keyvault create provisions a new vault instance. 'az kv new' is not valid CLI syntax, az keyvault secret create operates on secrets within an existing vault (not the vault itself), and 'az security keyvault create' is not a real command group.\n\n```bash\naz keyvault create --name myVault --resource-group myRG --location eastus\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-004",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which command deploys a container image to a new Azure Container App?",
+    "options": [
+      "az containerapp create --name myApp --resource-group myRG --image myregistry.azurecr.io/myapp:v1 --environment myEnv",
+      "az container create --name myApp --image myapp:v1",
+      "az app deploy --image myapp:v1",
+      "az acr deploy --name myApp"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp create provisions and deploys a new Container App from the specified image within a Container Apps environment. az container create targets Azure Container Instances (a different service), 'az app deploy' isn't valid syntax, and az acr deploy doesn't exist — ACR only manages images, not app deployment.\n\n```bash\naz containerapp create --name myApp --resource-group myRG --image myregistry.azurecr.io/myapp:v1 --environment myEnv\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Azure SDK/CLI mastery – Deployment Questions"
+  },
+  {
+    "id": "sdk-005",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which command uploads a local file as a blob to an Azure Storage container?",
+    "options": [
+      "az storage blob upload --account-name myacct --container-name mycontainer --name myblob --file ./localfile.txt",
+      "az storage account upload --file ./localfile.txt",
+      "az storage container upload --file ./localfile.txt",
+      "az blob push --file ./localfile.txt"
+    ],
+    "answer": 0,
+    "explanation": "az storage blob upload sends a specified local file to a named blob within a container. az storage account upload isn't valid (accounts don't take file uploads directly), az storage container upload isn't a real subcommand, and 'az blob push' doesn't exist in the Azure CLI.\n\n```bash\naz storage blob upload --account-name myacct --container-name mycontainer --name myblob --file ./localfile.txt --auth-mode login\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Blob Storage",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-006",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which command creates an Event Grid subscription that sends events to a webhook endpoint?",
+    "options": [
+      "az eventgrid event-subscription create --name mySub --source-resource-id <resourceId> --endpoint <url>",
+      "az eventgrid topic create --name mySub",
+      "az eventgrid subscribe --name mySub",
+      "az event create --name mySub"
+    ],
+    "answer": 0,
+    "explanation": "az eventgrid event-subscription create creates a subscription against a given source resource, pointing to a webhook or other endpoint type. az eventgrid topic create only creates a custom topic (not a subscription), 'az eventgrid subscribe' isn't valid syntax, and 'az event create' isn't a real command.\n\n```bash\naz eventgrid event-subscription create --name mySub --source-resource-id /subscriptions/.../storageAccounts/myacct --endpoint https://myfunction.azurewebsites.net/api/handler\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Event Grid",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-007",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which command creates a new Azure Cosmos DB account using the NoSQL (Core SQL) API?",
+    "options": [
+      "az cosmosdb create --name myaccount --resource-group myRG --kind GlobalDocumentDB",
+      "az cosmosdb account new --name myaccount",
+      "az cosmos create --name myaccount",
+      "az cosmosdb database create --name myaccount"
+    ],
+    "answer": 0,
+    "explanation": "az cosmosdb create provisions the Cosmos DB account itself; --kind GlobalDocumentDB corresponds to the NoSQL/Core SQL API. 'az cosmosdb account new' is invalid syntax, 'az cosmos create' is not a valid command group, and az cosmosdb database create only creates a database inside an already-existing account.\n\n```bash\naz cosmosdb create --name myaccount --resource-group myRG --kind GlobalDocumentDB --locations regionName=eastus\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-008",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which command creates a new Service Bus namespace?",
+    "options": [
+      "az servicebus namespace create --name myNamespace --resource-group myRG --location eastus --sku Standard",
+      "az servicebus create --name myNamespace",
+      "az sb create --name myNamespace",
+      "az servicebus topic create --name myNamespace"
+    ],
+    "answer": 0,
+    "explanation": "az servicebus namespace create provisions the namespace container that will hold queues/topics, with --sku controlling tier. 'az servicebus create' and 'az sb create' are not valid command forms, and az servicebus topic create makes a topic inside an already-existing namespace, not the namespace itself.\n\n```bash\naz servicebus namespace create --name myNamespace --resource-group myRG --location eastus --sku Standard\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Service Bus",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-009",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which command creates an AKS cluster with 3 nodes?",
+    "options": [
+      "az aks create --name myCluster --resource-group myRG --node-count 3 --generate-ssh-keys",
+      "az aks new --name myCluster --nodes 3",
+      "az kubernetes create --name myCluster --node-count 3",
+      "az acs create --name myCluster --node-count 3"
+    ],
+    "answer": 0,
+    "explanation": "az aks create provisions a new AKS cluster, with --node-count specifying the initial node pool size and --generate-ssh-keys auto-generating SSH keys if needed. 'az aks new' and 'az kubernetes create' aren't valid command names, and 'az acs create' refers to the deprecated Azure Container Service, not AKS.\n\n```bash\naz aks create --name myCluster --resource-group myRG --node-count 3 --generate-ssh-keys\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-010",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Python SDK class is used to upload and download blobs from Azure Blob Storage?",
+    "options": [
+      "BlobServiceClient (and BlobClient/ContainerClient)",
+      "CosmosClient",
+      "SecretClient",
+      "ServiceBusClient"
+    ],
+    "answer": 0,
+    "explanation": "BlobServiceClient (along with ContainerClient and BlobClient) from azure-storage-blob is the SDK entry point for blob operations like upload_blob/download_blob. CosmosClient targets Cosmos DB, SecretClient targets Key Vault secrets, and ServiceBusClient targets Service Bus — none handle blob storage.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Storage Blob SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Classes"
+  },
+  {
+    "id": "sdk-011",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Python SDK class retrieves secrets from Azure Key Vault?",
+    "options": [
+      "SecretClient (azure-keyvault-secrets)",
+      "KeyClient",
+      "CertificateClient",
+      "BlobServiceClient"
+    ],
+    "answer": 0,
+    "explanation": "SecretClient from azure-keyvault-secrets exposes methods like get_secret and set_secret for managing Key Vault secrets specifically. KeyClient manages cryptographic keys (not secrets), CertificateClient manages certificates, and BlobServiceClient is unrelated to Key Vault entirely.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Key Vault SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Classes"
+  },
+  {
+    "id": "sdk-012",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Python SDK class sends messages to an Azure Service Bus queue or topic?",
+    "options": [
+      "ServiceBusClient combined with ServiceBusSender",
+      "EventGridPublisherClient",
+      "QueueClient from azure-storage-queue only",
+      "CosmosClient"
+    ],
+    "answer": 0,
+    "explanation": "ServiceBusClient creates a ServiceBusSender (via get_queue_sender/get_topic_sender) used to send messages to Service Bus entities. EventGridPublisherClient targets Event Grid (a different pub/sub service), azure-storage-queue's QueueClient targets Storage Queues (a simpler, different queuing service), and CosmosClient is unrelated to messaging.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Service Bus SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Classes"
+  },
+  {
+    "id": "sdk-013",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Python SDK class publishes custom events to an Azure Event Grid topic?",
+    "options": [
+      "EventGridPublisherClient (azure-eventgrid)",
+      "ServiceBusSender",
+      "BlobServiceClient",
+      "SecretClient"
+    ],
+    "answer": 0,
+    "explanation": "EventGridPublisherClient from the azure-eventgrid package is specifically designed to send events to an Event Grid topic endpoint. ServiceBusSender sends Service Bus messages (a different messaging paradigm), BlobServiceClient handles blob storage, and SecretClient handles Key Vault secrets — none publish Event Grid events.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Event Grid SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Classes"
+  },
+  {
+    "id": "sdk-014",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure OpenAI Python SDK call generates text embeddings for a given input string?",
+    "options": [
+      "client.embeddings.create(model=<deployment_name>, input=<text>)",
+      "client.chat.completions.create(model=<deployment_name>, messages=[...])",
+      "client.images.generate(prompt=<text>)",
+      "client.files.create(file=<text>)"
+    ],
+    "answer": 0,
+    "explanation": "The embeddings.create method (via the OpenAI Python SDK configured for Azure OpenAI) returns a vector embedding for the given input text, used for semantic search/RAG. chat.completions.create generates conversational text responses (not embeddings), images.generate creates images from a prompt, and files.create uploads files for fine-tuning/assistants, none of which produce embeddings.",
+    "difficulty": "Medium",
+    "relatedService": "Azure OpenAI SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Methods"
+  },
+  {
+    "id": "sdk-015",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Python SDK class performs vector similarity search against an Azure AI Search index containing embeddings?",
+    "options": [
+      "SearchClient.search() with a VectorizedQuery parameter",
+      "BlobServiceClient.download_blob()",
+      "CosmosClient.create_database_if_not_exists()",
+      "SecretClient.get_secret()"
+    ],
+    "answer": 0,
+    "explanation": "SearchClient (azure-search-documents) exposes a search() method that accepts a VectorizedQuery (or vector_queries parameter) to perform vector similarity search, optionally combined with traditional keyword filters for hybrid search. The other three classes/methods target blob download, Cosmos DB database creation, and Key Vault secret retrieval respectively — none perform search operations.",
+    "difficulty": "Hard",
+    "relatedService": "Azure AI Search SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Classes"
+  },
+  {
+    "id": "sdk-016",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which method on a Cosmos DB Python SDK container object inserts a new item or replaces it if it already exists (by id)?",
+    "options": [
+      "container.upsert_item(body=item)",
+      "container.create_item(body=item) only, which fails if the item exists",
+      "container.read_item(item=item_id, partition_key=pk)",
+      "container.query_items(query=...)"
+    ],
+    "answer": 0,
+    "explanation": "upsert_item creates the item if it doesn't exist or replaces it if an item with the same id/partition key already exists, which is the standard idempotent write pattern. create_item raises a conflict error if the item already exists (not idempotent), read_item only retrieves a single known item, and query_items executes read queries rather than performing writes.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Methods"
+  },
+  {
+    "id": "sdk-017",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Azure CLI command sets an application setting (environment variable) on an App Service?",
+    "options": [
+      "az webapp config appsettings set --name myApp --resource-group myRG --settings KEY=VALUE",
+      "az webapp create --name myApp --settings KEY=VALUE",
+      "az appservice env create --settings KEY=VALUE",
+      "az webapp restart --settings KEY=VALUE"
+    ],
+    "answer": 0,
+    "explanation": "az webapp config appsettings set adds or updates key-value application settings on an existing App Service (surfaced to the app as environment variables). az webapp create only provisions a new app (doesn't manage settings on existing ones this way), az appservice env create provisions an App Service Environment (a different, isolated hosting resource), and az webapp restart just restarts the app with no settings parameter.\n\n```bash\naz webapp config appsettings set --name myApp --resource-group myRG --settings OPENAI_API_KEY=@Microsoft.KeyVault(SecretUri=https://myvault.vault.azure.net/secrets/openai-key/)\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-018",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command pushes a locally built image to Azure Container Registry?",
+    "options": [
+      "az acr login --name myregistry, then docker push myregistry.azurecr.io/myapp:v1",
+      "az acr push --name myregistry --image myapp:v1",
+      "az acr build --registry myregistry --no-push",
+      "az acr import --source myapp:v1"
+    ],
+    "answer": 0,
+    "explanation": "Pushing a locally built image requires authenticating the Docker CLI with az acr login, then using the standard docker push against the registry's login server URL. 'az acr push' is not a valid CLI command, az acr build --no-push explicitly skips pushing, and az acr import copies an image between registries (not from a local Docker daemon).\n\n```bash\naz acr login --name myregistry && docker push myregistry.azurecr.io/myapp:v1\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Azure SDK/CLI mastery – Deployment Questions"
+  },
+  {
+    "id": "sdk-019",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command enables a system-assigned managed identity on an existing App Service?",
+    "options": [
+      "az webapp identity assign --name myApp --resource-group myRG",
+      "az webapp create --identity system",
+      "az ad sp create --name myApp",
+      "az role assignment create --identity system"
+    ],
+    "answer": 0,
+    "explanation": "az webapp identity assign enables (and returns the principal ID for) a system-assigned managed identity on an existing App Service. az webapp create doesn't have an '--identity system' flag for this purpose, az ad sp create manually creates a service principal (a different, less integrated identity mechanism), and az role assignment create only assigns roles — it doesn't create the identity itself.\n\n```bash\naz webapp identity assign --name myApp --resource-group myRG\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service / Managed Identity",
+    "relatedObjective": "Azure SDK/CLI mastery – Authentication Questions"
+  },
+  {
+    "id": "sdk-020",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command grants a managed identity the 'Key Vault Secrets User' role on a specific Key Vault, scoped only to that vault?",
+    "options": [
+      "az role assignment create --assignee <principalId> --role \"Key Vault Secrets User\" --scope <keyVaultResourceId>",
+      "az keyvault set-policy --name myVault --object-id <principalId> --secret-permissions all",
+      "az role assignment create --assignee <principalId> --role Owner --scope /subscriptions/<subId>",
+      "az keyvault update --name myVault --enable-rbac-authorization true"
+    ],
+    "answer": 0,
+    "explanation": "az role assignment create with --role \"Key Vault Secrets User\" and --scope set to the specific vault's resource ID grants exactly the least-privilege, RBAC-based access described. az keyvault set-policy uses the legacy access-policy model (not RBAC) and 'all' permissions violates least privilege, assigning Owner at the subscription scope is drastically over-privileged, and enabling RBAC authorization alone doesn't grant any specific role assignment.\n\n```bash\naz role assignment create --assignee <principalId> --role \"Key Vault Secrets User\" --scope /subscriptions/<subId>/resourceGroups/myRG/providers/Microsoft.KeyVault/vaults/myVault\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure RBAC / Key Vault",
+    "relatedObjective": "Azure SDK/CLI mastery – Authentication Questions"
+  },
+  {
+    "id": "sdk-021",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command deploys a ZIP-packaged application to an existing Azure App Service?",
+    "options": [
+      "az webapp deploy --resource-group myRG --name myApp --src-path ./app.zip --type zip",
+      "az webapp create --zip ./app.zip",
+      "az storage blob upload --file ./app.zip --container webapp",
+      "az acr build --file ./app.zip"
+    ],
+    "answer": 0,
+    "explanation": "az webapp deploy with --type zip pushes and deploys a zipped app package to an existing App Service. az webapp create only provisions the app resource (no zip option for code deployment), storage blob upload merely stores the zip file without deploying it, and az acr build builds container images, unrelated to App Service zip deployment.\n\n```bash\naz webapp deploy --resource-group myRG --name myApp --src-path ./app.zip --type zip\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Azure SDK/CLI mastery – Deployment Questions"
+  },
+  {
+    "id": "sdk-022",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which Azure CLI command lists all containers currently running in an Azure Container Apps environment's app?",
+    "options": [
+      "az containerapp show --name myApp --resource-group myRG",
+      "az container list --name myApp",
+      "az aks get-nodes --name myApp",
+      "az acr repository list --name myApp"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp show returns the full configuration and status (including container/revision details) of a Container App. az container list targets Azure Container Instances (a different service), az aks get-nodes isn't a valid AKS command for this purpose, and az acr repository list only lists image repositories in a registry, not running containers.\n\n```bash\naz containerapp show --name myApp --resource-group myRG\n```",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-023",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command retrieves recent log output from an Azure Function App for troubleshooting?",
+    "options": [
+      "az webapp log tail --name myFunctionApp --resource-group myRG",
+      "az functionapp show --name myFunctionApp",
+      "az monitor activity-log list",
+      "az webapp restart --name myFunctionApp"
+    ],
+    "answer": 0,
+    "explanation": "az webapp log tail streams live log output for both App Service and Function Apps (since Function Apps run on the App Service platform), which is the direct way to observe recent behavior for troubleshooting. az functionapp show only returns static configuration (not logs), az monitor activity-log list shows control-plane operations rather than application logs, and restarting the app doesn't retrieve any log content.\n\n```bash\naz webapp log tail --name myFunctionApp --resource-group myRG\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Azure SDK/CLI mastery – Troubleshooting Questions"
+  },
+  {
+    "id": "sdk-024",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command lists the access keys/connection strings for a Service Bus namespace's default authorization rule?",
+    "options": [
+      "az servicebus namespace authorization-rule keys list --name RootManageSharedAccessKey --namespace-name myNamespace --resource-group myRG",
+      "az servicebus namespace show --name myNamespace",
+      "az servicebus namespace create --name myNamespace",
+      "az keyvault secret show --name myNamespace"
+    ],
+    "answer": 0,
+    "explanation": "az servicebus namespace authorization-rule keys list retrieves the primary/secondary connection strings for the named authorization rule (commonly RootManageSharedAccessKey). az servicebus namespace show only returns namespace metadata (no keys), az servicebus namespace create provisions a new namespace, and az keyvault secret show is unrelated unless the key happens to be separately stored there.\n\n```bash\naz servicebus namespace authorization-rule keys list --name RootManageSharedAccessKey --namespace-name myNamespace --resource-group myRG\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Service Bus",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-025",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command enables diagnostic settings on an AKS cluster to forward logs to a Log Analytics workspace?",
+    "options": [
+      "az monitor diagnostic-settings create --resource <aksResourceId> --workspace <workspaceId> --name aksDiagnostics --logs '[{\"category\":\"kube-audit\",\"enabled\":true}]'",
+      "az aks enable-addons --addons monitoring --name myCluster --resource-group myRG (with no workspace specified)",
+      "az monitor log-analytics workspace create --name myWorkspace",
+      "az aks update --name myCluster --enable-managed-identity"
+    ],
+    "answer": 0,
+    "explanation": "az monitor diagnostic-settings create is the generic command that wires any resource's diagnostic logs/metrics to a destination like a Log Analytics workspace, letting you specify exactly which log categories (like kube-audit) to forward. Enabling the monitoring add-on without specifying a workspace doesn't establish the diagnostic settings pipeline needed here, creating a new workspace alone doesn't connect it to AKS, and enabling managed identity on AKS is an unrelated identity configuration.\n\n```bash\naz monitor diagnostic-settings create --resource <aksResourceId> --workspace <workspaceId> --name aksDiagnostics --logs '[{\"category\":\"kube-audit\",\"enabled\":true}]'\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service / Azure Monitor",
+    "relatedObjective": "Azure SDK/CLI mastery – Monitoring Questions"
+  },
+  {
+    "id": "sdk-026",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a Log Analytics workspace to serve as a central monitoring destination?",
+    "options": [
+      "az monitor log-analytics workspace create --resource-group myRG --workspace-name myWorkspace",
+      "az monitor workspace new --name myWorkspace",
+      "az loganalytics create --name myWorkspace",
+      "az monitor diagnostic-settings create --name myWorkspace"
+    ],
+    "answer": 0,
+    "explanation": "az monitor log-analytics workspace create provisions the workspace resource itself. 'az monitor workspace new' and 'az loganalytics create' aren't valid command forms, and az monitor diagnostic-settings create wires an existing resource's logs to an existing workspace rather than creating the workspace.\n\n```bash\naz monitor log-analytics workspace create --resource-group myRG --workspace-name myWorkspace\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Monitor / Log Analytics",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-027",
+    "domain": "sdk-cli",
+    "type": "mcq",
+    "question": "Which credential class from azure-identity is generally recommended as the default choice for authenticating Azure SDK clients across both local development and Azure-hosted environments?",
+    "options": [
+      "DefaultAzureCredential",
+      "UsernamePasswordCredential",
+      "ClientSecretCredential hardcoded in source",
+      "AnonymousCredential"
+    ],
+    "answer": 0,
+    "explanation": "DefaultAzureCredential chains together several credential types (managed identity, environment variables, Azure CLI, VS Code, etc.) and is Microsoft's recommended default for most application scenarios spanning local dev and production. UsernamePasswordCredential is discouraged for automated workloads and doesn't support MFA well, hardcoding a ClientSecretCredential embeds long-lived secrets in source control, and there's no 'AnonymousCredential' construct for authenticated Azure SDK calls.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Identity SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Authentication Questions"
+  },
+  {
+    "id": "sdk-028",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command explicitly enables a user-assigned managed identity (already created) on an Azure Container App?",
+    "options": [
+      "az containerapp identity assign --name myApp --resource-group myRG --user-assigned <identityResourceId>",
+      "az identity create --name myApp",
+      "az containerapp create --name myApp --identity-type SystemAssigned only, with no user-assigned option",
+      "az role assignment create --assignee myApp"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp identity assign with --user-assigned attaches a pre-existing user-assigned managed identity to the Container App. az identity create only creates the identity resource itself (doesn't attach it to the app), Container Apps does support user-assigned identities (not only system-assigned as the distractor claims), and az role assignment create grants permissions but doesn't attach the identity to the app in the first place.\n\n```bash\naz containerapp identity assign --name myApp --resource-group myRG --user-assigned /subscriptions/<subId>/resourcegroups/myRG/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myIdentity\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps / Managed Identity",
+    "relatedObjective": "Azure SDK/CLI mastery – Authentication Questions"
+  },
+  {
+    "id": "sdk-029",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a new revision-enabled update to an existing Container App with a new image tag?",
+    "options": [
+      "az containerapp update --name myApp --resource-group myRG --image myregistry.azurecr.io/myapp:v2",
+      "az containerapp create --name myApp --image myapp:v2 (on top of an existing app of the same name, expecting it to update)",
+      "az containerapp revision list --name myApp",
+      "az containerapp env update --name myApp"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp update changes the app's configuration (including image) and, with multiple revision mode enabled, creates a new revision reflecting the change. az containerapp create is meant for initial creation (not idiomatic for updates), az containerapp revision list only lists existing revisions without creating one, and az containerapp env update modifies the shared environment, not an individual app's image.\n\n```bash\naz containerapp update --name myApp --resource-group myRG --image myregistry.azurecr.io/myapp:v2\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Azure SDK/CLI mastery – Deployment Questions"
+  },
+  {
+    "id": "sdk-030",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Python SDK method retrieves configuration values (including feature flags) from Azure App Configuration?",
+    "options": [
+      "AzureAppConfigurationClient.get_configuration_setting(key=...)",
+      "SecretClient.get_secret(name=...)",
+      "BlobClient.download_blob()",
+      "CosmosClient.read_item()"
+    ],
+    "answer": 0,
+    "explanation": "AzureAppConfigurationClient (azure-appconfiguration) exposes get_configuration_setting to retrieve a named setting or feature flag from the store. SecretClient targets Key Vault secrets specifically, BlobClient downloads blob content, and CosmosClient.read_item retrieves Cosmos DB documents — none read from App Configuration.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Configuration SDK",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure SDK Methods"
+  },
+  {
+    "id": "sdk-031",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command configures a KEDA-based custom scale rule (based on Service Bus queue length) on an existing Container App?",
+    "options": [
+      "az containerapp update --name myApp --resource-group myRG --scale-rule-name queue-rule --scale-rule-type azure-servicebus --scale-rule-metadata queueName=myqueue --scale-rule-auth trigger=connection",
+      "az containerapp scale set --name myApp --min 1 --max 5",
+      "az monitor autoscale create --resource myApp --min-count 1 --max-count 5",
+      "az aks scale --name myApp --node-count 5"
+    ],
+    "answer": 0,
+    "explanation": "az containerapp update with --scale-rule-type azure-servicebus and associated metadata/auth parameters configures a KEDA custom scale rule tied to Service Bus queue depth, which is the correct, Container-Apps-native mechanism. az containerapp scale set isn't the correct subcommand structure for custom scale rules, az monitor autoscale targets classic Azure Monitor autoscale (VM Scale Sets/App Service, not Container Apps' KEDA rules), and az aks scale is for AKS node pools, an entirely different resource.\n\n```bash\naz containerapp update --name myApp --resource-group myRG --scale-rule-name queue-rule --scale-rule-type azure-servicebus --scale-rule-metadata queueName=myqueue namespace=myNamespace --scale-rule-auth connection=service-bus-connection-string-secret\n```",
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Apps (KEDA)",
+    "relatedObjective": "Azure SDK/CLI mastery – Configuration Questions"
+  },
+  {
+    "id": "sdk-032",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command creates a new secret inside an existing Key Vault?",
+    "options": [
+      "az keyvault secret set --vault-name myVault --name mySecret --value \"mySecretValue\"",
+      "az keyvault secret create --vault-name myVault --name mySecret",
+      "az keyvault add-secret --vault-name myVault --name mySecret",
+      "az keyvault secret new --vault-name myVault"
+    ],
+    "answer": 0,
+    "explanation": "az keyvault secret set both creates a new secret and updates an existing one (adding a new version), taking --value directly or --file for content. 'az keyvault secret create', 'az keyvault add-secret', and 'az keyvault secret new' are not valid Azure CLI command names.\n\n```bash\naz keyvault secret set --vault-name myVault --name dbConnectionString --value \"Server=...;\"\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  },
+  {
+    "id": "sdk-033",
+    "domain": "sdk-cli",
+    "type": "scenario",
+    "question": "Which Azure CLI command retrieves the connection string for an Azure Cosmos DB account?",
+    "options": [
+      "az cosmosdb keys list --name myaccount --resource-group myRG --type connection-strings",
+      "az cosmosdb show --name myaccount --query connectionString",
+      "az cosmosdb connectionstring show --name myaccount",
+      "az keyvault secret show --name myaccount"
+    ],
+    "answer": 0,
+    "explanation": "az cosmosdb keys list with --type connection-strings returns the account's connection strings (primary/secondary, and read-only variants). az cosmosdb show returns account metadata but doesn't include a literal 'connectionString' property by default via that simple query, 'az cosmosdb connectionstring show' isn't a valid subcommand, and az keyvault secret show is unrelated unless the string happens to be stored there separately.\n\n```bash\naz cosmosdb keys list --name myaccount --resource-group myRG --type connection-strings\n```",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB",
+    "relatedObjective": "Azure SDK/CLI mastery – Azure CLI Commands"
+  }
+]
