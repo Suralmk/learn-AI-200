@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, ClipboardList, GraduationCap } from "lucide-react";
@@ -14,6 +15,15 @@ import {
 import { DOMAINS } from "@/lib/domains";
 import { SkillFocusSection } from "@/components/skill-focus-section";
 import { PreparedBy } from "@/components/site-footer";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: `${SITE_NAME} — AI-200 Azure AI Cloud Developer Study Notes & Practice Exams`,
+  },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+};
 
 export default function HomePage() {
   return (
@@ -30,15 +40,15 @@ export default function HomePage() {
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <h1 className="mb-3 text-3xl font-semibold tracking-tight">
-              Learn AI-200
+              AI-200 Azure AI Cloud Developer Study Notes
             </h1>
             <p className="mb-2 max-w-2xl text-muted-foreground">
               Prepare for{" "}
               <strong className="text-foreground">
                 Microsoft AI-200: Developing AI Cloud Solutions on Azure
               </strong>{" "}
-              — the Azure AI Cloud Developer Associate certification. Study guides
-              with code samples, practice questions, and a mock exam.
+              — the Azure AI Cloud Developer Associate certification. Free study
+              notes with code samples, practice questions, and mock exams.
             </p>
             <p className="mb-2 text-sm text-muted-foreground">
               For developers building back-end AI solutions with Python, containers,

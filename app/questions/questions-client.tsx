@@ -49,10 +49,13 @@ export default function QuestionsPage({
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="mb-2 text-2xl font-semibold">Practice questions</h1>
+        <h1 className="mb-2 text-2xl font-semibold">
+          AI-200 Practice Questions
+        </h1>
         <p className="text-muted-foreground">
-          MCQ and scenario-style questions with detailed explanations. Filter by
-          difficulty, exam domain, or advanced use-case scenarios.
+          MCQ and scenario-style questions for the Azure AI Cloud Developer
+          Associate exam. Filter by difficulty, exam domain, or advanced
+          use-case scenarios.
         </p>
       </div>
 

@@ -36,9 +36,9 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
         <PreparedBy />
         <p className="text-xs text-muted-foreground">
-          Study companion for{" "}
+          Free study companion for Microsoft{" "}
           <Link href="/" className="hover:text-foreground hover:underline">
-            Learn AI-200
+            AI-200 Azure AI Cloud Developer
           </Link>
         </p>
       </div>

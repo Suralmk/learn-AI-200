@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -18,6 +19,38 @@ export function generateStaticParams() {
   const guides = getStudyGuides().map((topic) => ({ slug: topic.slug }));
   const paths = getLearningPaths().map((path) => ({ slug: path.slug }));
   return [...guides, ...paths];
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const guide = getStudyGuide(slug);
+  const path = getLearningPath(slug);
+
+  if (path) {
+    return {
+      title: `${path.title} — AI-200 Study Path`,
+      description:
+        path.description ||
+        `AI-200 Azure AI Cloud Developer study path: ${path.title}. Free exam study notes and learning modules.`,
+      alternates: { canonical: `/study/${slug}` },
+    };
+  }
+
+  if (guide) {
+    return {
+      title: `${guide.title} — AI-200 Study Notes`,
+      description:
+        guide.description ||
+        `AI-200 Azure AI Cloud Developer study notes: ${guide.title}.`,
+      alternates: { canonical: `/study/${slug}` },
+    };
+  }
+
+  return { title: "Study material not found" };
 }
 
 export default async function StudyDetailPage({

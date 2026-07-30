@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -7,6 +8,25 @@ import { getExam, getQuestionsForExam, EXAMS } from "@/lib/exams";
 
 export function generateStaticParams() {
   return EXAMS.map((exam) => ({ id: exam.id }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const exam = getExam(id);
+
+  if (!exam) {
+    return { title: "Exam not found" };
+  }
+
+  return {
+    title: `${exam.title} — AI-200 Practice Exam`,
+    description: `${exam.description} Free Microsoft AI-200 practice exam for Azure AI Cloud Developer Associate.`,
+    alternates: { canonical: `/exam/${id}` },
+  };
 }
 
 export default async function ExamDetailPage({

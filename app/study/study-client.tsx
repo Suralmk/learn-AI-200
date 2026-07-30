@@ -136,10 +136,13 @@ export default function StudyClient({
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="mb-2 text-2xl font-semibold">Study materials</h1>
+        <h1 className="mb-2 text-2xl font-semibold">
+          AI-200 Study Notes & Learning Paths
+        </h1>
         <p className="text-muted-foreground">
-          Official Microsoft Learn AI-200 learning paths. Select a topic to open
-          its study page with modules and sub-topics.
+          Free Microsoft AI-200 study notes and learning paths for the Azure AI
+          Cloud Developer Associate exam. Select a topic to open its study page
+          with modules and sub-topics.
         </p>
       </div>
 

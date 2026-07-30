@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -8,6 +9,28 @@ import { getAllTopicParams, getTopicNote } from "@/lib/topics";
 
 export function generateStaticParams() {
   return getAllTopicParams();
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; topicSlug: string }>;
+}): Promise<Metadata> {
+  const { slug, topicSlug } = await params;
+  const path = getLearningPath(slug);
+  const note = getTopicNote(slug, topicSlug);
+
+  if (!path || !note) {
+    return { title: "Topic not found" };
+  }
+
+  const description = `AI-200 study notes: ${note.title} (${note.moduleName}) for the Azure AI Cloud Developer Associate exam. Part of ${path.title}.`;
+
+  return {
+    title: `${note.title} — AI-200 Study Notes`,
+    description,
+    alternates: { canonical: `/study/${slug}/${topicSlug}` },
+  };
 }
 
 export default async function TopicDetailPage({
