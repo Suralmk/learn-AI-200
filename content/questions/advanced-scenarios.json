@@ -1,0 +1,542 @@
+[
+  {
+    "id": "adv-001",
+    "domain": "containers",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Registry Tasks",
+    "relatedObjective": "Implement container application hosting",
+    "question": "A machine-learning platform team maintains a shared base Docker image containing CUDA drivers and Python dependencies that several inference-service teams build on top of. The platform team wants any downstream image to be rebuilt and re-pushed to Azure Container Registry automatically whenever the shared base image receives a security patch, without anyone manually starting a build, and they want the rebuilt image scanned for vulnerabilities before it becomes available to pull.\n\nWhich ACR Tasks configuration satisfies both requirements?",
+    "options": [
+      "Configure a manual task triggered by an Azure DevOps release gate, and run a third-party scanner inside the build step",
+      "Configure a base image update trigger on the ACR Task, and enable Microsoft Defender for Cloud container image scanning on the registry",
+      "Configure a source-commit trigger only, and rely on Azure Policy to block non-compliant images after they are already deployed",
+      "Configure a scheduled (cron) trigger to rebuild nightly, and scan images manually with az acr repository show"
+    ],
+    "explanation": "ACR Tasks supports a **base image update trigger** to rebuild dependent images automatically when the base changes. **Microsoft Defender for Cloud** container image scanning evaluates images for vulnerabilities in the registry before they are pulled.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-002",
+    "domain": "containers",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Implement container application hosting",
+    "question": "A containerized inference API on Azure App Service (Linux, custom container) needs a database connection string and a third-party API key at startup. Security requires that no secret value is ever stored as plain text in App Service configuration, and that the values automatically reflect the current version in Key Vault after rotation, without redeploying the app.\n\nWhat should you configure?",
+    "options": [
+      "Store the values as plain Application Settings and update them manually whenever they rotate",
+      "Assign a system-assigned managed identity to the App Service, grant it access to the secrets, and reference them in Application Settings using Key Vault references (@Microsoft.KeyVault syntax)",
+      "Bake the secrets into the container image as build-time ARG values so they never appear in App Service settings",
+      "Store the values in a mounted Azure Files share and read them from a text file at container startup"
+    ],
+    "explanation": "**Key Vault references** combined with a **managed identity** resolve secrets at runtime and automatically pick up the latest version after rotation — nothing is stored in plain text in App Service settings.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-003",
+    "domain": "containers",
+    "answer": 0,
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Apps (KEDA)",
+    "relatedObjective": "Implement container-orchestrated solutions",
+    "question": "A document-classification workload runs in Azure Container Apps and reads from a Service Bus queue. Volume varies from zero overnight to several thousand messages during business hours. Security does not want the Service Bus connection string stored as plain text anywhere in the Container App definition.\n\nWhich combination should you configure?",
+    "options": [
+      "A KEDA azure-servicebus scale rule with a queue-length trigger, using a TriggerAuthentication resource backed by a Container Apps secret or managed identity, with minReplicas set to 0",
+      "A CPU-based scale rule with minReplicas set to 1, and the connection string stored directly in an environment variable",
+      "A cron-based KEDA scale rule that adds replicas during business hours regardless of actual queue depth",
+      "An HTTP scale rule pointed at the Service Bus REST endpoint, with the connection string embedded in the scale rule metadata"
+    ],
+    "explanation": "KEDA's **azure-servicebus** scaler reads queue depth and can authenticate via **TriggerAuthentication** (secret ref or managed identity) instead of a plaintext connection string. **minReplicas: 0** enables scale-to-zero overnight.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-004",
+    "domain": "containers",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Monitor and troubleshoot solutions on AKS and Container Apps",
+    "question": "Pods running an AI inference container in AKS intermittently show a Running status but stop responding to requests. Container Insights shows no CPU or memory pressure. You suspect the issue may be DNS resolution to an internal Cosmos DB private endpoint intermittently failing.\n\nWhat is the most effective sequence to isolate the root cause?",
+    "options": [
+      "Increase the pod's memory and CPU limits and redeploy, since intermittent issues are usually resource-related",
+      "Exec into an affected pod to test DNS resolution and connectivity to the private endpoint directly, then correlate the findings with Container Insights logs and network policy/NSG rules",
+      "Delete and recreate the AKS node pool, since node-level issues are the most common cause of intermittent failures",
+      "Disable the private endpoint and switch Cosmos DB to public access to rule out networking as a factor"
+    ],
+    "explanation": "Isolate suspected DNS/network issues by **testing connectivity from inside the affected pod** (`kubectl exec`, `nslookup`, `curl`) and correlating with logs and network rules — not by guessing at resource or infrastructure causes.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-005",
+    "domain": "containers",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement container-orchestrated solutions",
+    "question": "You are rolling out a new revision of a RAG API in Azure Container Apps. You want 90% of production traffic to keep going to the stable revision and 10% to the new revision, want both revisions addressable by a fixed label for internal testing regardless of which is \"latest,\" and want to shift more traffic gradually over several days without redeploying.\n\nWhat should you configure?",
+    "options": [
+      "Single active revision mode, switching all users over completely once testing finishes",
+      "Revision labels on both revisions, with traffic-weight percentages assigned to each revision and adjusted over time as confidence increases",
+      "A separate Container App for the new revision entirely, using Azure Front Door for the traffic split instead",
+      "Container Apps scale rules to indirectly influence traffic distribution based on replica count"
+    ],
+    "explanation": "**Multiple revisions mode** with **revision labels** and configurable **traffic-weight percentages** lets you split traffic precisely, test via label URLs, and adjust weights gradually without redeploying.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-006",
+    "domain": "containers",
+    "answer": 2,
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service",
+    "relatedObjective": "Implement container-orchestrated solutions",
+    "question": "You are writing AKS manifests for a stateless embedding-generation service that must scale horizontally based on CPU load, has no need for stable network identities or per-replica persistent storage, and should be evenly load-balanced across replicas.\n\nWhat should the manifest define?",
+    "options": [
+      "A StatefulSet with a headless Service, since AI workloads typically require stable pod identity",
+      "A DaemonSet, so exactly one replica runs per node regardless of load",
+      "A Deployment with a HorizontalPodAutoscaler targeting CPU utilization, fronted by a ClusterIP or LoadBalancer Service",
+      "A single Pod resource with a manually managed replica count updated via kubectl scale"
+    ],
+    "explanation": "A stateless, horizontally scalable workload with no per-replica identity or storage maps to a **Deployment** plus **HPA**, fronted by a **Service** — not a StatefulSet or DaemonSet.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-007",
+    "domain": "containers",
+    "answer": 2,
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Implement container application hosting",
+    "question": "A company deploys AI inference containers to AKS clusters in three Azure regions and wants each region to pull images from a registry replica in its own region to reduce latency and cross-region egress, while also requiring the registry to be reachable only via Private Link, with no public endpoint at all.\n\nWhich ACR configuration is required?",
+    "options": [
+      "Basic tier ACR with three separate registries, one per region, manually kept in sync",
+      "Standard tier ACR with a firewall rule allowlisting each region's AKS subnet",
+      "Premium tier ACR with geo-replication configured to each of the three regions, and private endpoints enabled with public network access disabled",
+      "Standard tier ACR with Azure Traffic Manager routing pull requests to the nearest registry"
+    ],
+    "explanation": "**Geo-replication** and **Private Link** with public access disabled both require **Premium tier** ACR. Basic/Standard cannot provide either capability together.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-008",
+    "domain": "data-management",
+    "answer": 2,
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL",
+    "question": "You store 1536-dimension embeddings for several million documents in an Azure Cosmos DB for NoSQL container. You need the lowest possible query latency and RU cost at this scale, and you are willing to accept a small amount of approximation to get there.\n\nWhich vector index type should you configure in the container's indexing policy?",
+    "options": [
+      "flat, which performs an exact brute-force comparison and is best suited to smaller collections",
+      "quantizedFlat, a reasonable balance of accuracy and performance for moderate-sized datasets",
+      "diskANN, an approximate nearest-neighbor index optimized for large-scale, high-dimensional vector search with the lowest latency and RU cost at scale",
+      "No vector index — rely on a client-side cosine similarity loop after scanning the whole container"
+    ],
+    "explanation": "**diskANN** is the approximate index designed for large, high-dimensional datasets — trading a small amount of accuracy for significantly lower latency and RU cost than flat or quantizedFlat at millions of vectors.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-009",
+    "domain": "data-management",
+    "answer": 0,
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL",
+    "question": "A Cosmos DB for NoSQL container storing chat-session documents uses sessionId as the partition key. As the app scales, most reads and writes concentrate on a small number of very active sessions, creating hot partitions, while an indexing policy that indexes every property is also driving up write RU cost.\n\nWhat should you do to address both issues?",
+    "options": [
+      "Switch to a higher-cardinality partition key with more even access distribution (e.g., a synthetic key combining userId and a date bucket), and customize the indexing policy to only index paths actually used in queries",
+      "Increase the provisioned throughput (RU/s) on the container until hot-partition throttling stops occurring",
+      "Move all data into a single logical partition to simplify query patterns, then scale up compute instead",
+      "Enable TTL on all items so old data ages out faster, which reduces indexing cost"
+    ],
+    "explanation": "Fix **hot partitions** with a better-distributed partition key, and reduce write RU by **narrowing the indexing policy** to only queried paths. More RU/s or TTL alone does not fix either root cause.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-010",
+    "domain": "data-management",
+    "answer": 0,
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL",
+    "question": "You need multiple instances of a serverless function to process the Cosmos DB change feed for a container in parallel, with automatic load balancing across instances and the ability to resume from where processing left off after a restart.\n\nWhat must you configure?",
+    "options": [
+      "A separate lease container that the change feed processor uses to store checkpoints, enabling parallel instances to divide and track progress across partitions",
+      "A single-threaded polling loop that queries _ts values on a timer and tracks the last processed timestamp in application memory",
+      "A Service Bus queue that Cosmos DB pushes every write into, replacing the change feed entirely",
+      "A stored procedure that runs on every write and synchronously pushes the changed document to Blob Storage"
+    ],
+    "explanation": "The change feed processor requires a **lease container** to persist checkpoints — this enables multiple instances to divide partitions and resume correctly after a restart.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-011",
+    "domain": "data-management",
+    "answer": 2,
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Cosmos DB for NoSQL",
+    "question": "A globally distributed Cosmos DB account, replicated across three regions, backs an AI recommendation service. The team wants reads within a single client session to always reflect that client's own most recent writes, while keeping cross-region read latency low. They accept that a read from a different session might briefly lag behind a very recent write made by another session.\n\nWhich consistency level best fits this requirement?",
+    "options": [
+      "Strong consistency, guaranteeing every read in every region always reflects the most recent write globally",
+      "Eventual consistency, where reads may return any previously written value with no ordering guarantee",
+      "Session consistency, guaranteeing a single client session sees its own writes with low latency, while other sessions may briefly observe slightly stale data",
+      "Consistent prefix, guaranteeing reads never see out-of-order writes but with no guarantee about how recent the data is"
+    ],
+    "explanation": "**Session consistency** guarantees read-your-own-writes within a session with low latency — better than Strong (higher latency) or Eventual/Consistent Prefix (no read-your-writes guarantee).",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-012",
+    "domain": "data-management",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL",
+    "question": "A team is choosing a vector index for an embeddings table in Azure Database for PostgreSQL with pgvector. The table receives continuous inserts, and query-time recall and speed matter more than index build time or memory footprint.\n\nWhich index type and consideration is most appropriate?",
+    "options": [
+      "An IVFFlat index with a small lists parameter, because it is cheaper to build and rebuild after every batch of inserts",
+      "An HNSW index, which generally offers better query recall and speed than IVFFlat at the cost of longer build time and more memory, and doesn't need periodic full re-clustering as data grows the way IVFFlat does",
+      "No index at all, since pgvector performs a fast sequential scan on any table size once enough RAM is available",
+      "A default B-tree index on the embedding column, since PostgreSQL's default index type supports any data type efficiently"
+    ],
+    "explanation": "**HNSW** incrementally accommodates new data and generally delivers better recall/speed than **IVFFlat**, which can become stale as clusters age with continuous inserts.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-013",
+    "domain": "data-management",
+    "answer": 2,
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL",
+    "question": "Query latency for a pgvector similarity search has degraded as the embeddings table has grown, and monitoring shows the working set for the HNSW index no longer fits in memory, causing frequent disk reads during searches.\n\nWhat is the most direct fix?",
+    "options": [
+      "Switch the index back to IVFFlat, which always uses less memory than HNSW regardless of dataset size",
+      "Reduce the ef_search parameter to zero to skip graph traversal entirely",
+      "Scale up to a compute tier with more memory, with shared_buffers/effective_cache_size tuned so the index working set fits in RAM",
+      "Move the embedding column into a separate, unindexed table to reduce the size of the indexed table"
+    ],
+    "explanation": "When the index working set no longer fits in memory, the direct remedy is **more memory** and tuning `shared_buffers` / `effective_cache_size` — not switching index types or degrading search quality.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-014",
+    "domain": "data-management",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL (pgvector)",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL",
+    "question": "Your RAG application must retrieve the top-k most similar chunks, but only from documents belonging to the current tenant. Testing shows that running the vector similarity search across the whole table and filtering by tenant afterward returns too few relevant results when a tenant has few documents relative to the whole table.\n\nWhat should you do?",
+    "options": [
+      "Increase k substantially so that after client-side filtering, enough tenant-specific results remain regardless of tenant size",
+      "Apply the tenant_id filter in the same SQL query (a WHERE clause combined with the vector ORDER BY ... LIMIT k), so filtering happens alongside the similarity ranking rather than after a fixed top-k is pulled from the whole table",
+      "Create a completely separate embeddings table per tenant so filtering is never needed within a query",
+      "Perform the vector search in the application layer after downloading the entire table into memory"
+    ],
+    "explanation": "Combine **WHERE tenant_id = ...** with vector **ORDER BY ... LIMIT k** in one query so ranking happens within the tenant subset — not after truncating to k globally.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-015",
+    "domain": "data-management",
+    "answer": 0,
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Develop AI solutions by using Azure Database for PostgreSQL",
+    "question": "A serverless AI function opens a connection to Azure Database for PostgreSQL on each short-lived invocation, issues one or two simple queries, and closes the connection. Under load, the database reports connection exhaustion even though most connections are idle most of the time.\n\nWhat should you implement?",
+    "options": [
+      "A connection pooler (e.g., PgBouncer) in transaction pooling mode, releasing the underlying server connection back to the pool between transactions rather than holding it for the life of the client session",
+      "A connection pooler in session pooling mode, which holds a dedicated server connection for the full duration of each client session",
+      "A much higher max_connections value on the server with no pooler at all, since pooling adds unnecessary latency",
+      "A single, permanently open connection shared across all concurrent function invocations"
+    ],
+    "explanation": "**PgBouncer in transaction pooling mode** returns server connections to the pool after each transaction — ideal for many short-lived serverless invocations doing one or two statements.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-016",
+    "domain": "data-management",
+    "answer": 2,
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Integrate Azure Managed Redis in AI solutions",
+    "question": "An Azure Managed Redis cache stores a mix of session data with explicit TTLs and frequently recomputed AI response fragments with no TTL set. Memory usage is approaching capacity, and the team wants Redis to evict least-recently-used keys, but only from the subset of keys that actually have a TTL, leaving keys without a TTL untouched even under memory pressure.\n\nWhich eviction policy should you configure?",
+    "options": [
+      "noeviction, so Redis returns write errors instead of evicting anything",
+      "allkeys-lru, which evicts the least recently used key among all keys, including ones without a TTL",
+      "volatile-lru, which evicts the least recently used key only among keys that have a TTL set, leaving keys without a TTL alone",
+      "random, which evicts a randomly chosen key regardless of TTL or recency"
+    ],
+    "explanation": "**volatile-lru** evicts LRU keys **only among keys with a TTL**, protecting untimed AI response fragments from eviction under memory pressure.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-017",
+    "domain": "data-management",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Integrate Azure Managed Redis in AI solutions",
+    "question": "You are configuring vector search in Azure Managed Redis for a recommendation feature that needs approximate nearest-neighbor search with strong query throughput on a large, frequently updated dataset, using cosine similarity between embeddings.\n\nWhat should you configure?",
+    "options": [
+      "A FLAT index type with the L2 distance metric, since exact search is always faster than approximate search regardless of dataset size",
+      "An HNSW index type with the COSINE distance metric, providing approximate nearest-neighbor search suited to large, frequently updated datasets",
+      "A Sorted Set ranked by manually computed dot products, recalculated on every write",
+      "A Redis Hash with no index, relying on a full SCAN and client-side cosine similarity per query"
+    ],
+    "explanation": "**HNSW** with **COSINE** distance is the approximate-search index built for large, frequently updated datasets with cosine similarity requirements.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-018",
+    "domain": "azure-services",
+    "answer": 0,
+    "difficulty": "Hard",
+    "relatedService": "Azure Service Bus",
+    "relatedObjective": "Develop event- and message-based AI solutions",
+    "question": "An order-processing system must guarantee that all messages for a single customer are processed strictly in the order they were sent, even though many customers' messages interleave on the same queue. Messages that fail processing after several attempts must be removed from the main queue automatically so they don't block that customer's remaining messages, while still being retained for manual review.\n\nWhat should you configure?",
+    "options": [
+      "A session-enabled Service Bus queue (session ID per customer), combined with a max delivery count that automatically dead-letters messages exceeding the retry limit",
+      "A standard, non-sessioned queue with a single consumer thread, relying on FIFO delivery order guarantees alone",
+      "A Service Bus topic with one subscription per customer, with no dead-lettering configured",
+      "A Storage queue with the visibility timeout set to zero, so failed messages are immediately available to another consumer"
+    ],
+    "explanation": "**Sessions** guarantee strict per-customer ordering on a shared queue. **Max delivery count** routes exhausted messages to the **dead-letter queue** without blocking the rest of that customer's session.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-019",
+    "domain": "azure-services",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Service Bus",
+    "relatedObjective": "Develop event- and message-based AI solutions",
+    "question": "A Service Bus topic publishes events for all order-state changes. One subscriber needs only events where a custom property priority equals \"high\" AND region equals \"EU\"; a second subscriber needs only events matching a specific correlationId tied to one workflow instance.\n\nWhich filter types should you configure, respectively?",
+    "options": [
+      "Both subscribers should use a correlation filter, since correlation filters can also evaluate arbitrary custom properties like priority and region",
+      "The first subscriber should use a SQL filter to evaluate the boolean expression on priority and region; the second should use a correlation filter matching on CorrelationId",
+      "Both subscribers should use SQL filters, since correlation filters are deprecated in Service Bus",
+      "Neither needs a filter; publish to two separate topics instead and let each subscriber read from its own dedicated topic"
+    ],
+    "explanation": "**SQL filters** evaluate boolean expressions across custom properties (priority AND region). **Correlation filters** are purpose-built for matching a single property like **CorrelationId**.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-020",
+    "domain": "azure-services",
+    "answer": 1,
+    "difficulty": "Medium",
+    "relatedService": "Azure Event Grid",
+    "relatedObjective": "Develop event- and message-based AI solutions",
+    "question": "A company publishes blob-upload events from Azure Storage and also needs a downstream partner system, running on a different cloud provider, to consume the same event stream using a vendor-neutral, standardized event format rather than a proprietary schema.\n\nWhat should you configure?",
+    "options": [
+      "An Event Grid custom topic using the default Event Grid event schema, since it is universally supported across all cloud platforms",
+      "An Event Grid subscription configured to deliver events using the CloudEvents v1.0 schema instead of the Event Grid schema",
+      "A Service Bus topic instead of Event Grid, since Service Bus messages are inherently vendor-neutral",
+      "A custom Azure Function that reformats every event manually before writing it to Blob Storage for the partner to poll"
+    ],
+    "explanation": "Event Grid subscriptions can deliver events in the **CloudEvents v1.0** schema — a vendor-neutral standard for cross-platform interoperability.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-021",
+    "domain": "azure-services",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Develop and implement Azure Functions",
+    "question": "An AI orchestration function needs to call a database only reachable via VNET integration, must avoid cold-start delays for latency-sensitive requests, and occasionally runs single invocations longer than the 10-minute default execution limit on the Consumption plan.\n\nWhich hosting plan should you choose?",
+    "options": [
+      "Consumption plan, since it automatically scales to zero and is the most cost-effective option for any workload",
+      "Premium plan, which supports VNET integration, pre-warmed instances to avoid cold start, and longer execution durations than Consumption",
+      "Only a Dedicated (App Service) plan, since Functions cannot integrate with a VNET under any other plan",
+      "Flex Consumption plan with the default timeout left unchanged, since VNET integration is unrelated to plan choice"
+    ],
+    "explanation": "The **Premium plan** provides **VNET integration**, **pre-warmed instances** (no cold start), and **longer execution duration** — the exact combination described.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-022",
+    "domain": "azure-services",
+    "answer": 1,
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions (Durable Functions)",
+    "relatedObjective": "Develop and implement Azure Functions",
+    "question": "You need to generate embeddings for 10,000 documents. Each document's embedding can be computed independently and in parallel, but you must wait until all 10,000 are complete before writing a single aggregated summary record.\n\nWhich Durable Functions pattern fits this requirement?",
+    "options": [
+      "Function chaining, where each document is processed strictly one after another in a single sequential pipeline",
+      "The fan-out/fan-in pattern, where an orchestrator starts many activity function instances in parallel and waits for all of them to complete before aggregating results",
+      "The human interaction / approval pattern, which pauses the orchestration until an external event is received",
+      "The monitor pattern, which polls a single resource repeatedly on a fixed interval until a condition is met"
+    ],
+    "explanation": "**Fan-out/fan-in** launches many independent parallel activities and waits for all to complete before aggregation — matching this embedding workload exactly.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-023",
+    "domain": "azure-services",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Event Grid",
+    "relatedObjective": "Develop event- and message-based AI solutions",
+    "question": "An Event Grid subscription occasionally fails to deliver events to an Azure Function endpoint due to transient errors. Events must be retried automatically for a bounded period, and any event that still cannot be delivered after retries are exhausted should be captured durably for later inspection rather than silently dropped.\n\nWhat should you configure on the subscription?",
+    "options": [
+      "A shorter event time-to-live only, with no dead-letter destination, since Event Grid retries forever until the endpoint responds",
+      "A retry policy specifying max delivery attempts and event time-to-live, along with a dead-letter destination (e.g., a Storage container) for events that exhaust retries",
+      "A Service Bus-style dead-letter queue attached directly to the Event Grid topic, since Event Grid topics support the identical native DLQ mechanism as Service Bus queues",
+      "Disabled retries entirely, and a health check run against the endpoint before every delivery"
+    ],
+    "explanation": "Event Grid's **retry policy** (max attempts, TTL) governs bounded retries, and a configured **dead-letter destination** captures events that still fail — rather than dropping them silently.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-024",
+    "domain": "azure-services",
+    "answer": 2,
+    "difficulty": "Hard",
+    "relatedService": "Azure Event Hubs",
+    "relatedObjective": "Develop event- and message-based AI solutions",
+    "question": "A telemetry pipeline for an AI-powered IoT solution ingests several million small events per second from many devices; multiple downstream consumers need to read at their own pace and be able to replay from an earlier point in the stream. This differs from other workloads in the same system — discrete business events like \"order placed\" needing pub/sub fan-out to a handful of services, and transactional processing with strict per-customer ordering.\n\nWhich service is the best fit specifically for the high-throughput telemetry ingestion requirement, and why?",
+    "options": [
+      "Service Bus topics, because topics support an unlimited number of subscribers regardless of throughput",
+      "Event Grid, because it is designed for extremely high-throughput streaming data with consumer-controlled replay",
+      "Event Hubs, because it is purpose-built for high-throughput event streaming with partitioned consumption and configurable retention that lets multiple independent consumers replay from earlier offsets",
+      "Azure Queue Storage, because it scales linearly with no practical throughput ceiling"
+    ],
+    "explanation": "**Event Hubs** is built for massive-scale event streaming with partitions and offset-based replay — distinct from Service Bus (business messaging) or Event Grid (discrete notifications).",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-025",
+    "domain": "secure-monitor",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Managed Identity / Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions",
+    "question": "You are provisioning several Container Apps that all need identical Key Vault access permissions. You want to grant the Key Vault role assignment once, before any of the Container Apps exist, and then attach the same identity to each Container App as it's created, without repeating the role assignment for every app.\n\nWhich identity type should you use?",
+    "options": [
+      "A system-assigned managed identity on each Container App, since it is automatically created and deleted with its resource",
+      "A user-assigned managed identity created independently, granted the Key Vault role assignment once, and then attached to each Container App",
+      "A shared service principal with a client secret stored in each Container App's environment variables",
+      "No managed identity; instead, a Key Vault access policy allowing anonymous access from the Container Apps subnet"
+    ],
+    "explanation": "A **user-assigned managed identity** exists independently of any single resource — grant access once, then attach the same identity to multiple Container Apps.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-026",
+    "domain": "secure-monitor",
+    "answer": 0,
+    "difficulty": "Medium",
+    "relatedService": "Azure App Configuration",
+    "relatedObjective": "Implement secure Azure solutions",
+    "question": "Your app loads dozens of configuration values from Azure App Configuration at startup, and you want it to automatically pick up changes to any of those values while running, without polling every individual key on every request, and only refresh when something has actually changed.\n\nWhat should you implement?",
+    "options": [
+      "A dedicated sentinel key that the app watches; when the sentinel key's value changes, the app refreshes its full configuration cache",
+      "A background thread calling GetConfigurationSetting for every key on every incoming request",
+      "Disabling caching entirely, so every configuration read goes directly to App Configuration",
+      "Redeploying the application every time a configuration value changes, since App Configuration doesn't support runtime refresh"
+    ],
+    "explanation": "The **sentinel key pattern** watches one key and reloads the full configuration set only when it changes — avoiding constant polling of every value.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-027",
+    "domain": "secure-monitor",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "OpenTelemetry SDKs",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions",
+    "question": "You want distributed traces from an Azure Function, a Container App, and an external REST API to appear as a single connected trace in Application Insights, with parent-child span relationships preserved across the HTTP calls between services.\n\nWhat must be true for this to work correctly?",
+    "options": [
+      "Each service writes its own independent log files; Application Insights automatically stitches them together by matching timestamps",
+      "Each service uses an OpenTelemetry SDK configured with an exporter sending data to Application Insights, and HTTP calls between services propagate W3C Trace Context headers so spans share the same trace ID",
+      "Only the entry-point service needs OpenTelemetry configured; downstream services are automatically included as long as they run in Azure",
+      "Trace correlation requires all services to be deployed to the same Azure region and resource group"
+    ],
+    "explanation": "End-to-end tracing requires every hop to use an **OpenTelemetry SDK + exporter** and propagate **W3C Trace Context** (`traceparent`) so spans share one trace ID.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-028",
+    "domain": "secure-monitor",
+    "answer": 0,
+    "difficulty": "Medium",
+    "relatedService": "Azure Monitor / KQL",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions",
+    "question": "You need to visualize how the count of exceptions, grouped by exception type, has changed over the last 24 hours in 1-hour buckets, using the exceptions table in Application Insights/Log Analytics.\n\nWhich KQL query structure achieves this?",
+    "options": [
+      "exceptions | where timestamp > ago(24h) | summarize count() by type, bin(timestamp, 1h) | render timechart",
+      "exceptions | take 100 | order by timestamp desc",
+      "exceptions | where timestamp > ago(24h) | project type | distinct type",
+      "exceptions | summarize avg(itemCount) | render piechart"
+    ],
+    "explanation": "`summarize count() by type, bin(timestamp, 1h)` buckets counts hourly per exception type; `render timechart` visualizes the time series.\n\n```kusto\nexceptions\n| where timestamp > ago(24h)\n| summarize count() by type, bin(timestamp, 1h)\n| render timechart\n```",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-029",
+    "domain": "secure-monitor",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Azure Key Vault",
+    "relatedObjective": "Implement secure Azure solutions",
+    "question": "You want a secret in Key Vault to rotate automatically on a schedule before it expires, and you want an Event Grid-based notification sent to a Function so the team can proactively handle downstream systems that cache the secret — rather than discovering the rotation only after something breaks.\n\nWhat should you configure?",
+    "options": [
+      "A manual calendar reminder for someone to rotate the secret, since Key Vault has no native rotation or notification capability",
+      "A Key Vault rotation policy defining the rotation schedule and expiry, combined with an Event Grid subscription to the near-expiry/secret-update event routed to a Function",
+      "A Logic App that polls every secret's value once a day and compares it to a cached copy to detect changes after the fact",
+      "Storing the secret in App Configuration instead, since App Configuration is the only Azure service with native rotation notifications"
+    ],
+    "explanation": "Key Vault **rotation policies** schedule rotation, and **Event Grid** emits near-expiry/update events for proactive, event-driven handling — not after-the-fact polling.",
+    "type": "scenario",
+    "category": "advanced"
+  },
+  {
+    "id": "adv-030",
+    "domain": "secure-monitor",
+    "answer": 1,
+    "difficulty": "Hard",
+    "relatedService": "Application Insights / Azure Monitor",
+    "relatedObjective": "Monitor and troubleshoot Azure solutions",
+    "question": "Customers report slow responses from an AI service composed of an AKS-hosted API, an Azure Function, and Cosmos DB. You need to determine which specific hop in the chain contributes the most latency, and whether the slowdown correlates with a specific dependency (e.g., Cosmos DB throttling) rather than application code.\n\nWhat is the most effective combination of tools/approach?",
+    "options": [
+      "Only check AKS pod CPU/memory metrics, since application-level slowness is always caused by resource exhaustion",
+      "Use Application Insights' Application Map and end-to-end transaction details to identify the slow hop, then run a KQL query joining request/dependency telemetry with Cosmos DB diagnostic logs to check for throttling (HTTP 429s) correlated with the slow requests",
+      "Restart all three components in sequence and see if the issue resolves itself",
+      "Rely solely on customer-reported timestamps to manually guess which component is responsible"
+    ],
+    "explanation": "**Application Map** and end-to-end transactions pinpoint the slow hop; **KQL** correlating dependency telemetry with Cosmos DB **429 throttling** confirms or rules out a specific dependency as the cause.",
+    "type": "scenario",
+    "category": "advanced"
+  }
+]

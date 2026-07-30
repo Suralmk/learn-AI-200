@@ -4,6 +4,7 @@ import type { DomainId } from "./domains";
 
 export type QuestionType = "mcq" | "scenario";
 export type Difficulty = "Easy" | "Medium" | "Hard";
+export type QuestionCategory = "advanced";
 
 export interface Question {
   id: string;
@@ -14,6 +15,7 @@ export interface Question {
   answer: number;
   explanation: string;
   difficulty?: Difficulty;
+  category?: QuestionCategory;
   relatedService?: string;
   relatedObjective?: string;
 }

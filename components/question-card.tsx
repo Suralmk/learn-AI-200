@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 
 export function QuestionCard({
   question,
+  number,
   showAnswerOnSelect = true,
 }: {
   question: Question;
+  number?: number;
   showAnswerOnSelect?: boolean;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -40,11 +42,21 @@ export function QuestionCard({
               {question.difficulty}
             </span>
           )}
+          {question.category === "advanced" && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              Advanced
+            </span>
+          )}
           <span className="text-xs uppercase tracking-wide text-muted-foreground">
             {question.type}
           </span>
         </div>
         <CardTitle className="text-base leading-relaxed font-normal">
+          {number !== undefined && (
+            <span className="mr-2 font-semibold text-primary">
+              {number}.
+            </span>
+          )}
           {question.question}
         </CardTitle>
       </CardHeader>

@@ -9,6 +9,7 @@ export interface Exam {
   domains: DomainId[] | "all";
   questionCount: number;
   studySlug?: string;
+  category?: "advanced";
 }
 
 export const EXAMS: Exam[] = [
@@ -31,7 +32,7 @@ export const EXAMS: Exam[] = [
     description:
       "Azure Container Registry, Container Apps, AKS, and KEDA for hosting AI workloads.",
     domains: ["containers"],
-    questionCount: 35,
+    questionCount: 42,
     studySlug: "container-apps",
   },
   {
@@ -40,7 +41,7 @@ export const EXAMS: Exam[] = [
     description:
       "Cosmos DB vector search, PostgreSQL pgvector, and Managed Redis for retrieval-augmented generation.",
     domains: ["data-management"],
-    questionCount: 42,
+    questionCount: 52,
     studySlug: "cosmos-db-ai",
   },
   {
@@ -49,7 +50,7 @@ export const EXAMS: Exam[] = [
     description:
       "Service Bus, Event Grid, and Azure Functions for event-driven AI pipelines.",
     domains: ["azure-services"],
-    questionCount: 34,
+    questionCount: 41,
     studySlug: "service-bus-event-grid",
   },
   {
@@ -58,7 +59,7 @@ export const EXAMS: Exam[] = [
     description:
       "Key Vault, App Configuration, OpenTelemetry, and KQL for securing and observing AI solutions.",
     domains: ["secure-monitor"],
-    questionCount: 36,
+    questionCount: 42,
     studySlug: "security-keyvault",
   },
   {
@@ -69,6 +70,20 @@ export const EXAMS: Exam[] = [
     domains: ["sdk-cli"],
     questionCount: 63,
   },
+  {
+    id: "advanced",
+    title: "Advanced Use Cases & Scenarios",
+    description:
+      "Hard scenario-based questions covering real-world AI solution design, troubleshooting, and architecture trade-offs across all domains.",
+    domains: [
+      "containers",
+      "data-management",
+      "azure-services",
+      "secure-monitor",
+    ],
+    questionCount: 30,
+    category: "advanced",
+  },
 ];
 
 export function getExam(id: string): Exam | null {
@@ -77,8 +92,22 @@ export function getExam(id: string): Exam | null {
 
 export function getQuestionsForExam(exam: Exam): Question[] {
   const all = getAllQuestions();
-  if (exam.domains === "all") return all;
-  return all.filter((q) => exam.domains.includes(q.domain));
+
+  if (exam.category === "advanced") {
+    return all.filter(
+      (q) =>
+        q.category === "advanced" &&
+        (exam.domains === "all" || exam.domains.includes(q.domain))
+    );
+  }
+
+  if (exam.domains === "all") {
+    return all.filter((q) => q.category !== "advanced");
+  }
+
+  return all.filter(
+    (q) => exam.domains.includes(q.domain) && q.category !== "advanced"
+  );
 }
 
 export function getExamQuestionCount(exam: Exam): number {
