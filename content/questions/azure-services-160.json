@@ -8,7 +8,7 @@
       "Azure Service Bus",
       "Azure Event Grid",
       "Azure Blob Storage",
-      "Azure CDN"
+      "Azure CDN delivery"
     ],
     "answer": 0,
     "explanation": "Azure Service Bus is a fully managed enterprise message broker supporting queues and topics/subscriptions with dead-letter queues, ideal for reliable back-end task processing. Event Grid is optimized for lightweight, reactive event notifications rather than durable task queuing, Blob Storage is object storage without native queuing semantics, and CDN accelerates content delivery, unrelated to messaging.",
@@ -22,10 +22,10 @@
     "type": "scenario",
     "question": "Messages in an Azure Service Bus queue that repeatedly fail processing (e.g., due to malformed embedding requests) should be automatically moved aside after a maximum delivery count is reached. What handles this?",
     "options": [
-      "The built-in dead-letter queue (DLQ), triggered by MaxDeliveryCount",
-      "A manual script that polls the queue every hour and deletes bad messages",
-      "Azure Event Grid's retry policy",
-      "Increasing the message TTL indefinitely"
+      "Dead-letter queue after MaxDeliveryCount",
+      "Hourly script that deletes failed messages",
+      "Event Grid retry policy on the publisher",
+      "Indefinitely raised message TTL on the queue"
     ],
     "answer": 0,
     "explanation": "Service Bus automatically moves a message to its associated dead-letter sub-queue once MaxDeliveryCount is exceeded (or on explicit dead-lettering), allowing failed messages to be inspected without blocking the main queue. Manual hourly polling is unreliable and delayed, Event Grid's retry policy applies to Event Grid delivery (not Service Bus queues), and increasing TTL just delays expiration without addressing repeated failures.",
@@ -39,10 +39,10 @@
     "type": "scenario",
     "question": "You need multiple independent downstream systems (an indexing service, an audit service, and a notification service) to each receive a copy of every 'document uploaded' message. Which Service Bus entity type should you use?",
     "options": [
-      "A topic with multiple subscriptions",
-      "A single queue shared by all three services",
-      "A single queue per message with round-robin distribution",
-      "A Service Bus session with no topic"
+      "Topic with multiple subscriptions",
+      "Single queue shared by all consumers",
+      "One queue per message with round-robin",
+      "Session-enabled queue without any topic"
     ],
     "answer": 0,
     "explanation": "Topics implement publish/subscribe: each subscription attached to the topic receives its own copy of every matching message, exactly matching the requirement for three independent consumers. A single shared queue only delivers each message to one consumer (competing consumers pattern), round-robin distribution across a queue also delivers each message once, and sessions relate to ordered/grouped processing, not fan-out to multiple independent consumers.",
@@ -56,10 +56,10 @@
     "type": "scenario",
     "question": "An AI pipeline uses Service Bus topics with subscriptions filtered by message properties (e.g., only 'priority=high' messages go to an urgent-processing subscription). Which subscription feature enables this?",
     "options": [
-      "A SQL filter (or correlation filter) applied to the subscription",
-      "A dead-letter queue on the topic itself",
-      "Partitioning enabled on the namespace",
-      "Increasing the subscription's lock duration"
+      "SQL or correlation filter on the subscription",
+      "Dead-letter queue attached to the topic root",
+      "Partitioning enabled on the Service Bus namespace",
+      "Longer lock duration on the subscription entity"
     ],
     "answer": 0,
     "explanation": "Subscription filters — SQL filters (property-based boolean expressions) or correlation filters (matching specific property values) — determine which messages published to a topic are delivered to a given subscription, enabling selective routing like priority-based filtering. Dead-letter queues handle failed messages (not routing logic), namespace partitioning affects storage/throughput distribution, and lock duration governs how long a message is invisible to other receivers during processing.",
@@ -74,9 +74,9 @@
     "question": "Which Azure service is best suited for reacting to lightweight, discrete system events — such as a new blob being created — by triggering downstream workflows with built-in retry and filtering?",
     "options": [
       "Azure Event Grid",
-      "Azure Service Bus queues",
-      "Azure Data Factory pipelines only",
-      "Azure Files"
+      "Azure Service Bus",
+      "Azure Data Factory",
+      "Azure Files shares"
     ],
     "answer": 0,
     "explanation": "Event Grid is a highly scalable, low-latency event routing service purpose-built for reactive event-driven architectures (e.g., BlobCreated events), with native support for event filtering and configurable retry policies. Service Bus queues are better suited to durable task processing rather than lightweight system event notification, Data Factory targets ETL orchestration, and Azure Files is a file share service with no event routing capability of its own.",
@@ -90,10 +90,10 @@
     "type": "scenario",
     "question": "You want an Event Grid subscription to only trigger your Azure Function for blob creation events under a specific folder path ending in '.pdf', ignoring all other blob events. What should you configure?",
     "options": [
-      "An Event Grid subject filter (subjectBeginsWith/subjectEndsWith) on the event subscription",
-      "A Service Bus correlation filter",
-      "An Azure Function app setting named 'FilterPath'",
-      "A storage account lifecycle management rule"
+      "Subject begins/endsWith filters on the subscription",
+      "Service Bus correlation filter on a topic entity",
+      "Function app setting named FilterPath for paths",
+      "Storage lifecycle rule controlling blob tiering"
     ],
     "answer": 0,
     "explanation": "Event Grid event subscriptions support subject filters (subjectBeginsWith for path prefix, subjectEndsWith for suffix like '.pdf') to narrow which events are delivered to a given handler, exactly matching this filtering requirement. Correlation filters are a Service Bus topic feature, not Event Grid, there's no such generic Function app setting for event filtering, and lifecycle management rules control blob tiering/deletion, unrelated to event delivery.",
@@ -107,10 +107,10 @@
     "type": "scenario",
     "question": "An Event Grid-triggered downstream service occasionally goes offline briefly, causing event delivery failures. You need failed events to be retried with exponential backoff and eventually captured for manual review rather than silently dropped. What should you configure?",
     "options": [
-      "A custom retry policy (max retries, time-to-live) combined with a dead-letter destination (e.g., a Storage Account container) on the event subscription",
-      "Disable retries entirely to reduce duplicate processing",
-      "Switch to a fire-and-forget HTTP call with no Event Grid subscription",
-      "Rely on the publisher to manually resend all events daily"
+      "Retry policy plus dead-letter Storage destination",
+      "Disable retries to avoid any duplicate deliveries",
+      "Fire-and-forget HTTP with no Event Grid sub",
+      "Publisher manually resends all events each day"
     ],
     "answer": 0,
     "explanation": "Event Grid event subscriptions support configurable retry policies (exponential backoff automatically applied, with max delivery attempts and event TTL) plus an optional dead-letter destination, so persistently failing events are retried appropriately and then preserved for review rather than lost. Disabling retries increases the chance of permanent data loss on transient outages, bypassing Event Grid removes its delivery guarantees entirely, and manual daily resends aren't a scalable or reliable event delivery mechanism.",
@@ -125,9 +125,9 @@
     "question": "Which Azure Functions trigger type causes a function to execute automatically whenever a new message arrives in a Service Bus queue?",
     "options": [
       "Service Bus trigger",
-      "HTTP trigger",
-      "Timer trigger",
-      "Blob trigger"
+      "HTTP request trigger",
+      "Timer schedule trigger",
+      "Blob storage trigger"
     ],
     "answer": 0,
     "explanation": "The Service Bus trigger binds a function to a queue or topic subscription and invokes the function automatically as new messages arrive, handling completion/abandon semantics for you. HTTP triggers respond to inbound web requests, Timer triggers run on a defined schedule (CRON), and Blob triggers fire on blob storage changes — none react to Service Bus messages directly.",
@@ -141,10 +141,10 @@
     "type": "scenario",
     "question": "You are building a serverless API using Azure Functions that must read a configuration value from Azure App Configuration at startup and inject it as a binding parameter. What should you configure?",
     "options": [
-      "An App Configuration connection reference in the function app's configuration combined with the App Configuration provider/SDK in function startup code",
-      "Hardcode the value directly in function.json",
-      "Store the value only as a local environment variable on the developer's machine",
-      "Use a Blob trigger to read the configuration file"
+      "App Configuration provider wired in function startup",
+      "Hardcoded configuration value inside function.json",
+      "Local-only environment variable on a laptop",
+      "Blob trigger reading a config file from storage"
     ],
     "answer": 0,
     "explanation": "Integrating the App Configuration provider in the Functions startup (or via app settings referencing App Configuration) lets configuration values be centrally managed and dynamically refreshed rather than hardcoded. Hardcoding in function.json defeats the purpose of centralized configuration, a developer's local environment variable won't exist in the deployed environment, and a Blob trigger is meant for file change events, not configuration retrieval.",
@@ -158,10 +158,10 @@
     "type": "scenario",
     "question": "An Azure Function with an HTTP trigger calls Azure OpenAI to generate embeddings, but occasionally times out under high load because the default HTTP trigger timeout is exceeded. What is the most appropriate architectural fix?",
     "options": [
-      "Shift to an asynchronous pattern: accept the request, queue the work via Service Bus/Storage Queue, process with a longer-running function, and let the client poll or receive a callback",
-      "Increase the HTTP trigger timeout to an unlimited value on the Consumption plan",
-      "Call Azure OpenAI synchronously in a tighter retry loop with no timeout changes",
-      "Switch the function language from Python to C# only"
+      "Queue the work; process async; client polls status",
+      "Set unlimited HTTP timeout on the Consumption plan",
+      "Tighten sync OpenAI retries without changing pattern",
+      "Change function language from Python to C# only"
     ],
     "answer": 0,
     "explanation": "For long-running operations that can exceed HTTP trigger limits, the standard pattern is asynchronous processing — accept and queue the request, process it out-of-band, and let clients poll a status endpoint or receive a webhook/callback, which sidesteps synchronous timeout constraints entirely. The Consumption plan has a hard timeout ceiling that cannot be set to unlimited, tightening a synchronous retry loop doesn't solve the fundamental timeout constraint, and simply changing languages doesn't address the architectural timeout issue.",
@@ -175,10 +175,10 @@
     "type": "scenario",
     "question": "Which Azure Functions binding type allows a function to write output directly to a Cosmos DB container without manually instantiating a CosmosClient?",
     "options": [
-      "An output binding of type Cosmos DB in function.json (or the attribute/decorator equivalent)",
-      "An HTTP trigger with a manually written REST call to Cosmos DB",
-      "A queue trigger with no binding at all",
-      "An App Configuration binding"
+      "Cosmos DB output binding in function.json/attributes",
+      "HTTP trigger with a hand-written REST Cosmos call",
+      "Queue trigger configured with no Cosmos binding",
+      "App Configuration binding writing to Cosmos DB"
     ],
     "answer": 0,
     "explanation": "Azure Functions' Cosmos DB output binding lets the runtime handle writing the function's return value (or bound object) directly to a specified container, abstracting away explicit SDK client management. Manually issuing REST calls or using unrelated bindings (queue trigger, App Configuration) doesn't provide this declarative Cosmos DB write integration.",
@@ -194,8 +194,8 @@
     "options": [
       "func azure functionapp publish myFunctionApp",
       "az functionapp create --name myFunctionApp",
-      "az webapp deploy --type zip",
-      "docker push myFunctionApp"
+      "az webapp deploy --name myFunctionApp --type zip",
+      "docker push myFunctionApp:latest to a registry"
     ],
     "answer": 0,
     "explanation": "func azure functionapp publish (from Azure Functions Core Tools) packages and deploys local project code to the specified, already-created Function App in Azure. az functionapp create only provisions a new empty Function App resource (it doesn't deploy code), az webapp deploy targets App Service web apps rather than Function Apps directly, and docker push only uploads a container image to a registry, not deploy code to Functions.\n\n```bash\nfunc azure functionapp publish myFunctionApp\n```",
@@ -209,10 +209,10 @@
     "type": "scenario",
     "question": "A Service Bus-triggered Azure Function processing embedding jobs must guarantee that messages are only removed from the queue after processing succeeds, so a function crash mid-processing causes automatic redelivery. What behavior achieves this?",
     "options": [
-      "Rely on Functions' default PeekLock (or 'complete after successful execution') behavior rather than manually completing messages early",
-      "Use ReceiveAndDelete mode so messages are removed immediately on receipt",
-      "Disable retries at the Service Bus namespace level",
-      "Set the message TTL to zero"
+      "PeekLock complete-after-success (Functions default)",
+      "ReceiveAndDelete removing messages on first receive",
+      "Retries disabled at the Service Bus namespace level",
+      "Message TTL set to zero so items expire instantly"
     ],
     "answer": 0,
     "explanation": "With PeekLock (the Functions runtime default), a message is only marked complete after the function finishes successfully; if the function crashes, the lock expires and the message becomes visible again for redelivery, giving at-least-once processing guarantees. ReceiveAndDelete removes the message immediately on receipt regardless of processing outcome, risking message loss on failure; disabling retries removes the safety net entirely; and a zero TTL would cause messages to expire immediately, unrelated to delivery guarantees.",
@@ -226,10 +226,10 @@
     "type": "scenario",
     "question": "You need an Event Grid custom topic to publish events from a custom application (not a built-in Azure resource) whenever a new AI model version is registered. What must you create and use to publish events?",
     "options": [
-      "An Event Grid custom topic, then publish events using the EventGridPublisherClient SDK (or REST API) with the topic's endpoint and access key/Entra ID credential",
-      "An Azure Service Bus queue named 'events'",
-      "A Storage Account queue with manual polling by all subscribers",
-      "An App Configuration key named 'CustomEvents'"
+      "Custom topic; publish via EventGridPublisherClient",
+      "Service Bus queue named events for fan-out only",
+      "Storage queue with subscribers polling manually",
+      "App Configuration key named CustomEvents publish"
     ],
     "answer": 0,
     "explanation": "Custom applications publish domain-specific events by creating an Event Grid custom topic and using the EventGridPublisherClient (or equivalent REST calls) authenticated via key or Entra ID to send events to that topic's endpoint, which then fans out to any subscribed handlers. A Service Bus queue or Storage queue could carry messages but wouldn't provide Event Grid's native filtering/fan-out subscription model being asked about, and an App Configuration key is unrelated to event publishing.",
@@ -243,10 +243,10 @@
     "type": "scenario",
     "question": "Your Azure Function needs to both trigger on new blobs and write processed results back to a different container, entirely through declarative bindings rather than manual SDK calls. Which binding types should you use together?",
     "options": [
-      "A Blob trigger for input and a Blob output binding for the result",
-      "An HTTP trigger for input and a Timer binding for output",
-      "A Cosmos DB trigger for input and an Event Grid trigger for output",
-      "Only a Service Bus trigger, with no output binding"
+      "Blob trigger for input and Blob output for results",
+      "HTTP trigger for input and Timer binding for output",
+      "Cosmos trigger for input and Event Grid for output",
+      "Service Bus trigger alone with no output binding"
     ],
     "answer": 0,
     "explanation": "Pairing a Blob trigger (fires on new/updated blobs in the source container) with a Blob output binding (writes the result to a target container) lets Functions handle both input and output declaratively without manual BlobServiceClient calls. HTTP+Timer triggers don't react to blob events at all, Cosmos DB triggers react to change feed (not blob creation) and Event Grid isn't an output binding type, and using only a Service Bus trigger with no output mechanism wouldn't write results anywhere.",
@@ -260,10 +260,10 @@
     "type": "scenario",
     "question": "A high-throughput AI ingestion pipeline needs ordered processing of events per customer, guaranteeing that events for the same customer are always processed in the order they were sent, while different customers can be processed in parallel. Which Service Bus feature should you use?",
     "options": [
-      "Sessions, using the customer ID as the SessionId",
-      "A single unsharded queue with default FIFO across all customers",
-      "Topics with no subscription filters",
-      "Setting all messages to the same partition key with no session support"
+      "Sessions using customer ID as the SessionId",
+      "Single unsharded queue with default global FIFO",
+      "Topics with no subscription filters configured",
+      "Shared partition key without enabling sessions"
     ],
     "answer": 0,
     "explanation": "Service Bus sessions group related messages (using a shared SessionId, e.g., customer ID) and guarantee in-order, exclusive processing within that session while different sessions can be processed concurrently by different receivers — precisely matching per-customer ordering with cross-customer parallelism. A default queue doesn't guarantee this per-key ordering under concurrent consumers, unfiltered topics don't address ordering at all, and merely sharing a partition key without enabling sessions doesn't provide the exclusive in-order locking sessions offer.",
@@ -277,10 +277,10 @@
     "type": "scenario",
     "question": "Which Azure Functions hosting plan should you choose for an AI workload that must avoid cold starts entirely and needs predictable, dedicated compute with support for longer execution times?",
     "options": [
-      "Premium plan (or Dedicated/App Service plan)",
-      "Consumption plan",
-      "Static Web Apps free tier",
-      "A plan is not required for Azure Functions"
+      "Premium or Dedicated App Service plan",
+      "Consumption plan with possible cold starts",
+      "Static Web Apps free tier hosting only",
+      "No hosting plan required for Functions"
     ],
     "answer": 0,
     "explanation": "The Premium plan keeps a configurable number of pre-warmed instances always ready (eliminating cold starts), offers longer execution durations than Consumption, and provides more predictable performance for latency-sensitive AI workloads. The Consumption plan can experience cold starts and has a default hard timeout, Static Web Apps doesn't host general-purpose Functions workloads of this kind, and a hosting plan is always required to run Azure Functions.",
@@ -295,8 +295,8 @@
     "question": "Which Azure service acts as a centralized store for application feature flags and configuration values that can be shared across multiple microservices?",
     "options": [
       "Azure App Configuration",
-      "Azure Key Vault",
-      "Azure Monitor",
+      "Azure Key Vault secrets",
+      "Azure Monitor metrics",
       "Azure Container Registry"
     ],
     "answer": 0,
@@ -311,10 +311,10 @@
     "type": "scenario",
     "question": "Your team wants Azure App Configuration to serve different configuration values to a 'canary' subset of AI service instances versus the general population, without redeploying code. What feature should you use?",
     "options": [
-      "Feature flags with targeting filters (percentage or user/group targeting)",
-      "A separate App Configuration store per instance with manual synchronization",
-      "Hardcoded if/else logic keyed on machine hostname",
-      "Azure Key Vault secret versioning"
+      "Feature flags with percentage or group targeting",
+      "Separate App Configuration store per instance",
+      "Hardcoded if/else based on machine hostname",
+      "Key Vault secret versioning for feature routing"
     ],
     "answer": 0,
     "explanation": "App Configuration's feature management supports targeting filters that can route a percentage of traffic or specific users/groups to different flag states, enabling canary-style configuration rollout without redeployment. Maintaining separate stores manually is operationally heavy and error-prone, hardcoded hostname logic requires code changes/redeploys (defeating the goal), and Key Vault secret versioning manages secret values, not feature targeting logic.",
@@ -328,10 +328,10 @@
     "type": "scenario",
     "question": "You need Service Bus, Event Grid, and Azure Functions to authenticate to each other and to downstream Azure resources without any connection strings or keys stored in application settings. What is the recommended architecture?",
     "options": [
-      "Use managed identities on each resource, with role assignments (e.g., Azure Service Bus Data Sender/Receiver, EventGrid Data Sender) granted via Azure RBAC",
-      "Store all connection strings as plain environment variables in the Function App",
-      "Use a single shared access signature (SAS) key hardcoded across all services indefinitely",
-      "Disable authentication entirely between internal services for simplicity"
+      "Managed identities with RBAC roles on each resource",
+      "Plain connection strings in Function App settings",
+      "One shared SAS key hardcoded across all services",
+      "Authentication disabled between all internal apps"
     ],
     "answer": 0,
     "explanation": "Assigning managed identities to each compute resource and granting them fine-grained Azure RBAC roles (like Azure Service Bus Data Sender/Receiver) is the Microsoft-recommended, keyless authentication pattern that eliminates secret sprawl entirely. Plain environment variable connection strings and hardcoded long-lived SAS keys both create secret-management and rotation risk, and disabling authentication is a severe security anti-pattern regardless of workload sensitivity.",
@@ -345,10 +345,10 @@
     "type": "scenario",
     "question": "Which Azure Functions binding direction should be used if a function needs to send a new message onto a Service Bus queue as part of its execution, without manually creating a ServiceBusClient?",
     "options": [
-      "An output binding to the Service Bus queue",
-      "An input binding to the same queue the function is triggered from",
-      "A trigger binding with direction set to 'out'",
-      "No binding — always use the SDK client directly for output"
+      "Output binding targeting the Service Bus queue",
+      "Input binding on the same queue as the trigger",
+      "Trigger binding with direction incorrectly set out",
+      "No binding; always require a manual SDK client"
     ],
     "answer": 0,
     "explanation": "An output binding lets the Functions runtime handle sending a message to the specified Service Bus queue/topic when the function returns or sets the bound value, avoiding manual SDK client setup. An input binding retrieves data (not sends), triggers define what invokes the function (not a generic output mechanism), and while the SDK client is a valid alternative, it isn't required — the output binding is the simpler declarative option being asked about.",
@@ -362,10 +362,10 @@
     "type": "scenario",
     "question": "An AI orchestration workflow spans multiple Azure Functions with fan-out/fan-in patterns (calling several activities in parallel, then aggregating results) and needs reliable state management across long-running executions. What should you use?",
     "options": [
-      "Durable Functions with an orchestrator function coordinating fan-out/fan-in activity functions",
-      "Plain stateless HTTP-triggered functions calling each other synchronously with no state management",
-      "A single monolithic function containing all logic sequentially",
-      "Azure Event Grid alone, with no orchestration layer"
+      "Durable Functions orchestrator for fan-out/fan-in",
+      "Stateless HTTP functions calling each other sync",
+      "Single monolithic function running all steps serially",
+      "Event Grid alone without any orchestration layer"
     ],
     "answer": 0,
     "explanation": "Durable Functions extends Azure Functions with stateful orchestration, natively supporting fan-out/fan-in, chaining, and long-running workflows while automatically checkpointing progress for reliability. Plain stateless functions calling each other synchronously don't provide durable state or automatic retry/checkpointing, a single monolithic function loses the parallelism and modularity fan-out/fan-in requires, and Event Grid alone doesn't provide the stateful coordination an orchestrator does.",
@@ -379,10 +379,10 @@
     "type": "scenario",
     "question": "You need to configure an Event Grid subscription so failed events are ultimately stored for later analysis rather than discarded after retries are exhausted. Where should this be configured?",
     "options": [
-      "The 'dead letter destination' setting on the event subscription, typically pointing to a Storage Account container",
-      "The Event Grid topic's access keys section",
-      "The subscriber Function App's CORS settings",
-      "The Azure Monitor diagnostic settings on the resource group"
+      "Dead letter destination on the event subscription",
+      "Access keys section of the Event Grid topic",
+      "CORS settings on the subscriber Function App",
+      "Diagnostic settings at the resource group scope"
     ],
     "answer": 0,
     "explanation": "Event Grid event subscriptions include a dedicated dead-letter destination setting (commonly a Blob Storage container) where events that exhaust retries are automatically written for later inspection. Access keys govern authentication (not dead-lettering), CORS settings control cross-origin browser requests (irrelevant here), and resource-group-level diagnostic settings capture platform logs, not per-subscription dead-lettered events.",
@@ -397,9 +397,9 @@
     "question": "Which of the following is the correct Azure CLI command to create a new Service Bus namespace in the 'Standard' pricing tier?",
     "options": [
       "az servicebus namespace create --name myNamespace --resource-group myRG --sku Standard",
-      "az servicebus create --name myNamespace --tier Standard",
-      "az servicebus queue create --namespace myNamespace --sku Standard",
-      "az sb namespace new --name myNamespace"
+      "az servicebus create --name myNamespace --resource-group myRG --tier Standard",
+      "az servicebus queue create --namespace myNamespace --name q1 --sku Standard",
+      "az sb namespace new --name myNamespace --resource-group myRG --sku Standard"
     ],
     "answer": 0,
     "explanation": "az servicebus namespace create with --sku Standard provisions a new Service Bus namespace at the Standard tier (which adds topics/subscriptions over Basic). 'az servicebus create' isn't a valid subcommand, 'az servicebus queue create' creates a queue within an existing namespace (not the namespace itself), and 'az sb namespace new' isn't valid Azure CLI syntax.\n\n```bash\naz servicebus namespace create --name myNamespace --resource-group myRG --sku Standard --location eastus\n```",

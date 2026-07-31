@@ -1,37 +1,76 @@
 ---
 title: Monitoring & KQL Troubleshooting
 domain: secure-monitor
-description: Observe AI workloads with OpenTelemetry, Application Insights, and KQL.
+description: >-
+  Observe AI workloads with OpenTelemetry, Application Insights, Log Analytics,
+  and KQL — traces, tables, queries, dashboards, workbooks, and alerts.
 order: 8
 ---
 
 ## Overview
 
-The secure/monitor domain covers end-to-end observability — tracing embedding pipelines, measuring latency, and troubleshooting failures with Kusto Query Language (KQL).
+The **secure / monitor** domain’s observability half is end-to-end visibility into distributed AI apps: instrument with **OpenTelemetry**, export to **Azure Monitor Application Insights**, store in a **Log Analytics workspace**, and analyze with **KQL**, dashboards, workbooks, and alerts.
 
-## Key concepts
+```text
+App (OTel SDK) → Azure Monitor exporter → Application Insights
+      → Log Analytics tables → KQL / dashboards / alerts
+```
 
-- **OpenTelemetry** — distributed tracing standard (traces, metrics, logs)
-- **Application Insights** — Azure's APM layer built on Log Analytics
-- **KQL** — query language for logs and metrics
-- **Correlation IDs** — trace requests across Functions, queues, and databases
+Deep study notes live in the learning path **Observe and troubleshoot apps on Azure**.
+
+## Definitions
+
+| Term | Definition |
+|------|------------|
+| **OpenTelemetry** | Vendor-neutral API/SDK for traces, metrics, and logs |
+| **Azure Monitor** | Azure’s observability platform (metrics, logs, alerts, workbooks) |
+| **Application Insights** | APM product for app requests, dependencies, exceptions, traces |
+| **Log Analytics workspace** | Shared log store queried with KQL |
+| **KQL** | Kusto Query Language — pipeline queries over tables |
+| **OperationId** | Correlation ID for one end-to-end request (OTel trace ID) |
+| **Custom dimensions** | Dynamic properties from span attributes / properties |
+| **Workbook** | Interactive parameterized analysis report |
+| **Action group** | Notification destinations for alert rules |
 
 ## Exam tips
 
-- Know basic KQL: `where`, `summarize`, `join`, `order by`
-- Understand custom dimensions for AI metrics (token count, model name)
-- Alert on error rate, latency percentiles, queue depth
+- Distro package (`azure-monitor-opentelemetry`) configures exporter + auto-instrumentation quickly
+- Map spans → `AppRequests` / `AppDependencies`; attributes → `customDimensions`
+- Tables like `AppExceptions` are **pre-created** — you do not define them
+- Core KQL: `where`, `project`/`extend`, `summarize`, `join`, `union`, `top`, `let`
+- Prefer `has` over `contains`; use `percentile` and `countif` for latency and error rate
+- Debug with `OperationId` across a `union` of App* tables
+- Alert on error rate, P95 latency, and dependency failures via metric or log search rules
 
-## Azure CLI
+## Vocabulary (OTel → Azure)
+
+| OpenTelemetry | Application Insights |
+|---------------|----------------------|
+| Trace | Operation (`OperationId`) |
+| Span | Request / dependency / trace row |
+| Attributes | `customDimensions` |
+| Context propagation | Distributed tracing (`traceparent`) |
+
+## Standard tables
+
+| Table | Contents |
+|-------|----------|
+| `AppRequests` | Incoming requests |
+| `AppDependencies` | Outbound HTTP / DB / queue calls |
+| `AppTraces` | Log messages |
+| `AppExceptions` | Exceptions |
+| `AppMetrics` | Metrics |
+
+Classic aliases (`requests`, `dependencies`, `traces`, `exceptions`) still appear in older docs.
+
+## Azure CLI — create workspace + App Insights
 
 ```bash
-# Create Log Analytics workspace
 az monitor log-analytics workspace create \
   --resource-group rg-ai200 \
   --workspace-name law-ai200 \
   --location eastus
 
-# Link to Application Insights
 az monitor app-insights component create \
   --app appi-ai200 \
   --location eastus \
@@ -39,42 +78,59 @@ az monitor app-insights component create \
   --workspace law-ai200
 ```
 
-## KQL — find slow embedding requests
-
-```kusto
-requests
-| where timestamp > ago(24h)
-| where name == "POST /embed"
-| summarize
-    count(),
-    avg(duration),
-    percentile(duration, 95)
-    by bin(timestamp, 1h)
-| order by timestamp desc
-```
-
-## Python — OpenTelemetry instrumentation
+## Python — quick instrumentation
 
 ```python
+from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter
 
-provider = TracerProvider()
-provider.add_span_processor(
-    BatchSpanProcessor(AzureMonitorTraceExporter(connection_string=conn_str))
-)
-trace.set_tracer_provider(provider)
-
+configure_azure_monitor(connection_string="...")  # or APPLICATIONINSIGHTS_CONNECTION_STRING
 tracer = trace.get_tracer(__name__)
 
 with tracer.start_as_current_span("generate_embedding") as span:
-    span.set_attribute("document.id", doc_id)
+    span.set_attribute("gen_ai.model", "text-embedding-3-large")
     embedding = model.embed(text)
 ```
+
+## KQL — failed requests and P95
+
+```kql
+AppRequests
+| where TimeGenerated > ago(24h)
+| where Name has "embed"
+| summarize
+    count(),
+    avg(DurationMs),
+    percentile(DurationMs, 95)
+  by bin(TimeGenerated, 1h)
+| order by TimeGenerated desc
+```
+
+## KQL — full trace for one operation
+
+```kql
+union AppRequests, AppDependencies, AppTraces, AppExceptions
+| where OperationId == "abc123def456"
+| project TimeGenerated, ItemType = type, Name, Message, DurationMs
+| order by TimeGenerated asc
+```
+
+## Related study path topics
+
+- Explore OpenTelemetry and its role in observability
+- Add the OpenTelemetry SDK to an application
+- Configure spans and traces
+- Export telemetry to Azure Monitor
+- Debug distributed flows with trace data
+- Write basic KQL queries
+- Explore logs for errors and performance
+- Build dashboards for app telemetry
+- Create workbooks for interactive analysis
+- Set alerts for app failures and anomalies
 
 ## Learn more
 
 - [Application Insights overview](https://learn.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview)
+- [OpenTelemetry on Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-overview)
 - [KQL quick reference](https://learn.microsoft.com/en-us/azure/data-explorer/kql-quick-reference)
+- [AI-200 study guide](https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200)

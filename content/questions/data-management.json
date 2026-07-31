@@ -6,9 +6,9 @@
     "question": "You are using the Azure Cosmos DB Python SDK to perform a vector similarity search. Which method/clause is required to execute a vector query against stored embeddings?",
     "options": [
       "ORDER BY VectorDistance()",
-      "WHERE VectorSearch()",
-      "SELECT VectorSimilar()",
-      "GROUP BY Embedding()"
+      "WHERE VectorDistance() ASC",
+      "SELECT TOP VectorDistance()",
+      "GROUP BY VectorDistance()"
     ],
     "answer": 0,
     "explanation": "In Azure Cosmos DB for NoSQL, vector similarity queries use the `VectorDistance()` system function inside an `ORDER BY` clause to rank documents by similarity to a target vector.\n\n```sql\nSELECT TOP 5 c.id, c.text,\n  VectorDistance(c.vector, [0.1, 0.2, 0.3]) AS SimilarityScore\nFROM c\nORDER BY VectorDistance(c.vector, [0.1, 0.2, 0.3])\n```"
@@ -20,9 +20,9 @@
     "question": "An AI solution requires high-performance vector retrieval with sub-millisecond latency using Azure Managed Redis. Which command is used to create an index for vectors stored as Hashes?",
     "options": [
       "FT.CREATE",
-      "REDIS.INDEX",
-      "VECTOR.CREATE",
-      "HSET.INDEX"
+      "FT.SEARCH",
+      "FT.ALTER",
+      "FT.INFO"
     ],
     "answer": 0,
     "explanation": "RediSearch commands power vector search in Azure Managed Redis. **FT.CREATE** builds search indexes over hashes or JSON documents that contain vector fields.\n\n```bash\nFT.CREATE vector_idx ON HASH PREFIX 1 doc: SCHEMA vec VECTOR HNSW 6 TYPE FLOAT32 DIM 1536 DISTANCE_METRIC COSINE\n```"
@@ -47,10 +47,10 @@
     "type": "scenario",
     "question": "You are implementing vector search in Azure Database for PostgreSQL. Which index type is best suited for approximate nearest neighbor (ANN) search on large datasets where low memory footprint during indexing is required?",
     "options": [
-      "ivfflat",
-      "hnsw",
-      "btree",
-      "gin"
+      "ivfflat vector index",
+      "hnsw vector index",
+      "btree scalar index",
+      "gist spatial index"
     ],
     "answer": 0,
     "explanation": "**ivfflat** (Inverted File Flat) partitions vectors into lists and searches a subset. It builds faster and uses less memory than HNSW. HNSW usually offers better query performance/recall but needs more memory during indexing."
@@ -61,10 +61,10 @@
     "type": "scenario",
     "question": "You are using the Azure Cosmos DB Change Feed Processor to update a vector index in Azure AI Search. What is the role of the 'Lease Container' in this architecture?",
     "options": [
-      "To coordinate state and checkpoint progress across multiple workers",
-      "To store the actual vector search results",
-      "To cache user search requests",
-      "To back up vector embeddings"
+      "Coordinate checkpoints and worker lease ownership",
+      "Persist completed vector search result document sets",
+      "Cache inbound user search request payload documents",
+      "Store backup copies of embedding vector field values"
     ],
     "answer": 0,
     "explanation": "The **lease container** stores Change Feed checkpoints and partition ownership so multiple workers can process the feed in parallel without duplicating work."
@@ -75,10 +75,10 @@
     "type": "scenario",
     "question": "An AI application uses a vector database. To optimize costs in Azure Cosmos DB for NoSQL, you want to reduce the Request Units (RUs) consumed by vector queries. What is the most effective indexing strategy?",
     "options": [
-      "Exclude unused paths from the indexing policy and explicitly index vector paths",
-      "Use a Partition Key based on the vector's ID",
-      "Enable session consistency globally",
-      "Increase partition count"
+      "Exclude unused paths; index only vector fields",
+      "Partition exclusively by the embedding vector ID",
+      "Force session consistency on every vector query",
+      "Raise RU/s by adding many physical partitions"
     ],
     "answer": 0,
     "explanation": "Excluding unused paths from the indexing policy lowers write RU cost and index size. Index only the vector and filter properties you actually query."
@@ -89,10 +89,10 @@
     "type": "mcq",
     "question": "In Azure Managed Redis, you want to ensure that if a specific key (e.g., an AI model prompt cache) is not accessed for 30 minutes, it is automatically removed. Which Redis capability should you use?",
     "options": [
-      "TTL (Time To Live) / Expiration",
-      "Eviction Policy noeviction",
-      "Active Defrag",
-      "Key Rotation"
+      "Per-key TTL expiration",
+      "noeviction maxmemory",
+      "Active defragmentation",
+      "Client-side key rotate"
     ],
     "answer": 0,
     "explanation": "Setting a **TTL (Time To Live)** on a key makes Redis expire and delete it after the configured duration — ideal for prompt/response caches."
@@ -104,7 +104,7 @@
     "question": "You are designing a schema for a vector database in Azure Database for PostgreSQL. Which data type provided by the pgvector extension should you use to store embeddings?",
     "options": [
       "vector",
-      "float8[]",
+      "float8",
       "bytea",
       "jsonb"
     ],
@@ -117,10 +117,10 @@
     "type": "mcq",
     "question": "To optimize performance of a vector similarity search in Azure Cosmos DB NoSQL using disk-optimized indexing, which vector index type option is available?",
     "options": [
-      "DiskANN",
-      "HNSW",
-      "Flat",
-      "Inverted"
+      "DiskANN vector index",
+      "HNSW vector index",
+      "IVFFlat vector index",
+      "Annoy vector index"
     ],
     "answer": 0,
     "explanation": "Azure Cosmos DB for NoSQL supports **DiskANN** (plus options like quantized flat) for efficient large-scale, cost-effective vector indexing."
@@ -131,10 +131,10 @@
     "type": "scenario",
     "question": "In Azure Database for PostgreSQL, you are seeing high query latency under heavy concurrency during vector search operations. You want to enable connection pooling to minimize connection overhead. Which built-in component should you use?",
     "options": [
-      "PgBouncer",
-      "PostgreSQL Proxy",
-      "Azure Traffic Manager",
-      "Connection Multiplexer"
+      "PgBouncer connection pooler",
+      "PostgreSQL Foreign Data Wrapper",
+      "Azure Traffic Manager endpoint",
+      "Azure Front Door backend pool"
     ],
     "answer": 0,
     "explanation": "Azure Database for PostgreSQL Flexible Server includes built-in **PgBouncer**, which pools database connections and reduces connection setup cost under concurrency."
@@ -145,10 +145,10 @@
     "type": "mcq",
     "question": "Using the Python SDK for Azure Managed Redis, you want to perform a vector search over millions of items where high throughput and recall accuracy are critical. Which search index algorithm is most suitable?",
     "options": [
-      "HNSW (Hierarchical Navigable Small World)",
+      "HNSW",
       "FLAT",
-      "IVFFLAT",
-      "KD-Tree"
+      "IVF",
+      "LSH"
     ],
     "answer": 0,
     "explanation": "**HNSW** in Redis delivers strong query performance and recall on large datasets. It uses more memory than FLAT during index construction, which is the usual trade-off for accuracy and speed."
@@ -159,10 +159,10 @@
     "type": "mcq",
     "question": "You have a large set of image embeddings in Azure Cosmos DB NoSQL. You want to retrieve the top 5 most similar images to a target vector. Which SQL statement shows the correct syntax?",
     "options": [
-      "SELECT TOP 5 c.id FROM c ORDER BY VectorDistance(c.vector, @targetVector)",
-      "SELECT c.id FROM c WHERE VectorDistance(c.vector, @targetVector) < 5",
-      "SELECT TOP 5 c.id FROM c WHERE c.vector LIKE @targetVector",
-      "SELECT c.id FROM c LIMIT 5 SIMILARITY TO @targetVector"
+      "SELECT TOP 5 c.id FROM c ORDER BY VectorDistance(c.vector, @v)",
+      "SELECT TOP 5 c.id FROM c WHERE VectorDistance(c.vector, @v) < 1",
+      "SELECT TOP 5 c.id FROM c FILTER BY VectorSearch(c.vector, @v)",
+      "SELECT TOP 5 c.id FROM c SIMILAR TO VectorMatch(c.vector, @v)"
     ],
     "answer": 0,
     "explanation": "Cosmos DB returns nearest neighbors with `ORDER BY VectorDistance(...)` combined with `TOP N`."
@@ -174,8 +174,8 @@
     "question": "You are optimizing an Azure Database for PostgreSQL Flexible Server for a vector workload indexing step. You need to increase memory allocated for index creation (such as building ivfflat indexes). Which server parameter should you adjust?",
     "options": [
       "maintenance_work_mem",
-      "max_connections",
-      "shared_buffers",
+      "max_parallel_workers",
+      "shared_buffers_size",
       "effective_cache_size"
     ],
     "answer": 0,
@@ -187,10 +187,10 @@
     "type": "mcq",
     "question": "In the Azure Cosmos DB Python SDK, you want to use the Change Feed. Which mode allows you to see all historical versions of a document, including intermediate updates and deletes?",
     "options": [
-      "All Versions and Deletes (preview)",
-      "Latest Version Mode",
-      "Full Document History Mode",
-      "Incremental Update Mode"
+      "All versions and deletes",
+      "Latest version only mode",
+      "Full fidelity change mode",
+      "Incremental snapshot mode"
     ],
     "answer": 0,
     "explanation": "**All Versions and Deletes** mode exposes creations, intermediate updates, and deletes. Default Change Feed Latest Version mode only surfaces the latest state of modified documents."
@@ -201,10 +201,10 @@
     "type": "scenario",
     "question": "When implementing a RAG pattern with Azure Database for PostgreSQL, you want to filter results based on a user's ID to ensure they only search their own embeddings. Where should this filter be applied for maximum performance?",
     "options": [
-      "In the WHERE clause alongside the vector distance search query",
-      "In Python application code after fetching all global vector matches",
-      "In a separate temporary table before querying vectors",
-      "By exporting vectors to flat files first"
+      "WHERE clause with the vector distance predicate",
+      "App code after fetching all global ANN match rows",
+      "Staging table loaded before running vector search",
+      "Export embeddings to files then filter them offline"
     ],
     "answer": 0,
     "explanation": "Put metadata filters in the SQL `WHERE` clause with the vector distance predicate so PostgreSQL can apply filtering and indexing at the engine layer instead of post-filtering in application code."

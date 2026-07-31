@@ -21,8 +21,8 @@
     "options": [
       "subjectEndsWith",
       "subjectBeginsWith",
-      "advancedFilters.stringContains",
-      "topicSuffix"
+      "subjectContains",
+      "dataVersionMatch"
     ],
     "answer": 0,
     "explanation": "Event Grid subscriptions support subject filters such as `subjectBeginsWith` and **subjectEndsWith** to route matching subjects to an endpoint."
@@ -33,10 +33,10 @@
     "type": "scenario",
     "question": "In the Azure Service Bus Python SDK, you want to ensure that a message is not processed by other workers while your current worker is handling it, but can be abandoned if processing fails. Which mode should you use when receiving the message?",
     "options": [
-      "PEEK_LOCK",
-      "RECEIVE_AND_DELETE",
-      "READ_COMMITTED",
-      "DEFERRED"
+      "PEEK_LOCK receive mode",
+      "RECEIVE_AND_DELETE mode",
+      "AT_MOST_ONCE delivery mode",
+      "EXACTLY_ONCE delivery mode"
     ],
     "answer": 0,
     "explanation": "In **PEEK_LOCK** mode the receiver locks the message. Call `complete_message()` on success or `abandon_message()` on failure so another worker can retry.\n\n```python\nfrom azure.servicebus import ServiceBusClient\n\nservicebus_client = ServiceBusClient.from_connection_string(CONN_STR)\nwith servicebus_client:\n    receiver = servicebus_client.get_queue_receiver(\n        queue_name=QUEUE_NAME, receive_mode=\"peek_lock\"\n    )\n    with receiver:\n        for msg in receiver:\n            # Process message\n            receiver.complete_message(msg)\n```"
@@ -48,9 +48,9 @@
     "question": "An AI solution uses Azure Service Bus to decouple a web front-end from a slow AI processing backend. If a message fails processing repeatedly beyond maxDeliveryCount, where does Service Bus automatically move the message?",
     "options": [
       "Dead-letter queue",
-      "Quarantine queue",
-      "Poison topic",
-      "Service Bus Storage"
+      "Transfer dead-letter",
+      "Scheduled messages",
+      "Deferred messages"
     ],
     "answer": 0,
     "explanation": "When delivery attempts exceed **MaxDeliveryCount**, Service Bus moves the message to the **dead-letter queue (DLQ)** for inspection and remediation."
@@ -62,9 +62,9 @@
     "question": "You are implementing an Azure Function that needs to store and retrieve high-frequency AI model state. Which trigger/binding combination provides direct, low-latency integration with Redis?",
     "options": [
       "Redis input/output bindings",
-      "HTTP Trigger calling REST Redis APIs",
-      "Blob Binding redirecting to Redis",
-      "Event Hubs Redis Extensions"
+      "HTTP trigger to Redis REST",
+      "Blob binding proxy to Redis",
+      "Event Hubs Redis extension"
     ],
     "answer": 0,
     "explanation": "Azure Functions supports official **Redis input/output bindings**, so you can read and write Redis data without manually managing client connection pools."
@@ -89,10 +89,10 @@
     "type": "scenario",
     "question": "An Azure Service Bus subscription is configured with a filter to only receive messages where Region = 'EastUS'. If a message arrives with Region = 'WestUS', what happens to the message relative to that subscription?",
     "options": [
-      "It is ignored and not delivered to this subscription",
-      "It is moved to the dead-letter queue immediately",
-      "It throws an exception at the sender",
-      "It is placed in a hold state for 24 hours"
+      "Ignored by this subscription's filter",
+      "Dead-lettered immediately by subscription",
+      "Rejected with an error to topic sender",
+      "Deferred for a later subscription pull"
     ],
     "answer": 0,
     "explanation": "Subscription filters decide which topic messages are copied into that subscription. Messages that do not match are simply skipped for that subscription — no error and no DLQ."
@@ -103,10 +103,10 @@
     "type": "mcq",
     "question": "In an Azure Functions app using Python, which file defines the triggers, bindings, and function entry point when using the V2 programming model?",
     "options": [
-      "function_app.py",
-      "function.json",
-      "host.json",
-      "local.settings.json"
+      "function_app.py (V2 model)",
+      "function.json (V1 model)",
+      "host.json runtime config",
+      "requirements.txt packages"
     ],
     "answer": 0,
     "explanation": "The Python **V2** model uses decorators in **function_app.py** instead of the legacy `function.json` files.\n\n```python\nimport azure.functions as func\n\napp = func.FunctionApp()\n\n@app.service_bus_queue_trigger(\n    arg_name=\"msg\",\n    queue_name=\"inputqueue\",\n    connection=\"ServiceBusConnectionString\",\n)\ndef main(msg: func.ServiceBusMessage):\n    print(msg.get_body().decode(\"utf-8\"))\n```"
@@ -117,10 +117,10 @@
     "type": "mcq",
     "question": "You are configuring an Event Grid event subscription to retry failed deliveries to a handler. What is the default maximum number of delivery attempts made by Event Grid before dropping or dead-lettering the event?",
     "options": [
-      "30",
-      "10",
-      "5",
-      "100"
+      "30 delivery attempts",
+      "10 delivery attempts",
+      "5 delivery attempts",
+      "100 delivery attempts"
     ],
     "answer": 0,
     "explanation": "Event Grid retries delivery up to **30** times (or until event TTL expires, default 1440 minutes) with exponential backoff before dead-lettering if configured."
@@ -131,10 +131,10 @@
     "type": "scenario",
     "question": "You need to pass messages larger than the standard 1 MB payload limit supported by Azure Service Bus Standard. Which tier or approach should you adopt?",
     "options": [
-      "Service Bus Premium tier (supports messages up to 100 MB)",
-      "Service Bus Basic tier",
-      "Store in Service Bus System Memory",
-      "Compress using GZip inside Standard tier"
+      "Upgrade to Service Bus Premium tier",
+      "Stay on Service Bus Basic messaging",
+      "Use Service Bus Standard compression",
+      "Store payload only in topic metadata"
     ],
     "answer": 0,
     "explanation": "**Service Bus Premium** supports large messages up to **100 MB**. Standard tier is limited to much smaller payloads (historically 256 KB / 1 MB depending on settings)."

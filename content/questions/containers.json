@@ -7,8 +7,8 @@
     "options": [
       "type: azure-queue-storage",
       "type: azure-service-bus",
-      "type: azure-servicebus",
-      "type: servicebus-autoscaler"
+      "type: azure-event-hubs",
+      "type: azure-blob-storage"
     ],
     "answer": 1,
     "explanation": "KEDA provides dedicated scalers for specific event sources. To scale based on Azure Service Bus queues or topics, specify `type: azure-service-bus` in the scale configuration of your Container App manifest.\n\n```yaml\nscale:\n  rules:\n    - name: sb-queue\n      custom:\n        type: azure-service-bus\n        metadata:\n          queueName: orders\n          messageCount: \"5\"\n```"
@@ -21,8 +21,8 @@
     "options": [
       "ACR Tasks",
       "ACR Webhooks",
-      "ACR Replication",
-      "ACR Pipelines"
+      "ACR Replicas",
+      "ACR Cache"
     ],
     "answer": 0,
     "explanation": "**ACR Tasks** provides cloud-based container image building and automated triggers. It can run builds on source commits, base image updates, or a schedule.\n\n```bash\naz acr task create \\\n  --registry myregistry \\\n  --name baseImageAutoBuild \\\n  --image aimodel:latest \\\n  --context https://github.com/myorg/aimodel.git#main \\\n  --file Dockerfile\n```"
@@ -33,10 +33,10 @@
     "type": "scenario",
     "question": "When deploying an application to Azure Kubernetes Service (AKS), you need to ensure the AI pod has enough GPU memory allocated. Which section of the manifest file defines these requirements?",
     "options": [
-      "spec.nodeSelector",
-      "resources.requests and resources.limits",
-      "spec.affinity",
-      "spec.gpuAllocations"
+      "spec.nodeSelector targeting GPU node SKUs",
+      "resources.requests with resources.limits",
+      "spec.affinity rules for GPU node placement",
+      "spec.tolerations allowing GPU node taints"
     ],
     "answer": 1,
     "explanation": "GPU resources in Kubernetes are declared under `resources.limits` and `resources.requests` using vendor-specific keys such as `nvidia.com/gpu`.\n\n```yaml\napiVersion: v1\nkind: Pod\nmetadata:\n  name: gpu-ai-service\nspec:\n  containers:\n  - name: inference-container\n    image: myregistry.azurecr.io/ai-inference:v1\n    resources:\n      limits:\n        nvidia.com/gpu: \"1\"\n```"
@@ -48,9 +48,9 @@
     "question": "You are troubleshooting an Azure Container App that is failing to start. You need to view the logs generated during the container's startup phase. Which CLI command provides access to these logs?",
     "options": [
       "az containerapp logs show",
-      "az containerapp monitor stream",
-      "az containerapp debug",
-      "az containerapp console"
+      "az containerapp revision list",
+      "az containerapp replica list",
+      "az containerapp env show"
     ],
     "answer": 0,
     "explanation": "`az containerapp logs show` fetches system and application logs from the Log Analytics workspace associated with Azure Container Apps, which helps identify startup failures.\n\n```bash\naz containerapp logs show \\\n  --name my-app \\\n  --resource-group rg-ai200 \\\n  --type system\n```"
@@ -64,7 +64,7 @@
       "livenessProbe",
       "readinessProbe",
       "startupProbe",
-      "restartPolicy: Always"
+      "lifecycleProbe"
     ],
     "answer": 0,
     "explanation": "Kubernetes uses **livenessProbe** to know when to restart a container. If the liveness probe fails repeatedly, the kubelet kills the container and applies the restart policy. **readinessProbe** only controls whether the pod receives traffic.\n\n```yaml\nlivenessProbe:\n  httpGet:\n    path: /healthz\n    port: 8080\n  initialDelaySeconds: 15\n  periodSeconds: 20\n```"
@@ -75,10 +75,10 @@
     "type": "scenario",
     "question": "When deploying to Azure Container Apps, you want to test a new version of your AI model with 10% of the live traffic before a full rollout. Which feature should you use?",
     "options": [
-      "Revision Traffic Splitting",
-      "Azure Front Door Routing",
-      "Blue-Green Pipeline",
-      "Deployment Slot Rules"
+      "Revision traffic splitting",
+      "Application Gateway routing",
+      "Front Door origin weighting",
+      "App Service slot percentage"
     ],
     "answer": 0,
     "explanation": "Azure Container Apps supports **revision traffic splitting** natively. With multiple active revisions, assign percentage weights to route traffic across revisions (for example 90/10 canary).\n\n```bash\naz containerapp ingress traffic set \\\n  --name order-api \\\n  --resource-group rg-ecommerce \\\n  --revision-weight order-api--v1=90 order-api--v2=10\n```"
@@ -89,10 +89,10 @@
     "type": "mcq",
     "question": "You are using ACR Tasks to build a container image. Which file name does ACR Tasks look for by default if no file is specified in the build command?",
     "options": [
-      "Dockerfile",
-      "acr-task.yaml",
-      "build.spec",
-      "container.Dockerfile"
+      "Dockerfile (default name)",
+      "Containerfile (Podman name)",
+      "build.yaml (custom task)",
+      "Taskfile (task runner)"
     ],
     "answer": 0,
     "explanation": "By default, `az acr build` and ACR Tasks look for a file named **Dockerfile** in the root of the build context unless you override it with `--file` / `-f`."
@@ -104,9 +104,9 @@
     "question": "You are configuring KEDA for an Azure Container App to scale based on CPU usage. You notice the app is scaling up and down too frequently (flapping). Which KEDA setting helps smooth out the scaling behavior?",
     "options": [
       "stabilizationWindowSeconds",
-      "cooldownPeriod",
-      "pollingInterval",
-      "scaleDownDelay"
+      "cooldownPeriodForScaleDown",
+      "pollingIntervalForMetrics",
+      "minReplicaCountThreshold"
     ],
     "answer": 0,
     "explanation": "**stabilizationWindowSeconds** prevents flapping by making the autoscaler consider historical metrics over a window before scaling down, smoothing short-lived spikes."
@@ -117,10 +117,10 @@
     "type": "scenario",
     "question": "You are deploying a containerized AI model to Azure App Service. The model requires a large configuration file. You want to manage this configuration centrally and allow updates without redeploying the container. What is the best approach?",
     "options": [
-      "Azure App Configuration",
-      "Key Vault Secrets",
-      "Storage Mount",
-      "Local Environment Variables"
+      "Azure App Configuration store",
+      "Azure Key Vault secret values",
+      "Azure Files volume mount path",
+      "Hard-coded container env vars"
     ],
     "answer": 0,
     "explanation": "**Azure App Configuration** is a centralized store for application settings and feature flags. Apps can refresh config dynamically without rebuilding or redeploying containers. Key Vault is better for secrets; local env vars require redeploy to change."
@@ -132,9 +132,9 @@
     "question": "You are using ACR Tasks to build an image from a GitHub repository. You want the build to happen automatically every time you push code to the main branch. What is this called in ACR Tasks?",
     "options": [
       "Source trigger",
-      "Commit hook",
       "Image trigger",
-      "GitHub Sync"
+      "Timer trigger",
+      "Webhook sync"
     ],
     "answer": 0,
     "explanation": "**Source triggers** in ACR Tasks watch a source repository (GitHub or Azure Repos) and run a build when new commits are pushed. **Image triggers** react to base image updates instead."
@@ -145,10 +145,10 @@
     "type": "scenario",
     "question": "You want to deploy an AI model to Azure App Service for Containers and supply sensitive environment variables (like API keys). How should you supply these secrets securely?",
     "options": [
-      "Use App Service Application Settings referencing Azure Key Vault secrets via Managed Identity.",
-      "Hardcode them in the container Dockerfile.",
-      "Embed them in the app settings file uploaded with the image.",
-      "Pass them as query parameters in the container start command."
+      "Key Vault refs in App Settings via managed identity",
+      "Plaintext API keys set in Dockerfile ENV instructions",
+      "Secrets baked into image layers during container build",
+      "Secrets passed as CLI args in the container start cmd"
     ],
     "answer": 0,
     "explanation": "Reference Key Vault secrets in App Service Application Settings with `@Microsoft.KeyVault(...)` and resolve them via **Managed Identity**. That keeps credentials out of Docker layers and source control."
@@ -160,9 +160,9 @@
     "question": "You need to inspect real-time logs from an Azure Container Apps instance. Which command enables live streaming of application console logs?",
     "options": [
       "az containerapp logs show --follow",
-      "az containerapp monitor live",
-      "az containerapp stream-logs",
-      "az containerapp tail"
+      "az containerapp logs show --watch",
+      "az containerapp logs show --stream",
+      "az containerapp logs show --tail"
     ],
     "answer": 0,
     "explanation": "Add `--follow` (or `-f`) to `az containerapp logs show` to stream stdout/stderr from the container app in real time.\n\n```bash\naz containerapp logs show \\\n  --name my-app \\\n  --resource-group rg-ai200 \\\n  --follow\n```"
@@ -174,9 +174,9 @@
     "question": "Which Kubernetes resource allows you to define declarative rules for routing external HTTP/HTTPS traffic to services inside an Azure Kubernetes Service (AKS) cluster?",
     "options": [
       "Ingress",
-      "Egress",
-      "ServiceEndpoint",
-      "NetworkPolicy"
+      "Service",
+      "Endpoint",
+      "Gateway"
     ],
     "answer": 0,
     "explanation": "An **Ingress** (with an Ingress controller) manages external HTTP/HTTPS access to cluster services, including path/host routing and TLS termination. NetworkPolicy controls pod-to-pod traffic, not public HTTP routing."
