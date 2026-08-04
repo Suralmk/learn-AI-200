@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { JsonLd } from "@/components/json-ld";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { cn } from "@/lib/utils";
 import {
   SITE_DESCRIPTION,
@@ -86,6 +87,7 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col">
+        <GoogleAnalytics />
         <JsonLd />
         <ThemeProvider
           attribute="class"
