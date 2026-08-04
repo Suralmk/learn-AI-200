@@ -7,7 +7,7 @@ import { DOMAINS } from "@/lib/domains";
 import { ExamResults } from "@/components/exam-results";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, shuffleArray, shuffleQuestionOptions } from "@/lib/utils";
 
 export function ExamSession({
   exam,
@@ -25,11 +25,14 @@ export function ExamSession({
   const [attempt, setAttempt] = useState(0);
 
   const examQuestions = useMemo(() => {
-    const shuffled = [...questions].sort(() => Math.random() - 0.5);
-    return shuffled.slice(
+    // Reference attempt to ensure useMemo runs on retake and to satisfy ESLint
+    void attempt;
+    const shuffled = shuffleArray(questions);
+    const sliced = shuffled.slice(
       0,
       Math.min(exam.questionCount, shuffled.length)
     );
+    return sliced.map(shuffleQuestionOptions);
   }, [questions, exam.questionCount, attempt]);
 
   const current = examQuestions[currentIndex];

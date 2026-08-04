@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { QuestionCard } from "@/components/question-card";
 import { DomainFilter } from "@/components/domain-filter";
 import type { Question, Difficulty } from "@/lib/questions";
 import type { DomainId } from "@/lib/domains";
 import { DOMAINS } from "@/lib/domains";
 import { Button } from "@/components/ui/button";
-import { shuffleArray } from "@/lib/utils";
+import { shuffleArray, shuffleQuestionOptions } from "@/lib/utils";
+
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export default function QuestionsPage({
   questions,
@@ -19,7 +23,11 @@ export default function QuestionsPage({
   const [difficulty, setDifficulty] = useState<"all" | Difficulty>("all");
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  const isMounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
   const filtered = useMemo(() => {
+    if (!isMounted) return [];
+
     const list = questions.filter((q) => {
       const domainMatch = filter === "all" || q.domain === filter;
       const levelMatch =
@@ -29,18 +37,75 @@ export default function QuestionsPage({
         difficulty === "all" || q.difficulty === difficulty;
       return domainMatch && levelMatch && difficultyMatch;
     });
-    return shuffleArray(list);
-  }, [questions, filter, level, difficulty]);
+    const shuffledList = shuffleArray(list);
+    return shuffledList.map(shuffleQuestionOptions);
+  }, [questions, filter, level, difficulty, isMounted]);
 
-  useEffect(() => {
+  const handleFilterChange = (val: DomainId | "all") => {
+    setFilter(val);
     setCurrentIndex(0);
-  }, [filter, level, difficulty]);
+  };
 
-  useEffect(() => {
-    if (currentIndex >= filtered.length && filtered.length > 0) {
-      setCurrentIndex(filtered.length - 1);
-    }
-  }, [currentIndex, filtered.length]);
+  const handleLevelChange = (val: "all" | "advanced") => {
+    setLevel(val);
+    setCurrentIndex(0);
+  };
+
+  const handleDifficultyChange = (val: "all" | Difficulty) => {
+    setDifficulty(val);
+    setCurrentIndex(0);
+  };
+
+  if (!isMounted) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-10">
+        <div className="mb-8">
+          <h1 className="mb-2 text-2xl font-semibold">
+            AI-200 Practice Questions
+          </h1>
+          <p className="text-muted-foreground">
+            MCQ and scenario-style questions for the Azure AI Cloud Developer
+            Associate exam. Filter by difficulty, exam domain, or advanced
+            use-case scenarios.
+          </p>
+        </div>
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+          <div className="h-9 w-36 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <div className="h-9 w-28 animate-pulse rounded-md bg-muted" />
+          <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+          <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+          <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="mb-6">
+          <div className="h-9 w-full animate-pulse rounded-md bg-muted" />
+        </div>
+
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+          </div>
+
+          <div className="rounded-lg border border-border p-6 space-y-4">
+            <div className="space-y-2">
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+              <div className="h-6 w-3/4 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="space-y-2 pt-4">
+              <div className="h-10 w-full animate-pulse rounded bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded bg-muted" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const current = filtered[currentIndex];
   const isFirst = currentIndex === 0;
@@ -65,7 +130,7 @@ export default function QuestionsPage({
             key={value}
             variant={level === value ? "default" : "outline"}
             size="sm"
-            onClick={() => setLevel(value)}
+            onClick={() => handleLevelChange(value)}
           >
             {value === "all" ? "All levels" : "Advanced scenarios"}
           </Button>
@@ -78,7 +143,7 @@ export default function QuestionsPage({
             key={value}
             variant={difficulty === value ? "default" : "outline"}
             size="sm"
-            onClick={() => setDifficulty(value)}
+            onClick={() => handleDifficultyChange(value)}
           >
             {value === "all" ? "All difficulties" : value}
           </Button>
@@ -89,7 +154,7 @@ export default function QuestionsPage({
         <DomainFilter
           domains={DOMAINS.map((d) => d.id)}
           selected={filter}
-          onChange={setFilter}
+          onChange={handleFilterChange}
         />
       </div>
 
