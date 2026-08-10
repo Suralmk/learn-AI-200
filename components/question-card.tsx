@@ -52,12 +52,19 @@ export function QuestionCard({
           </span>
         </div>
         <CardTitle className="text-base leading-relaxed font-normal">
-          {number !== undefined && (
-            <span className="mr-2 font-semibold text-primary">
-              {number}.
-            </span>
-          )}
-          {question.question}
+          <div className="flex items-start gap-2">
+            {number !== undefined && (
+              <span className="font-semibold text-primary shrink-0">
+                {number}.
+              </span>
+            )}
+            <div className="flex-1 min-w-0">
+              <MarkdownContent
+                content={question.question}
+                className="text-base leading-relaxed [&>p:first-child]:mt-0 [&>p:last-child]:mb-0"
+              />
+            </div>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -86,12 +93,17 @@ export function QuestionCard({
                 <span className="mt-0.5 font-mono text-xs text-muted-foreground">
                   {String.fromCharCode(65 + index)}.
                 </span>
-                <span className="flex-1">{option}</span>
+                <div className="flex-1 min-w-0">
+                  <MarkdownContent
+                    content={option}
+                    className="text-sm [&>p]:m-0 [&>p]:leading-relaxed"
+                  />
+                </div>
                 {answered && isAnswer && (
-                  <CheckCircle2 className="size-4 shrink-0 text-green-600" />
+                  <CheckCircle2 className="size-4 shrink-0 text-green-600 mt-0.5" />
                 )}
                 {answered && isSelected && !isAnswer && (
-                  <XCircle className="size-4 shrink-0 text-red-600" />
+                  <XCircle className="size-4 shrink-0 text-red-600 mt-0.5" />
                 )}
               </button>
             );

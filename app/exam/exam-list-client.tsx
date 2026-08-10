@@ -23,7 +23,7 @@ export default function ExamListClient({
   exams: ExamWithCount[];
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {exams.map((exam) => (
         <Link key={exam.id} href={`/exam/${exam.id}`}>
           <Card className="h-full transition-colors hover:border-primary/50">

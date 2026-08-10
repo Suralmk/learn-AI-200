@@ -67,14 +67,15 @@ export function MarkdownContent({
           code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "");
             const code = String(children).replace(/\n$/, "");
+            const isMultiLine = code.includes("\n");
 
-            if (match) {
-              return <CodeBlock code={code} language={match[1]} />;
+            if (match || isMultiLine) {
+              return <CodeBlock code={code} language={match ? match[1] : undefined} />;
             }
 
             return (
               <code
-                className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm"
+                className="rounded bg-muted/80 px-1.5 py-0.5 font-mono text-xs font-medium border border-border/50 text-foreground"
                 {...props}
               >
                 {children}

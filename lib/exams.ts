@@ -14,6 +14,14 @@ export interface Exam {
 
 export const EXAMS: Exam[] = [
   {
+    id: "ai200-practice-60",
+    title: "Microsoft AI-200 Official Practice Set",
+    description:
+      "Comprehensive scenario-based 60-question practice exam covering Containers & AKS, Cosmos DB Vector Search, Azure Managed Redis, pgvector, Azure Functions, Identity, Key Vault, and Observability.",
+    domains: "all",
+    questionCount: 60,
+  },
+  {
     id: "full",
     title: "Full AI-200 Mock Exam",
     description:

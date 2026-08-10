@@ -5,6 +5,7 @@ import type { Question } from "@/lib/questions";
 import type { Exam } from "@/lib/exams";
 import { DOMAINS } from "@/lib/domains";
 import { ExamResults } from "@/components/exam-results";
+import { MarkdownContent } from "@/components/markdown-content";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, shuffleArray, shuffleQuestionOptions } from "@/lib/utils";
@@ -123,7 +124,12 @@ export function ExamSession({
       </div>
 
       <div className="bg-transparent p-0 sm:p-0">
-        <p className="mb-6 text-lg leading-relaxed">{current.question}</p>
+        <div className="mb-6 text-base sm:text-lg leading-relaxed">
+          <MarkdownContent
+            content={current.question}
+            className="text-base sm:text-lg leading-relaxed [&>p:first-child]:mt-0 [&>p:last-child]:mb-0"
+          />
+        </div>
         <div className="space-y-3">
           {current.options.map((option, index) => (
             <button
@@ -142,7 +148,12 @@ export function ExamSession({
               <span className="mt-0.5 font-mono text-sm text-muted-foreground">
                 {String.fromCharCode(65 + index)}.
               </span>
-              <span className="leading-relaxed">{option}</span>
+              <div className="flex-1 min-w-0">
+                <MarkdownContent
+                  content={option}
+                  className="text-base [&>p]:m-0 [&>p]:leading-relaxed"
+                />
+              </div>
             </button>
           ))}
         </div>

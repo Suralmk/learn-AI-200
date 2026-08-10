@@ -16,7 +16,7 @@ export default function ExamPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8">
         <h1 className="mb-2 text-2xl font-semibold">
           AI-200 Mock Exams & Practice Tests

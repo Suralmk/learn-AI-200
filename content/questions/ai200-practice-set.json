@@ -1,0 +1,959 @@
+[
+  {
+    "id": "practice-001",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Your team builds a Python FastAPI service and needs the smallest possible production image while keeping build tooling out of the final image.\n\nThe initial Dockerfile uses a multi-stage build:\n```dockerfile\nFROM python:3.12 AS build\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --user -r requirements.txt\nCOPY . .\n\nFROM python:3.12-slim\nWORKDIR /app\nCOPY --from=build /root/.local /root/.local\nCOPY --from=build /app /app\nENV PATH=/root/.local/bin:$PATH\nCMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\"]\n```\n\nThe image builds successfully but is still 950 MB. What is the most effective change to reduce final image size while preserving functionality?",
+    "options": [
+      "Replace python:3.12-slim with python:3.12-alpine in the final stage only.",
+      "Add --no-cache-dir to the pip install command in the build stage.",
+      "Change the build stage base image from python:3.12 to python:3.12-slim so both stages share a smaller base, since the multi-stage copy already excludes build tooling from the final layer.",
+      "Add a .dockerignore file excluding .git, __pycache__, and virtual environment directories."
+    ],
+    "answer": 2,
+    "explanation": "**Why C is correct:** The multi-stage pattern already avoids shipping compilers into the final image, but the build stage itself is still `python:3.12` (roughly 1 GB), and every package installed with `pip install --user` links against that stage's libraries and is copied verbatim. Since the runtime stage is slim, using a slim build stage keeps compiled wheels compatible and cuts the layers actually copied into the final image, meaningfully reducing size without Alpine's musl/glibc compatibility risk.\n\n**Why A is wrong:** Alpine uses musl libc; many Python packages with C extensions (e.g., pydantic, numpy) fail to install or crash at runtime without extra build dependencies, and switching only the final stage doesn't address the real bloat driver.\n\n**Why B is wrong:** `--no-cache-dir` reduces the build stage size only; it never ships into the final slim image because pip's download cache isn't copied by `COPY --from=build`.\n\n**Why D is wrong:** `.dockerignore` reduces the build context sent to the daemon, but has a negligible effect on a ~950 MB image where the bulk of the size is base OS + Python runtime layers.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry / Docker",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "practice-002",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You are tagging and pushing images to Azure Container Registry (ACR) as part of a CI/CD pipeline using:\n```bash\naz acr build \\\n  --registry myregistry \\\n  --image myapp:{{.Run.ID}} \\\n  .\n```\nYou need every image to be immutable and traceable to a specific commit, while still supporting a floating `latest` tag for convenience.\n\nWhich addition best satisfies the requirement of immutable, commit-traceable tags and a floating tag?",
+    "options": [
+      "Replace {{.Run.ID}} with latest only, and enable content trust on the registry.",
+      "Tag the build with the Git commit SHA (myapp:$GIT_SHA) and separately re-tag/push the same digest as myapp:latest using az acr import or a second docker tag/push.",
+      "Enable ACR's retention policy on untagged manifests; no additional tagging change is required.",
+      "Use az acr build --image myapp:{{.Run.ID}} --image myapp:latest in the same command to build the image twice."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Tagging with the immutable Git SHA gives permanent traceability from image to source commit, while pushing the same image digest under `latest` (via `docker tag`/`docker push` or `az acr import --source myregistry.azurecr.io/myapp:$GIT_SHA`) provides a floating convenience tag without rebuilding, ensuring both tags point to the identical, verified artifact.\n\n**Why A is wrong:** Using only `latest` loses commit traceability entirely; content trust (Notary) verifies signing, not lineage to source code.\n\n**Why C is wrong:** Retention policies clean up untagged manifests after a period; they don't create traceability or a floating tag.\n\n**Why D is wrong:** Passing two `--image` values to `az acr build` builds the Dockerfile twice, producing two potentially different image digests (non-reproducible).",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "practice-003",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You are deploying a container app that must pull its image from a private ACR without embedding registry credentials as secrets:\n```bicep\nresource containerApp 'Microsoft.App/containerApps@2024-03-01' = {\n  name: 'orders-api'\n  location: location\n  identity: {\n    type: 'UserAssigned'\n    userAssignedIdentities: {\n      '${uami.id}': {}\n    }\n  }\n  properties: {\n    configuration: {\n      registries: [\n        {\n          server: 'myregistry.azurecr.io'\n          identity: uami.id\n        }\n      ]\n    }\n    template: {\n      containers: [\n        {\n          name: 'orders-api'\n          image: 'myregistry.azurecr.io/orders-api:1.0'\n        }\n      ]\n    }\n  }\n}\n```\nDeployment fails with an image pull authorization error. What is missing?",
+    "options": [
+      "The user-assigned managed identity has not been granted the AcrPull role assignment on the ACR resource.",
+      "The registries array must include a username and passwordSecretRef even when using managed identity.",
+      "Container Apps do not support user-assigned identities for registry authentication; a system-assigned identity is required.",
+      "The image tag 1.0 must be replaced with latest for managed identity pulls to succeed."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Referencing the identity in `registries[].identity` tells Container Apps which identity to use for the pull, but it does not itself grant permission. The identity still needs the `AcrPull` RBAC role assigned on the ACR resource; without that role assignment, the pull is denied with an authorization error.\n\n**Why B is wrong:** `username`/`passwordSecretRef` are used for credential-based authentication, which is mutually exclusive with identity-based pulls.\n\n**Why C is wrong:** Container Apps supports both system-assigned and user-assigned identities for ACR pulls.\n\n**Why D is wrong:** The image tag has no bearing on authentication; `1.0` is a valid tag.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps / ACR",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-004",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You need to gradually shift traffic to a new revision of a Container App, sending 20% of traffic to the new revision and 80% to the stable one, without deactivating the old revision.\n\nYou run:\n```bash\naz containerapp update \\\n  --name orders-api \\\n  --resource-group rg-orders \\\n  --image myregistry.azurecr.io/orders-api:2.0\n```\nAfter this command, all traffic still routes to the old revision. What must be done to achieve the 80/20 split?",
+    "options": [
+      "Nothing further; az containerapp update automatically splits traffic 50/50 between the two most recent revisions.",
+      "Run az containerapp ingress traffic set --name orders-api --resource-group rg-orders --revision-weight orders-api--old=80 orders-api--new=20 after confirming the app is in multiple-revision mode.",
+      "Delete the old revision and redeploy it with a --traffic-weight 80 flag.",
+      "Set minReplicas: 0 on the old revision so Container Apps automatically balances traffic based on load."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Traffic splitting between revisions requires (1) the Container App to be in Multiple revision mode (`revisionsMode: Multiple`) and (2) an explicit traffic weight assignment naming each revision via `az containerapp ingress traffic set` or Bicep traffic configuration.\n\n**Why A is wrong:** By default, Container Apps in Single revision mode routes 100% of traffic to the newest revision.\n\n**Why C is wrong:** Deleting the old revision removes the target you want to send 80% traffic to.\n\n**Why D is wrong:** `minReplicas` controls scaling to zero, not traffic distribution.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-005",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A Container App needs to reach an internal-only PostgreSQL server inside a peered VNET, and must not be reachable from the public internet at all — only from other services in the same Container Apps Environment and peered VNETs.\n```bicep\nresource env 'Microsoft.App/managedEnvironments@2024-03-01' = {\n  name: 'orders-env'\n  location: location\n  properties: {\n    vnetConfiguration: {\n      infrastructureSubnetId: subnet.id\n      internal: true\n    }\n  }\n}\n```\nWhich ingress configuration on the Container App correctly complements this environment setting for a fully internal-only app?",
+    "options": [
+      "ingress: { external: true, targetPort: 8080 }",
+      "ingress: { external: false, targetPort: 8080 }",
+      "Omit the ingress block entirely; internal environments block all ingress by default.",
+      "ingress: { external: true, targetPort: 8080, ipSecurityRestrictions: [{ action: 'Deny', ipAddressRange: '0.0.0.0/0' }] }"
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** With the environment set to `internal: true`, the environment's load balancer has no public IP. Setting the app's `ingress.external` to `false` makes the app reachable only from within the VNET/peered VNETs, while still enabling ingress for other services in the environment to reach it.\n\n**Why A is wrong:** Setting `external: true` is semantically inconsistent with an internal-only design intent.\n\n**Why C is wrong:** Omitting the ingress block disables HTTP ingress entirely, preventing internal services from reaching it.\n\n**Why D is wrong:** Combining `external: true` with a deny-all IP rule is redundant and error-prone.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps / Networking",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-006",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You define a KEDA-based scale rule for a Container App that should scale out based on the depth of an Azure Storage Queue:\n```json\n{\n  \"scale\": {\n    \"minReplicas\": 0,\n    \"maxReplicas\": 10,\n    \"rules\": [\n      {\n        \"name\": \"queue-scale-rule\",\n        \"custom\": {\n          \"type\": \"azure-queue\",\n          \"metadata\": {\n            \"queueName\": \"orders-queue\",\n            \"queueLength\": \"5\"\n          },\n          \"auth\": [\n            {\n              \"secretRef\": \"storage-connection-string\",\n              \"triggerParameter\": \"connection\"\n            }\n          ]\n        }\n      }\n    ]\n  }\n}\n```\nThe app never scales beyond 1 replica even though the queue has 50 messages. What is the most likely cause?",
+    "options": [
+      "queueLength must be specified as an integer, not a string, in Container Apps scale rules.",
+      "KEDA queue scalers do not support Azure Storage Queues, only Service Bus.",
+      "The secretRef named storage-connection-string does not exist in the Container App's secrets array, or the connection string is invalid, causing the scaler to silently fail authentication and default to minimal scaling.",
+      "minReplicas: 0 prevents the KEDA scaler from ever activating; it must be set to at least 1."
+    ],
+    "answer": 2,
+    "explanation": "**Why C is correct:** The `auth.secretRef` must reference a secret name that is actually declared in the Container App's top-level `secrets` array. If the referenced secret is missing or invalid, the KEDA `azure-queue` scaler cannot authenticate to poll queue depth and defaults to minimal scaling (1 replica).\n\n**Why A is wrong:** Scale rule metadata values are conventionally strings in JSON/ARM representation (e.g. `\"5\"`).\n\n**Why B is wrong:** The `azure-queue` scaler is built specifically for Azure Storage Queues.\n\n**Why D is wrong:** `minReplicas: 0` enables scale-to-zero and event-driven scale-out; it does not block scaling.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps / KEDA",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-007",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A pod in your AKS cluster is repeatedly restarting. `kubectl get pods` shows:\n```text\nNAME                          READY   STATUS            RESTARTS   AGE\ninference-api-7d4f9c6-2xk9j   0/1     CrashLoopBackOff  6          8m\n```\n`kubectl logs inference-api-7d4f9c6-2xk9j --previous` outputs:\n```text\nTraceback (most recent call last):\n...\nMemoryError: Unable to allocate 2.1 GiB for an array\n```\nThe pod definition has:\n```yaml\nresources:\n  requests:\n    memory: \"512Mi\"\n    cpu: \"250m\"\n  limits:\n    memory: \"1Gi\"\n    cpu: \"1\"\n```\nWhat is the correct fix?",
+    "options": [
+      "Increase limits.memory to a value comfortably above the process's peak usage (e.g., 3Gi), and raise requests.memory proportionally so the scheduler places the pod on a node with sufficient capacity.",
+      "Remove the limits block entirely so the container can use unlimited memory.",
+      "Decrease requests.memory to 128Mi so the pod schedules on smaller nodes with more headroom.",
+      "Add a livenessProbe with a longer initialDelaySeconds to give the process more time to allocate memory before being restarted."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** The `MemoryError` indicates the process needs more memory than the container's 1Gi limit allows. Raising `limits.memory` above actual peak usage (e.g., 3Gi), and increasing `requests.memory` so Kubernetes schedules the pod on a node that can satisfy the limit, directly fixes the issue.\n\n**Why B is wrong:** Removing limits entirely risks the pod consuming all node memory and evicting other pods.\n\n**Why C is wrong:** Lowering `requests.memory` does nothing to raise the ceiling the container can use.\n\n**Why D is wrong:** Probe timing adjustments do not add memory to an out-of-memory container.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Kubernetes Service (AKS)",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-008",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You need a Kubernetes Job that runs a nightly data-cleanup task and must be retried up to 3 times on failure, then marked failed permanently.\n```yaml\napiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: nightly-cleanup\nspec:\n  schedule: \"0 2 * * *\"\n  jobTemplate:\n    spec:\n      backoffLimit: 3\n      template:\n        spec:\n          containers:\n          - name: cleanup\n            image: myregistry.azurecr.io/cleanup:1.0\n          restartPolicy: OnFailure\n```\nThe CronJob is deployed but jobs never appear to stop retrying even after failing many times over several days, consuming cluster resources. What is the likely root cause?",
+    "options": [
+      "backoffLimit: 3 only applies within a single Job run; each new scheduled CronJob execution creates a fresh Job with its own retry budget, which is expected behavior — the real problem is missing successfulJobsHistoryLimit/failedJobsHistoryLimit, causing old Job objects to accumulate.",
+      "restartPolicy: OnFailure should be Always to allow the CronJob to eventually succeed.",
+      "backoffLimit is not a valid field for CronJobs and is silently ignored.",
+      "The schedule cron expression is invalid, causing Kubernetes to run the job continuously instead of once daily."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `backoffLimit: 3` correctly limits retries within each individual Job created daily at 02:00. The resource accumulation over several days is caused by old completed/failed Job objects piling up because `successfulJobsHistoryLimit` and `failedJobsHistoryLimit` were not configured to garbage collect old Jobs.\n\n**Why B is wrong:** `restartPolicy: Always` is invalid for Jobs/CronJobs.\n\n**Why C is wrong:** `backoffLimit` is a valid field on `jobTemplate.spec`.\n\n**Why D is wrong:** `\"0 2 * * *\"` is valid standard cron syntax for 02:00 daily.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service (AKS)",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-009",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You want zero-downtime rolling updates for a Deployment, ensuring at least 3 pods are always available (desired replicas = 4) and no more than 1 extra pod is created during the rollout.\n```yaml\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web-frontend\nspec:\n  replicas: 4\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxUnavailable: ???\n      maxSurge: ???\n  template:\n    spec:\n      containers:\n      - name: web\n        image: myregistry.azurecr.io/web:2.0\n```\nWhich values correctly satisfy \"at least 3 always available\" and \"no more than 1 extra pod\"?",
+    "options": [
+      "maxUnavailable: 3, maxSurge: 1",
+      "maxUnavailable: 1, maxSurge: 1",
+      "maxUnavailable: 0, maxSurge: 0",
+      "maxUnavailable: 25%, maxSurge: 25%"
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** With `replicas: 4`, `maxUnavailable: 1` guarantees at most 1 pod can be unavailable (meaning 4 - 1 = 3 remain available at all times). `maxSurge: 1` guarantees at most 1 extra pod beyond the desired 4 is created during rollout.\n\n**Why A is wrong:** `maxUnavailable: 3` allows only 1 pod to remain available (4 - 3 = 1).\n\n**Why C is wrong:** `maxUnavailable: 0` and `maxSurge: 0` together block the rollout completely.\n\n**Why D is wrong:** While 25% of 4 equals 1, using explicit integer values directly specifies the contract without recalculating if replicas scale later.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Kubernetes Service (AKS)",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-010",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A pod fails to start with the following event:\n```text\nWarning  FailedScheduling  12s  default-scheduler  0/3 nodes are available:\n3 node(s) had taint {sku=gpu:NoSchedule} that the pod didn't tolerate.\n```\nPod spec:\n```yaml\napiVersion: v1\nkind: Pod\nmetadata:\n  name: inference-pod\nspec:\n  containers:\n  - name: inference\n    image: myregistry.azurecr.io/inference:1.0\n    resources:\n      limits:\n        nvidia.com/gpu: 1\n```\nWhat must be added to schedule this pod onto the GPU node pool?",
+    "options": [
+      "A nodeSelector matching the GPU node pool's label; taints and tolerations are unrelated to GPU scheduling.",
+      "A tolerations entry matching the node taint, e.g. tolerations: [{ key: \"sku\", operator: \"Equal\", value: \"gpu\", effect: \"NoSchedule\" }].",
+      "Increase nvidia.com/gpu limit to 2 so the scheduler prioritizes GPU nodes.",
+      "Remove the taint from the GPU nodes using kubectl taint nodes --all sku-."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Taints on nodes repel pods unless the pod has a matching toleration. The GPU node pool is tainted `sku=gpu:NoSchedule` to prevent non-GPU workloads from landing there; the pod must declare a toleration matching that key/value/effect to schedule there.\n\n**Why A is wrong:** A `nodeSelector` targets nodes but does not overcome a `NoSchedule` taint.\n\n**Why C is wrong:** Increasing GPU requests does not bypass node taints.\n\n**Why D is wrong:** Removing taints cluster-wide allows non-GPU pods to consume GPU nodes.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Kubernetes Service (AKS)",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-011",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You mount an Azure Files share into an AKS pod using the CSI driver for shared configuration data:\n```yaml\napiVersion: v1\nkind: PersistentVolume\nmetadata:\n  name: pv-azurefile\nspec:\n  capacity:\n    storage: 5Gi\n  accessModes:\n    - ReadWriteMany\n  csi:\n    driver: file.csi.azure.com\n    volumeHandle: uniqueid\n    volumeAttributes:\n      shareName: config-share\n    nodeStageSecretRef:\n      name: azure-secret\n      namespace: default\n  persistentVolumeReclaimPolicy: Retain\n---\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: pvc-azurefile\nspec:\n  accessModes:\n    - ReadWriteMany\n  storageClassName: \"\"\n  resources:\n    requests:\n      storage: 5Gi\n```\nThe PVC remains in Pending state indefinitely. What is the most likely cause?",
+    "options": [
+      "ReadWriteMany is not supported by Azure Files; it must be ReadWriteOnce.",
+      "The PVC is missing volumeName: pv-azurefile to explicitly bind to the statically provisioned PV, since storageClassName: \"\" disables dynamic provisioning and requires an explicit static binding reference.",
+      "persistentVolumeReclaimPolicy: Retain prevents PVCs from ever binding to the PV.",
+      "The azure-secret referenced in nodeStageSecretRef must be named exactly azure-storage-secret for the CSI driver to recognize it."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** With `storageClassName: \"\"`, the PVC opts out of dynamic provisioning and must bind to a statically provisioned PV. Without specifying `volumeName: pv-azurefile`, Kubernetes cannot automatically bind the PVC to the static PV, leaving it Pending.\n\n**Why A is wrong:** Azure Files natively supports `ReadWriteMany` (unlike Azure Disks which are `ReadWriteOnce`).\n\n**Why C is wrong:** `Retain` dictates what happens after PVC deletion; it does not block binding.\n\n**Why D is wrong:** Secret names in `nodeStageSecretRef` are arbitrary and just need to match existing secret names.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service (AKS) / Azure Files",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-012",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You are debugging an AKS application using Azure Monitor Container Insights and need to find all pods that were OOMKilled in the last 24 hours across the cluster.\n\nBase query:\n```kql\nKubePodInventory\n| where TimeGenerated > ago(24h)\n```\nComplete the query to filter for pods terminated due to out-of-memory conditions and show pod name, namespace, and last terminated time.",
+    "options": [
+      "KubePodInventory | where TimeGenerated > ago(24h) | where ContainerStatus == \"OOMKilled\" | project Name, Namespace, TimeGenerated",
+      "KubePodInventory | where TimeGenerated > ago(24h) | join kind=inner (KubeEvents | where TimeGenerated > ago(24h) | where Reason == \"OOMKilling\" or RawJsonDescription has \"OOMKilled\") on $left.PodUid == $right.ObjectUID | summarize LastTerminated = arg_max(TimeGenerated, *) by Name, Namespace | project Name, Namespace, LastTerminated",
+      "ContainerInventory | where TimeGenerated > ago(24h) | where ContainerState == \"OOMKilled\" | project ContainerName, TimeGenerated",
+      "KubePodInventory | where TimeGenerated > ago(24h) | where PodStatus == \"OOMKilled\" | project Name, Namespace"
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** OOMKilled events are captured in `KubeEvents` (reasons like `OOMKilling` or description `OOMKilled`). Joining `KubePodInventory` with `KubeEvents` on `PodUid == ObjectUID` and summarizing using `arg_max(TimeGenerated, *)` surfaces the exact pods and their last termination timestamps.\n\n**Why A is wrong:** `KubePodInventory` does not have a `ContainerStatus` column with value `\"OOMKilled\"`.\n\n**Why C is wrong:** `ContainerInventory`'s `ContainerState` has values like Running/Waiting/Terminated, not `OOMKilled` directly.\n\n**Why D is wrong:** `PodStatus` reflects overall pod phase (e.g. Running, Failed), not specific container termination reasons.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Monitor / AKS Container Insights",
+    "relatedObjective": "Monitor and troubleshoot AI solutions"
+  },
+  {
+    "id": "practice-013",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You use Dapr sidecars in AKS for pub/sub messaging between microservices. The order-service publishes to a topic, but inventory-service never receives events:\n```yaml\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: inventory-service\nspec:\n  template:\n    metadata:\n      annotations:\n        dapr.io/enabled: \"true\"\n        dapr.io/app-id: \"inventory-service\"\n        dapr.io/app-port: \"6001\"\n    spec:\n      containers:\n      - name: inventory-service\n        image: myregistry.azurecr.io/inventory:1.0\n        ports:\n        - containerPort: 6001\n---\napiVersion: dapr.io/v1alpha1\nkind: Subscription\nmetadata:\n  name: order-events-sub\nspec:\n  topic: order-events\n  route: /events\n  pubsubname: order-pubsub\n  scopes:\n  - inventory-service\n```\nEvents are published successfully (confirmed in order-pubsub), but inventory-service never logs receipt. What is the most likely cause?",
+    "options": [
+      "The Subscription's scopes field restricts delivery to app-ids listed; since inventory-service is listed, the issue is that inventory-service has no HTTP route handler for POST /events on port 6001.",
+      "Dapr Subscriptions do not support a scopes field; its presence invalidates the entire resource.",
+      "dapr.io/app-port must match the Dapr sidecar port (3500), not the application's own port.",
+      "Pub/sub components must be redeployed every time a new Subscription is created."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** The Dapr sidecar delivers events by making an HTTP `POST /events` request to the application on `dapr.io/app-port` (6001). If the `inventory-service` code has no registered handler for `POST /events`, the sidecar's delivery attempt fails (404) and events are never processed.\n\n**Why B is wrong:** `scopes` is a valid Dapr Subscription field used to restrict event delivery to specific app IDs.\n\n**Why C is wrong:** `dapr.io/app-port` must be the app's listening port (6001), not the Dapr sidecar port (3500).\n\n**Why D is wrong:** Dapr pub/sub components and subscriptions are decoupled Kubernetes CRDs; redeployment is not required.",
+    "difficulty": "Hard",
+    "relatedService": "Dapr / AKS",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-014",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You need to attach a custom domain `api.contoso.com` with a managed TLS certificate to a Container App:\n```bash\naz containerapp hostname add \\\n  --hostname api.contoso.com \\\n  --name orders-api \\\n  --resource-group rg-orders\n```\nThis command fails with a domain ownership validation error. What must be done before this command succeeds?",
+    "options": [
+      "Create a TXT record at the DNS provider for domain validation (or a CNAME/asuid TXT record as required), pointing to the values Azure provides, before Azure can verify ownership of api.contoso.com.",
+      "Purchase the domain through Azure App Service Domains first; custom domains from third-party registrars are not supported by Container Apps.",
+      "Enable internal: true on the Container Apps Environment.",
+      "Generate a self-signed certificate and upload it via az containerapp ssl upload before adding the hostname."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Azure validates domain ownership via DNS records (a TXT record like `asuid.api` containing the verification ID or CNAME) before allowing hostname binding. Without that DNS record at the registrar, domain validation fails.\n\n**Why B is wrong:** Container Apps custom domains work with any DNS registrar.\n\n**Why C is wrong:** `internal: true` creates an internal-only environment, which is the opposite of public domain binding.\n\n**Why D is wrong:** Managed TLS certificates are automatically issued by Azure after domain ownership validation; uploading a self-signed cert is unnecessary.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "practice-015",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You define a NetworkPolicy in AKS (using Azure Network Policy Manager / Calico) intended to allow only the frontend namespace to reach pods labeled `app=backend` on port 8080, denying all other traffic:\n```yaml\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: allow-frontend-to-backend\n  namespace: backend\nspec:\n  podSelector:\n    matchLabels:\n      app: backend\n  policyTypes:\n  - Ingress\n  ingress:\n  - from:\n    - namespaceSelector:\n        matchLabels:\n          kubernetes.io/metadata.name: frontend\n    ports:\n    - protocol: TCP\n      port: 8080\n```\nAfter applying this policy, pods in the frontend namespace still cannot reach backend pods, but before applying it, they could. What is the most likely explanation?",
+    "options": [
+      "The network policy engine is active (enforcing default-deny once targeted), but the frontend namespace lacks the kubernetes.io/metadata.name: frontend label (or has it overridden), causing the selector to match 0 namespaces while default-deny remains active.",
+      "NetworkPolicy resources only support Egress, not Ingress, in AKS.",
+      "The frontend namespace must have the label kubernetes.io/metadata.name: frontend explicitly removed for the selector to work.",
+      "Applying any Ingress NetworkPolicy to a pod immediately blocks all traffic to it from every source due to an AKS-specific platform bug."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Applying an Ingress `NetworkPolicy` isolates targeted pods and enforces default-deny for non-matching traffic. Traffic working before policy application proves the policy engine is active. If the `frontend` namespace does not have `kubernetes.io/metadata.name: frontend` (e.g. manually stripped or non-standard namespace), the allow selector matches 0 namespaces, blocking even the frontend pods.\n\n**Why B is wrong:** `NetworkPolicy` supports both Ingress and Egress.\n\n**Why C is wrong:** Removing the label would break selector matching completely.\n\n**Why D is wrong:** There is no platform bug; default-deny is standard Kubernetes NetworkPolicy behavior.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Kubernetes Service (AKS) / Networking",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-016",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You configure liveness and readiness probes for a Node.js API that takes up to 45 seconds to warm up a large in-memory cache on startup:\n```yaml\nlivenessProbe:\n  httpGet:\n    path: /healthz\n    port: 3000\n  initialDelaySeconds: 5\n  periodSeconds: 10\n  failureThreshold: 3\nreadinessProbe:\n  httpGet:\n    path: /ready\n    port: 3000\n  initialDelaySeconds: 5\n  periodSeconds: 10\n  failureThreshold: 3\n```\nThe pod is repeatedly killed and restarted during the cache-warming phase, never reaching a healthy state. What is the best fix?",
+    "options": [
+      "Increase livenessProbe.initialDelaySeconds to 45 and increase readinessProbe.initialDelaySeconds to 45 as well.",
+      "Add a startupProbe with a generous failureThreshold × periodSeconds (e.g., failureThreshold: 30, periodSeconds: 2 = 60s budget) targeting /healthz, which disables liveness and readiness probes until it succeeds.",
+      "Remove the livenessProbe entirely since it is causing restarts.",
+      "Set failureThreshold: 100 on the existing livenessProbe to give it more retries."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** A `startupProbe` disables `livenessProbe` and `readinessProbe` while it runs. Configuring `startupProbe` with a 60s budget (`failureThreshold: 30`, `periodSeconds: 2`) allows slow cache warming without premature kills, while preserving fast steady-state liveness checks.\n\n**Why A is wrong:** Raising `initialDelaySeconds` permanently delays restart detection during steady-state crashes.\n\n**Why C is wrong:** Removing liveness probes removes crash recovery guarantees.\n\n**Why D is wrong:** Setting `failureThreshold: 100` delays detection of real deadlocks during normal operation by up to 16 minutes.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Kubernetes Service (AKS)",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-017",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You deploy a Helm chart for a microservice with standard defaults:\n```yaml\n# values.yaml (default)\nreplicaCount: 2\nimage:\n  repository: myregistry.azurecr.io/orders-api\n  tag: latest\n```\nDeployment template:\n```yaml\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}-orders-api\nspec:\n  replicas: {{ .Values.replicaCount }}\n  template:\n    spec:\n      containers:\n      - name: orders-api\n        image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n```\nYou execute:\n```bash\nhelm upgrade --install orders ./orders-chart \\\n  --set image.tag=2.0 \\\n  -f values-prod.yaml\n```\nWhere `values-prod.yaml` contains `replicaCount: 5` and no `image.tag` key. What image tag and replica count are actually applied?",
+    "options": [
+      "image.tag=latest, replicaCount=5 — because -f files always take precedence over --set flags.",
+      "image.tag=2.0, replicaCount=5 — --set and -f are merged, with values-prod.yaml overriding replicaCount and --set image.tag=2.0 overriding the image tag.",
+      "image.tag=2.0, replicaCount=2 — because supplying any -f file causes Helm to ignore replicaCount from prod values.",
+      "The command fails because --set and -f cannot be combined in the same helm upgrade invocation."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Helm merges values from `values.yaml`, `-f` files, and `--set` flags in order of precedence. `--set` flags have higher precedence than values files. `values-prod.yaml` sets `replicaCount: 5`, and `--set image.tag=2.0` sets the tag to `2.0`. Both merge into: `replicaCount=5` and `image.tag=2.0`.\n\n**Why A is wrong:** `--set` flags take precedence over `-f` values files, not the other way around.\n\n**Why C is wrong:** Helm merges value sources rather than ignoring non-overlapping keys.\n\n**Why D is wrong:** Combining `-f` and `--set` is standard Helm usage.",
+    "difficulty": "Medium",
+    "relatedService": "Helm / AKS",
+    "relatedObjective": "Implement container-orchestrated solutions"
+  },
+  {
+    "id": "practice-018",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You use Docker Compose for local development of a multi-container app:\n```yaml\nversion: \"3.9\"\nservices:\n  api:\n    build: ./api\n    ports:\n      - \"8080:8080\"\n    environment:\n      - REDIS_HOST=localhost\n      - REDIS_PORT=6379\n    depends_on:\n      - redis\n  redis:\n    image: redis:7\n    ports:\n      - \"6379:6379\"\n```\nThe API logs show `Connection refused to localhost:6379`, even though redis is running (`docker compose ps`). What is the correct fix?",
+    "options": [
+      "Change REDIS_HOST to redis (the Compose service name), since containers on the default Compose network resolve each other by service name, whereas localhost inside the API container refers to the API container itself.",
+      "Add network_mode: host to both services so localhost resolves correctly across containers.",
+      "Change the Redis port mapping to \"6379:6380\" to avoid a port conflict with the API container.",
+      "depends_on should be changed to links: [redis], which is required for DNS resolution in version 3.9."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** In Docker Compose, each service container runs in its own network namespace. `localhost` inside the `api` container refers to `api`, not `redis`. Docker Compose embedded DNS resolves service names (e.g. `redis`), so setting `REDIS_HOST=redis` allows container-to-container communication.\n\n**Why B is wrong:** `network_mode: host` bypasses Docker network isolation and doesn't work reliably across all OS platforms.\n\n**Why C is wrong:** There is no port conflict; changing host port mappings does not fix internal container DNS.\n\n**Why D is wrong:** `links` is legacy syntax; service names resolve automatically via Docker DNS.",
+    "difficulty": "Easy",
+    "relatedService": "Docker Compose",
+    "relatedObjective": "Implement container application hosting"
+  },
+  {
+    "id": "practice-019",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You provision a Cosmos DB container for a RAG application using the Python SDK:\n```python\nfrom azure.cosmos import CosmosClient, PartitionKey\n\nclient = CosmosClient(url, credential=key)\ndatabase = client.create_database_if_not_exists(id=\"ragdb\")\ncontainer = database.create_container_if_not_exists(\n    id=\"documents\",\n    partition_key=PartitionKey(path=\"/tenantId\"),\n    offer_throughput=400\n)\n```\nSix months later, a single large tenant accounts for 90% of all reads and writes, and RU consumption spikes cause 429 errors only for that tenant's operations. What is the underlying issue and best long-term fix?",
+    "options": [
+      "The container has a hot partition because /tenantId concentrates that tenant's data and RU load on a single logical partition; introduce a synthetic partition key (e.g., /tenantId_documentType) or hierarchical partition key.",
+      "Increase offer_throughput to a very high fixed RU/s value; this alone permanently fixes hot partition issues regardless of key design.",
+      "Switch the container to serverless mode, which automatically eliminates hot partitions.",
+      "The issue is unrelated to partitioning; it is caused by the SDK not using connection pooling."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Concentrating a heavy tenant's data under one `/tenantId` value creates a hot logical partition. Physical partitions are capped in maximum throughput (10,000 RU/s max per physical partition). Using synthetic or hierarchical partition keys (`/tenantId`, `/documentType`) distributes the tenant's data across multiple logical partitions.\n\n**Why B is wrong:** Raising overall container RU/s increases total aggregate throughput but does not raise the single physical partition RU cap.\n\n**Why C is wrong:** Serverless mode still enforces logical and physical partition limits.\n\n**Why D is wrong:** 429 errors are server-side throughput throttling responses, not client connection pool issues.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-020",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need to perform a conditional update on a Cosmos DB item — increment a `viewCount` field without overwriting other fields, and only if the item hasn't changed since it was last read (optimistic concurrency).\n\nWhich implementation correctly satisfies both requirements?",
+    "options": [
+      "item = container.read_item(item=\"doc1\", partition_key=\"tenant-a\")\nitem[\"viewCount\"] = item.get(\"viewCount\", 0) + 1\ncontainer.replace_item(item=\"doc1\", body=item)",
+      "item = container.read_item(item=\"doc1\", partition_key=\"tenant-a\")\netag = item[\"_etag\"]\n\ncontainer.patch_item(\n    item=\"doc1\",\n    partition_key=\"tenant-a\",\n    patch_operations=[{\"op\": \"incr\", \"path\": \"/viewCount\", \"value\": 1}],\n    etag=etag,\n    match_condition=MatchConditions.IfNotModified\n)",
+      "item = container.read_item(item=\"doc1\", partition_key=\"tenant-a\")\nitem[\"viewCount\"] += 1\ncontainer.upsert_item(body=item)",
+      "item = container.read_item(item=\"doc1\", partition_key=\"tenant-a\")\ncontainer.replace_item(\n    item=\"doc1\",\n    body={\"viewCount\": item.get(\"viewCount\", 0) + 1}\n)"
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** `container.patch_item` with `op: incr` performs partial document updates (modifying `viewCount` without sending or overwriting full document body). Passing `etag` with `MatchConditions.IfNotModified` guarantees optimistic concurrency control (returns HTTP 412 if item was modified in between).\n\n**Why A is wrong:** `replace_item` sends full document body and omits etag precondition checking.\n\n**Why C is wrong:** `upsert_item` overwrites full items without optimistic concurrency checks.\n\n**Why D is wrong:** Replaces the entire document with only `viewCount`, destroying all other fields.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB Python SDK",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-021",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You define an indexing policy to optimize RU cost for a container where most queries filter on `/status` and `/category`, but the application never queries on the large `/rawPayload` field:\n```json\n{\n  \"indexingMode\": \"consistent\",\n  \"automatic\": true,\n  \"includedPaths\": [\n    { \"path\": \"/*\" }\n  ],\n  \"excludedPaths\": [\n    { \"path\": \"/_etag/?\" }\n  ]\n}\n```\nRU cost for writes is unexpectedly high. What change best reduces write RU cost while preserving query performance on `/status` and `/category`?",
+    "options": [
+      "Set indexingMode to \"none\" to disable indexing entirely, then manually re-enable it before each query.",
+      "Add /rawPayload/* to excludedPaths while keeping /* included (or explicitly include only /status/? and /category/? in includedPaths and exclude /*).",
+      "Change indexingMode to \"lazy\" so indexing happens in the background.",
+      "Add a composite index on (/status, /category, /rawPayload)."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Indexing large unqueried paths (like `/rawPayload/*`) incurs significant write RU overhead on every insert/update. Adding `/rawPayload/*` to `excludedPaths` stops Cosmos DB from building index entries for that subtree, cutting write RU cost while maintaining index lookups on `/status` and `/category`.\n\n**Why A is wrong:** `indexingMode: none` breaks all queries filtering on indexed paths.\n\n**Why C is wrong:** Lazy indexing is deprecated/removed in Cosmos DB SQL API.\n\n**Why D is wrong:** Adding composite indexes including `/rawPayload` increases write RU costs further.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-022",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your application frequently runs this query and needs it to be RU-efficient:\n```sql\nSELECT c.orderId, c.total\nFROM c\nWHERE c.status = \"shipped\"\nORDER BY c.shippedDate DESC\n```\nThe query works but consumes far more RU than expected, and diagnostics show it is doing a full scan with in-memory sort. What indexing policy addition resolves this?",
+    "options": [
+      "Add a range index on /shippedDate/?; range indexes alone are sufficient for any ORDER BY.",
+      "Add a composite index covering (/status ASC, /shippedDate DESC) so the engine can filter and sort using a single index without an in-memory sort.",
+      "Add a spatial index on /shippedDate/?.",
+      "Add /status/? and /shippedDate/? as two separate single-property range indexes; Cosmos DB automatically combines any two range indexes to satisfy filter+sort queries."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Queries that combine an equality filter on one property with ORDER BY on another require a composite index to be served efficiently without an in-memory sort. Defining a composite index (`/status ASC`, `/shippedDate DESC`) matching the filter property and the ORDER BY direction lets the query engine use the index directly for both filtering and ordering, eliminating the in-memory sort and reducing RU cost.\n\n**Why A is wrong:** A single-property range index on `/shippedDate` supports sorting on that field alone or simple range filters, but cannot satisfy filter+sort combinations without an in-memory sort.\n\n**Why C is wrong:** Spatial indexes are for geospatial query types (ST_DISTANCE, ST_WITHIN).\n\n**Why D is wrong:** Cosmos DB does not automatically combine two independent single-property range indexes to satisfy filter+ORDER BY queries efficiently.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-023",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You are configuring a vector index for a RAG container storing 1536-dimension OpenAI embeddings, prioritizing low memory footprint at the cost of some recall, for a container expected to hold 50 million vectors.\n```json\n{\n  \"vectorEmbeddingPolicy\": {\n    \"vectorEmbeddings\": [\n      {\n        \"path\": \"/embedding\",\n        \"dataType\": \"float32\",\n        \"dimensions\": 1536,\n        \"distanceFunction\": \"cosine\"\n      }\n    ]\n  },\n  \"indexingPolicy\": {\n    \"vectorIndexes\": [\n      {\n        \"path\": \"/embedding\",\n        \"type\": \"???\"\n      }\n    ]\n  }\n}\n```\nGiven the scale (50 million vectors) and the priority on low memory footprint, which vector index type should replace \"???\"?",
+    "options": [
+      "flat — flat indexes always have the lowest memory footprint regardless of scale.",
+      "quantizedFlat — reduces memory via vector quantization while remaining an exhaustive/near-exhaustive index, but this still scales poorly to 50 million vectors for latency.",
+      "diskANN — an approximate nearest-neighbor graph index designed specifically for very large vector datasets, offering strong recall with lower memory footprint (index data can reside on disk) at very large scale, making it the best fit for 50 million vectors prioritizing memory efficiency.",
+      "Vector indexes are not required in Cosmos DB; queries always perform full brute-force scans regardless of index type."
+    ],
+    "answer": 2,
+    "explanation": "**Why C is correct:** `diskANN` is purpose-built for large-scale approximate nearest-neighbor (ANN) search, using a disk-resident graph structure that provides strong recall while keeping in-memory footprint far lower than fully in-memory exhaustive approaches — critical at 50 million vectors.\n\n**Why A is wrong:** `flat` stores vectors uncompressed and performs brute-force search; at 50M vectors it is the most memory- and compute-intensive option (recommended under ~10,000 vectors).\n\n**Why B is wrong:** `quantizedFlat` reduces memory versus `flat`, but is still fundamentally an exhaustive-style structure that scales poorly to tens of millions of vectors compared to `diskANN`.\n\n**Why D is wrong:** Cosmos DB vector search explicitly requires configuring `vectorIndexes` to enable efficient vector queries.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB Vector Search",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-024",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You write a hybrid RAG retrieval query combining vector similarity with a metadata filter restricting results to a specific tenant and document type, returning the top 5 most similar chunks:\n```python\nquery = \"\"\"\nSELECT TOP 5 c.id, c.text, c.metadata,\nVectorDistance(c.embedding, @queryVector) AS score\nFROM c\nWHERE c.tenantId = @tenantId AND c.docType = @docType\nORDER BY VectorDistance(c.embedding, @queryVector)\n\"\"\"\nitems = list(container.query_items(\n    query=query,\n    parameters=[\n        {\"name\": \"@queryVector\", \"value\": query_embedding},\n        {\"name\": \"@tenantId\", \"value\": \"tenant-42\"},\n        {\"name\": \"@docType\", \"value\": \"policy\"}\n    ],\n    partition_key=\"tenant-42\"\n))\n```\nThis query fails at runtime with an ordering-related error. What is wrong?",
+    "options": [
+      "VectorDistance() cannot be used in both the SELECT clause and the ORDER BY clause in the same query.",
+      "The ORDER BY VectorDistance(...) clause must specify a sort direction — for similarity search you must explicitly add ASC (lower cosine distance = more similar) since Cosmos DB does not infer directionality for vector distance ordering by default.",
+      "TOP 5 cannot be combined with ORDER BY in Cosmos DB SQL.",
+      "partition_key cannot be combined with a WHERE clause that also filters on the partition key field."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Cosmos DB vector search queries require the `ORDER BY VectorDistance(...)` clause to include an explicit sort direction (`ASC` for closest-first with distance metrics like cosine/euclidean). Omitting the sort direction raises a query validation error.\n\n**Why A is wrong:** Using `VectorDistance()` in both `SELECT` and `ORDER BY` is a standard, supported pattern.\n\n**Why C is wrong:** `TOP N` combined with `ORDER BY` is the standard way to retrieve top-k results.\n\n**Why D is wrong:** Supplying `partition_key` alongside a matching `WHERE` filter is recommended for partition targeting.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB Vector Search",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-025",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need to page through query results using continuation tokens in a background export job that must resume after a restart:\n```python\nquery = \"SELECT * FROM c WHERE c.status = 'active'\"\nquery_iterable = container.query_items(\n    query=query,\n    partition_key=\"tenant-a\",\n    max_item_count=100\n)\npager = query_iterable.by_page(continuation_token=saved_token)\nfor page in pager:\n    for item in page:\n        process(item)\n    # TODO: persist token for resume\n```\nWhat is the correct way to persist the continuation token so the job can resume exactly where it left off after a crash?",
+    "options": [
+      "Save pager.continuation_token after each page is fully processed, since by_page()'s pager object exposes the token needed to resume from that exact page boundary on the next by_page(continuation_token=...) call.",
+      "Save page[-1][\"id\"] (the last item's id) and use it as a WHERE c.id > @lastId filter on resume instead of a continuation token.",
+      "Continuation tokens are not supported by the Python SDK; use OFFSET/LIMIT instead for resumable pagination.",
+      "Save the token before processing each page (i.e., before the for item in page loop) rather than after."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** The `by_page()` iterator exposes a `continuation_token` property reflecting the position after the most recently fetched page. Persisting this value after successfully processing a page allows a new `by_page(continuation_token=saved_token)` call to resume fetching from that exact boundary.\n\n**Why B is wrong:** Filtering on `c.id > @lastId` assumes a specific ordering that is not guaranteed without explicit `ORDER BY`.\n\n**Why C is wrong:** Continuation tokens are fully supported in the Python SDK via `by_page()`.\n\n**Why D is wrong:** Saving the token before processing would skip that page's data upon resumption.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB Python SDK",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-026",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You run this Cosmos DB SQL query to find documents where a nested array contains a specific tag, using a subquery:\n```sql\nSELECT c.id, c.title\nFROM c\nWHERE EXISTS (\n  SELECT VALUE t\n  FROM t IN c.tags\n  WHERE t = \"urgent\"\n)\n```\nA colleague suggests rewriting it using ARRAY_CONTAINS for better performance. Which rewritten query is both correct and more efficient?",
+    "options": [
+      "SELECT c.id, c.title FROM c WHERE ARRAY_CONTAINS(c.tags, \"urgent\")",
+      "SELECT c.id, c.title FROM c WHERE c.tags CONTAINS \"urgent\"",
+      "SELECT c.id, c.title FROM c WHERE \"urgent\" IN c.tags",
+      "SELECT c.id, c.title FROM c JOIN t IN c.tags WHERE t = \"urgent\""
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `ARRAY_CONTAINS(array_expression, search_expression)` is the purpose-built Cosmos DB SQL function for checking membership of a scalar value in an array. It avoids the overhead of constructing and iterating a correlated subquery (`EXISTS`).\n\n**Why B is wrong:** `CONTAINS()` is a string substring function, not an array membership function.\n\n**Why C is wrong:** Cosmos DB SQL does not support bare `value IN array_expression` syntax for JSON arrays.\n\n**Why D is wrong:** `JOIN t IN c.tags` can produce duplicate rows if `tags` contains \"urgent\" multiple times.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-027",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You perform a transactional batch operation to insert an order and update inventory atomically within the same partition:\n```python\nfrom azure.cosmos import TransactionalBatch\n\nbatch_operations = [\n    (\"create\", (order_item,)),\n    (\"replace\", (\"inventory-sku123\", updated_inventory_item))\n]\nbatch_response = container.execute_item_batch(\n    batch_operations=batch_operations,\n    partition_key=\"store-42\"\n)\n```\nThis raises an error at runtime. What is the most likely cause?",
+    "options": [
+      "Transactional batch operations require all items in the batch to belong to the same logical partition key, and if order_item or updated_inventory_item has a different /partitionKey value than \"store-42\" (e.g., the order is keyed by customerId instead of storeId), the batch fails.",
+      "execute_item_batch is not a real method; batches must be constructed as raw SQL transactions using BEGIN TRANSACTION.",
+      "Transactional batches are limited to create operations only; replace cannot be mixed into the same batch.",
+      "Batches require exactly 2 operations; adding a third would also fail."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Cosmos DB transactional batch operations are strictly scoped to a single logical partition key. Every item operated on in the batch must have a partition key value matching the `partition_key` parameter passed to `execute_item_batch` (\"store-42\").\n\n**Why B is wrong:** `execute_item_batch` is the official Python SDK method for transactional batches.\n\n**Why C is wrong:** Transactional batches support mixed operation types (create, replace, upsert, delete).\n\n**Why D is wrong:** Batches support up to 100 operations, not exactly 2.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB Python SDK",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-028",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need to run analytical, large-scale aggregations over your Cosmos DB transactional data (millions of documents) for a monthly reporting dashboard, without impacting the RU budget of the live OLTP workload.\nCurrent approach:\n```sql\nSELECT c.region, COUNT(1) AS orderCount, SUM(c.total) AS revenue\nFROM c\nGROUP BY c.region\n```\nThis consumes tens of thousands of RUs and throttles production traffic during report generation. What is the recommended architectural fix?",
+    "options": [
+      "Enable the Analytical Store on the container and query the data via Azure Synapse Link (Spark or serverless SQL pool) instead of running heavy aggregations directly against the transactional store, decoupling analytical workload RU/compute from the OLTP container.",
+      "Increase provisioned RU/s on the container specifically during report generation hours using autoscale.",
+      "Add a composite index on (/region, /total) to make the GROUP BY and SUM fully index-served with near-zero RU cost.",
+      "Rewrite the query using OFFSET/LIMIT pagination to break it into smaller RU-bounded chunks."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Cosmos DB's Analytical Store maintains an isolated, auto-synced columnar copy of your data. Querying it via Azure Synapse Link does not consume provisioned RU/s from the transactional store, fully decoupling reporting workloads from OLTP performance.\n\n**Why B is wrong:** Increasing RU/s still consumes throughput budget and incurs financial cost against the transactional store.\n\n**Why C is wrong:** Composite indexes do not eliminate the massive RU cost of cross-partition aggregation over millions of documents.\n\n**Why D is wrong:** Pagination spreads out the RU consumption over time but does not reduce overall RU usage.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB / Azure Synapse Link",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-029",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You configure a vector embedding policy using int8 quantized embeddings to reduce storage cost, migrating from float32.\n```json\n{\n  \"vectorEmbeddingPolicy\": {\n    \"vectorEmbeddings\": [\n      {\n        \"path\": \"/embedding\",\n        \"dataType\": \"int8\",\n        \"dimensions\": 1536,\n        \"distanceFunction\": \"cosine\"\n      }\n    ]\n  }\n}\n```\nApplication code:\n```python\ncontainer.upsert_item({\n    \"id\": \"chunk1\",\n    \"embedding\": embedding_vector, # list of 1536 floats from OpenAI, e.g. [0.0123, -0.045, ...]\n    \"text\": \"...\"\n})\n```\nThe upsert fails validation. Why?",
+    "options": [
+      "int8 embeddings require the stored array values to actually be 8-bit integers (typically in range -128 to 127) that have already been quantized by the application; raw float32 embeddings from an embeddings API cannot be inserted directly into an int8-typed vector path without an explicit quantization step first.",
+      "int8 is not a valid dataType value; only float32 is supported for dimensions: 1536.",
+      "cosine distance function is incompatible with int8 data type; only dotproduct works with quantized types.",
+      "The dimensions value must be reduced proportionally (e.g., to 384) when switching to int8."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Setting `dataType: int8` in the vector embedding policy specifies that Cosmos DB expects array elements to be 8-bit signed integers (-128 to 127). Inserting raw floats (e.g., `0.0123`) causes validation failure.\n\n**Why B is wrong:** `int8` is a documented, supported `dataType` for Cosmos DB vector policies.\n\n**Why C is wrong:** Cosine distance is compatible with `int8` vector types.\n\n**Why D is wrong:** Vector `dimensions` (1536) reflects vector length, which is independent of element numeric representation.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB Vector Search",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-030",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You compare vector search algorithm choices for a Cosmos DB container as part of a design review. A teammate claims flat will always give the best recall since it's exhaustive.\n\nWhich statement correctly completes the trade-off analysis for choosing between flat, quantizedFlat, and diskANN?",
+    "options": [
+      "flat provides exact (100%) recall since it performs brute-force comparison against every vector, but has the highest memory footprint and worst query latency at scale, making it suitable only for small collections; diskANN trades some recall for dramatically better latency, memory efficiency, and scalability to large collections via approximate search.",
+      "All three algorithms provide identical recall; they differ only in indexing speed, so diskANN should always be chosen for its faster index builds.",
+      "quantizedFlat always has higher recall than flat because quantization improves precision.",
+      "diskANN cannot be used with cosine distance; it only supports euclidean."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `flat` guarantees 100% recall via exhaustive brute-force search but scales poorly for large datasets. `diskANN` is an approximate nearest-neighbor (ANN) graph algorithm that maintains low memory footprint and sub-linear search latency at scale at a slight trade-off in recall.\n\n**Why B is wrong:** Recall is not identical; `flat` is exact, while `diskANN` is approximate.\n\n**Why C is wrong:** Quantization compresses vector values, which introduces minor precision loss, not higher recall.\n\n**Why D is wrong:** `diskANN` supports cosine, dotproduct, and euclidean distance metrics.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB Vector Search",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-031",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You implement multi-tenant RAG retrieval where each tenant's vectors must never be visible to another tenant, and queries should be as RU-efficient as possible:\n```python\ndef retrieve(tenant_id, query_embedding, top_k=5):\n    query = \"\"\"\n    SELECT TOP @topK c.id, c.text,\n    VectorDistance(c.embedding, @qv) AS score\n    FROM c\n    ORDER BY VectorDistance(c.embedding, @qv)\n    \"\"\"\n    return list(container.query_items(\n        query=query,\n        parameters=[\n            {\"name\": \"@topK\", \"value\": top_k},\n            {\"name\": \"@qv\", \"value\": query_embedding}\n        ],\n        enable_cross_partition_query=True\n    ))\n```\nThis code is a security and performance problem. What are the two required corrections?",
+    "options": [
+      "Add WHERE c.tenantId = @tenantId to the query (security: prevents cross-tenant data leakage) and pass partition_key=tenant_id instead of enable_cross_partition_query=True (performance: routes the query to a single physical partition, avoiding a fan-out across all partitions).",
+      "Only add WHERE c.tenantId = @tenantId; enable_cross_partition_query=True is required regardless of partitioning and cannot be avoided for vector queries.",
+      "Only change enable_cross_partition_query=True to partition_key=tenant_id; the WHERE clause is unnecessary because partition key routing alone guarantees tenant isolation.",
+      "Add WHERE c.tenantId = @tenantId only; vector index queries always operate correctly within a single partition automatically regardless of settings."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Adding `WHERE c.tenantId = @tenantId` guarantees tenant data isolation. Passing `partition_key=tenant_id` avoids cross-partition fan-out, ensuring the query targets only the single physical partition for that tenant, saving RUs.\n\n**Why B is wrong:** When queries filter on partition key, cross-partition query is not required.\n\n**Why C is wrong:** Relying on partition routing without an explicit SQL filter is an unsafe security model.\n\n**Why D is wrong:** Vector queries do not automatically restrict to single partitions without explicit partition key targeting.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-032",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You build a hybrid search combining vector similarity with keyword/full-text matching for a document retrieval system:\n```sql\nSELECT TOP 10 c.id, c.text,\nVectorDistance(c.embedding, @qv) AS vectorScore\nFROM c\nWHERE FullTextContains(c.text, \"azure kubernetes service\")\nORDER BY RANK RRF(VectorDistance(c.embedding, @qv),\nFullTextScore(c.text, [\"azure kubernetes service\"]))\n```\nThis query requires a specific index configuration to execute without error. What must the container's indexing policy define?",
+    "options": [
+      "Only a vectorIndexes entry for /embedding; full-text search in Cosmos DB works without any dedicated index configuration.",
+      "Both a vectorIndexes entry for /embedding and a fullTextIndexes entry for /text (along with the corresponding fullTextPolicy defining the path's language), since hybrid RANK RRF() queries combining vector and full-text scoring require both index types to be explicitly configured.",
+      "A single compositeIndexes entry covering both /embedding and /text; composite indexes handle both vector and full-text scoring together.",
+      "No index configuration is required; RANK RRF() performs the fusion entirely client-side after two separate unindexed scans."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Hybrid search with `RANK RRF()` requires both a `vectorIndexes` path for vector similarity scoring and a `fullTextIndexes` entry (with `fullTextPolicy`) for keyword relevance scoring.\n\n**Why A is wrong:** `FullTextContains` and `FullTextScore` require a configured `fullTextIndexes` policy.\n\n**Why C is wrong:** `compositeIndexes` are for scalar filter+sort queries, not vector or full-text scoring.\n\n**Why D is wrong:** RRF scoring is performed server-side and requires indexed support.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB Hybrid Search",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-033",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need TTL-based automatic expiration for chat session documents 24 hours after last write, but some session documents (marked \"pinned\": true) must never expire.\nContainer-level defaultTtl is set to 86400 (24 hours).\n```json\n{\n  \"id\": \"session-123\",\n  \"pinned\": false,\n  \"ttl\": ???\n}\n```\nWhat value of the item-level ttl field for pinned sessions ensures they never expire, while unpinned sessions use the container default?",
+    "options": [
+      "Set \"ttl\": -1 explicitly on pinned items to override and disable expiration for that item, while unpinned items omit ttl to inherit the container's defaultTtl.",
+      "Set \"ttl\": 0 on pinned items to disable expiration.",
+      "Set \"ttl\": null on pinned items to disable expiration.",
+      "Set defaultTtl to -1 at the container level and set \"ttl\": 86400 explicitly on every unpinned item instead."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** When `defaultTtl` is enabled on a container, items omitting `ttl` inherit the default expiration. Setting `ttl: -1` on a specific item overrides the container default and prevents that item from expiring.\n\n**Why B is wrong:** `ttl: 0` is not the sentinel value for disabling TTL.\n\n**Why C is wrong:** `null` is not a valid TTL override value in Cosmos DB.\n\n**Why D is wrong:** Setting container `defaultTtl` to -1 requires every expiring item to carry explicit TTL, which is non-idiomatic.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-034",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You perform bulk data ingestion of 500,000 embedding chunks into Cosmos DB using the Python SDK and need to maximize throughput while handling rate-limiting gracefully:\n```python\nclient = CosmosClient(url, credential=key)\ncontainer = client.get_database_client(\"ragdb\").get_container_client(\"chunks\")\n\nfor chunk in all_chunks:\n    container.create_item(body=chunk)\n```\nThis sequential loop is extremely slow and occasionally throws CosmosHttpResponseError with status code 429. What two changes best address throughput and reliability?",
+    "options": [
+      "Enable bulk execution mode on the client (or using asyncio-based concurrent create_item calls) to parallelize writes, and rely on the SDK's built-in automatic retry policy for 429 responses rather than failing immediately.",
+      "Switch to synchronous single-threaded writes with time.sleep(1) between every call; this is the only supported way to avoid 429 errors.",
+      "Increase max_item_count on create_item calls to insert multiple items per call; create_item supports batched arrays natively for bulk loads.",
+      "Disable indexing checks client-side by passing no_response=True; this prevents 429 errors by skipping server validation."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Bulk execution mode or `asyncio` concurrent workers maximize ingestion throughput by parallelizing HTTP requests. The SDK's automatic retry policy respects server `429` retry-after headers.\n\n**Why B is wrong:** Adding manual `sleep(1)` limits throughput to 1 item/sec regardless of provisioned RU/s.\n\n**Why C is wrong:** `create_item` inserts a single item per call; `max_item_count` is a query pagination parameter.\n\n**Why D is wrong:** `no_response=True` is not a parameter for bypassing 429 RU rate-limiting.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB Python SDK",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-035",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You create a Redis vector index for RAG chunk retrieval using redis-py against Azure Managed Redis (Redis Stack-compatible):\n```python\nimport redis\nfrom redis.commands.search.field import VectorField, TextField\nfrom redis.commands.search.indexDefinition import IndexDefinition, IndexType\n\nr = redis.Redis(host=host, port=10000, password=key, ssl=True)\nschema = (\n    TextField(\"text\"),\n    VectorField(\n        \"embedding\",\n        \"HNSW\",\n        {\n            \"TYPE\": \"FLOAT32\",\n            \"DIM\": 1536,\n            \"DISTANCE_METRIC\": \"COSINE\"\n        }\n    )\n)\nr.ft(\"idx:chunks\").create_index(\n    schema,\n    definition=IndexDefinition(prefix=[\"chunk:\"], index_type=IndexType.HASH)\n)\n\nr.hset(\"chunk:1\", mapping={\n    \"text\": \"Azure Kubernetes Service overview\",\n    \"embedding\": embedding_list # a Python list of 1536 floats\n})\n```\nDocuments are stored like this, but FT.SEARCH returns zero results for a valid KNN query. What is the bug?",
+    "options": [
+      "The embedding field must be stored as raw bytes (e.g., numpy.array(embedding_list, dtype=numpy.float32).tobytes()), not as a native Python list — HSET with a list value is invalid for a Redis VECTOR field.",
+      "HNSW is not a valid algorithm for VectorField; only FLAT is supported in Azure Managed Redis.",
+      "The index prefix \"chunk:\" doesn't match; it should be \"chunk*\" with a wildcard.",
+      "DISTANCE_METRIC must be lowercase \"cosine\", not \"COSINE\"."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Redis `VECTOR` fields expect vector data stored as raw binary blobs (e.g. `numpy.array(vector, dtype=np.float32).tobytes()`). Storing a Python list as a string in `hset` prevents RediSearch from indexing the vector.\n\n**Why B is wrong:** `HNSW` is fully supported in Azure Managed Redis / Redis Stack.\n\n**Why C is wrong:** `prefix=[\"chunk:\"]` matches any key starting with `chunk:`.\n\n**Why D is wrong:** `DISTANCE_METRIC` is uppercase in RediSearch schema definitions (`COSINE`, `L2`, `IP`).",
+    "difficulty": "Hard",
+    "relatedService": "Azure Managed Redis / Redis Stack",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-036",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need to run a K-nearest-neighbor vector search combined with a metadata filter (category == \"networking\") against a Redis HASH-based index:\n```python\nfrom redis.commands.search.query import Query\n\nq = Query(\"(@category:{networking})=>[KNN 5 @embedding $vec AS score]\") \\\n    .sort_by(\"score\") \\\n    .return_fields(\"text\", \"score\") \\\n    .dialect(2)\n\nresults = r.ft(\"idx:chunks\").search(\n    q, query_params={\"vec\": query_vector_bytes}\n)\n```\nThis query returns a syntax error. Assuming category was indexed as a TextField, what is the correct fix?",
+    "options": [
+      "category must be indexed as a TagField, not a TextField, for exact-match filtering with the {value} tag-filter syntax (@category:{networking}) to be valid; TextField requires full-text search syntax instead.",
+      "The KNN clause must come before the filter clause: [KNN 5 @embedding $vec AS score]=>(@category:{networking}).",
+      "dialect(2) is invalid; hybrid filter+KNN queries require dialect(1).",
+      "query_params cannot be used with hybrid queries."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** The `@field:{value}` curly brace syntax is RediSearch tag-filter syntax, which requires `TagField` in the schema. For `TextField`, standard text search syntax is required (`@category:networking`).\n\n**Why B is wrong:** Hybrid pre-filtering syntax requires the filter expression before `=>[KNN ...]`, not after.\n\n**Why C is wrong:** `DIALECT 2` (or 3) is required for vector search in RediSearch.\n\n**Why D is wrong:** `query_params` is the standard method for passing binary vector parameters.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis / Redis Stack",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-037",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your Redis-backed vector search index for a 2-million-chunk RAG corpus is consuming more memory than expected. You review the index configuration:\n```python\nVectorField(\n    \"embedding\",\n    \"FLAT\",\n    {\n        \"TYPE\": \"FLOAT32\",\n        \"DIM\": 1536,\n        \"DISTANCE_METRIC\": \"COSINE\"\n    }\n)\n```\nQuery latency is also degrading as the corpus grows. Which single change most directly improves both memory usage and query latency at this scale?",
+    "options": [
+      "Switch the algorithm from FLAT to HNSW, which builds an approximate graph-based index providing sub-linear query time and better scaling characteristics as corpus size grows.",
+      "Increase DIM to add padding, which Redis uses internally to improve cache locality and reduce latency.",
+      "Change DISTANCE_METRIC from COSINE to L2; L2 is always faster and uses less memory regardless of index algorithm.",
+      "Switch TYPE from FLOAT32 to FLOAT64 for more precise distance calculations."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `FLAT` vector indexes perform exhaustive linear scans over all vectors, resulting in $O(N)$ query time and latency degradation as corpus size scales into millions. `HNSW` builds a graph structure for approximate nearest neighbor search, providing sub-linear search latency.\n\n**Why B is wrong:** `DIM` must match the model's actual embedding vector size (1536).\n\n**Why C is wrong:** Distance metric choice (COSINE vs L2) does not change search complexity from $O(N)$ to sub-linear.\n\n**Why D is wrong:** `FLOAT64` doubles memory consumption per vector element.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis / Redis Stack",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-038",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You store chunks as Redis JSON documents (not HASH) to preserve nested metadata structures, and need a matching vector index:\n```python\nr.json().set(\"chunk:1\", \"$\", {\n    \"text\": \"AKS scaling guide\",\n    \"metadata\": {\"category\": \"compute\", \"source\": \"docs\"},\n    \"embedding\": [0.01, 0.02, \"...\"]\n})\n\nschema = (\n    VectorField(\n        \"$.embedding\",\n        \"HNSW\",\n        {\"TYPE\": \"FLOAT32\", \"DIM\": 1536, \"DISTANCE_METRIC\": \"COSINE\"}\n    ),\n)\n\nr.ft(\"idx:json_chunks\").create_index(\n    schema,\n    definition=IndexDefinition(prefix=[\"chunk:\"], index_type=IndexType.HASH)\n)\n```\nIndex creation succeeds but FT.SEARCH never returns results for chunk:1. What is wrong?",
+    "options": [
+      "IndexDefinition(index_type=IndexType.HASH) must be IndexType.JSON to match the actual storage format used (r.json().set); using HASH when documents are stored as Redis JSON causes the indexer to ignore the JSON documents.",
+      "\"$.embedding\" is invalid JSONPath syntax; it should be \"embedding\" without the $. prefix.",
+      "JSON documents cannot be vector-indexed in Redis; only HASH storage supports VectorField.",
+      "The AS alias is required on VectorField when using JSON storage."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `IndexType.HASH` tells RediSearch to inspect Redis Hashes. When documents are written with RedisJSON (`r.json().set`), the index definition must specify `IndexType.JSON` for the indexer to parse JSONPath expressions like `$.embedding`.\n\n**Why B is wrong:** `$.embedding` is valid JSONPath syntax.\n\n**Why C is wrong:** Redis Stack supports vector indexing on both HASH and JSON documents.\n\n**Why D is wrong:** An `AS` alias is optional.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Managed Redis / Redis Stack",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-039",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You need a hybrid Redis query combining vector KNN search with a numeric metadata range filter (documents published in the last 30 days) and a tag filter on department:\n```python\nq = Query(\"(@department:{engineering} @publishedTs:[1700000000 +inf])=>[KNN 5 @embedding $vec AS score]\") \\\n    .sort_by(\"score\") \\\n    .return_fields(\"text\", \"score\") \\\n    .dialect(2)\n```\nGiven department is a TagField and publishedTs is a NumericField, is this query syntactically valid, and if not, what's wrong?",
+    "options": [
+      "It is valid: combining a tag filter and a numeric range filter with implicit AND (space-separated) inside the pre-filter expression, followed by =>[KNN ...], is correct RediSearch hybrid query syntax.",
+      "It is invalid: NumericField range filters cannot be combined with TagField filters in the same query.",
+      "It is invalid: numeric ranges require the syntax @publishedTs:[1700000000, +inf] with a comma separator, not a space.",
+      "It is invalid: +inf is not a valid upper bound."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** RediSearch supports combining tag filters (`@dept:{val}`), numeric filters (`@num:[min max]`), and text filters using space-delimited implicit `AND` in the pre-filter clause before `=>[KNN ...]`. Space is the correct delimiter between numeric bounds.\n\n**Why B is wrong:** Combining different field filter types in RediSearch pre-filters is fully supported.\n\n**Why C is wrong:** RediSearch numeric range syntax uses a space between bounds (`[1700000000 +inf]`), not a comma.\n\n**Why D is wrong:** `+inf` and `-inf` are valid upper/lower bounds in RediSearch numeric ranges.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis / Redis Stack",
+    "relatedObjective": "Implement data management for AI solutions"
+  },
+  {
+    "id": "practice-040",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You are tuning an HNSW-based Redis vector index for a production RAG system and need to reduce query latency, currently seeing acceptable recall but slower-than-target FT.SEARCH response times under load:\n```python\nq = Query(\n    \"(@department:{engineering} @publishedTs:[1700000000 +inf])=>[KNN 10 @embedding $vec AS score]\"\n).sort_by(\"score\").dialect(2)\n\nVectorField(\n    \"embedding\",\n    \"HNSW\",\n    {\n        \"TYPE\": \"FLOAT32\",\n        \"DIM\": 1536,\n        \"DISTANCE_METRIC\": \"COSINE\",\n        \"M\": 64,\n        \"EF_CONSTRUCTION\": 500,\n        \"EF_RUNTIME\": 500\n    }\n)\n```\nWhich single parameter, if reduced, most directly improves per-query latency (at the cost of some recall) without requiring a full index rebuild?",
+    "options": [
+      "EF_RUNTIME — this controls the size of the dynamic candidate list explored at query time; it can be overridden per-query (or via a lower index default) without rebuilding the index, and directly trades recall for latency at search time.",
+      "M — this controls the number of bi-directional links per node in the HNSW graph and can be changed at query time without any rebuild.",
+      "EF_CONSTRUCTION — this controls query-time candidate list size and can be tuned live per search.",
+      "DIM — reducing the vector dimensionality at query time lowers per-query compute without needing a rebuild."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `EF_RUNTIME` controls the size of the dynamic candidate list explored during the HNSW graph traversal at search time. Reducing `EF_RUNTIME` directly reduces search latency per query at the cost of some recall, and can be overridden per search without rebuilding the index.\n\n**Why B is wrong:** `M` is a structural parameter fixed at index build time.\n\n**Why C is wrong:** `EF_CONSTRUCTION` governs candidate list size during index construction, not per-query search time.\n\n**Why D is wrong:** `DIM` is fixed to the embedding model output dimensionality."
+  },
+  {
+    "id": "practice-041",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You provision pgvector on Azure Database for PostgreSQL Flexible Server and create a table for embedding storage:\n```sql\nCREATE EXTENSION IF NOT EXISTS vector;\nCREATE TABLE chunks (\n  id BIGSERIAL PRIMARY KEY,\n  text TEXT,\n  embedding VECTOR(1536)\n);\n\nINSERT INTO chunks (text, embedding)\nVALUES ('AKS scaling guide', '[0.01, 0.02, ...]');\n\nSELECT id, text, embedding <=> '[0.05, 0.01, ...]' AS distance\nFROM chunks\nORDER BY embedding <=> '[0.05, 0.01, ...]'\nLIMIT 10;\n```\nSimilarity queries work correctly but are slow as the table grows past 1 million rows. What is the most effective fix to reduce query latency at this scale?",
+    "options": [
+      "Create an approximate nearest-neighbor index on the embedding column, e.g., CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops); (or ivfflat with an appropriate lists parameter), so the planner can use an index scan instead of a full sequential scan with exact distance computation on every row.",
+      "Add a B-tree index on embedding: CREATE INDEX ON chunks USING btree (embedding);.",
+      "Partition the table by id range into 10 partitions; pgvector automatically parallelizes similarity search across partitions with no index needed.",
+      "Change VECTOR(1536) to VECTOR (unbounded dimension) to allow the planner to use a more efficient generic comparison operator."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Without an ANN index, pgvector queries compute exact distance for every row in a sequential scan ($O(N)$). Creating an `hnsw` or `ivfflat` index using the appropriate operator class (`vector_cosine_ops` for `<=>` cosine distance) enables index-accelerated vector search.\n\n**Why B is wrong:** Standard B-tree indexes cannot index high-dimensional vector similarity operations.\n\n**Why C is wrong:** Range partitioning on `id` does not replace the need for vector indexes.\n\n**Why D is wrong:** Unbounded `VECTOR` columns do not provide performance optimizations."
+  },
+  {
+    "id": "practice-042",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You choose between hnsw and ivfflat index types for a pgvector table with 5 million embeddings that receives frequent new inserts throughout the day:\n```sql\nCREATE INDEX ON chunks USING ivfflat (embedding vector_l2_ops) WITH (lists = 100);\n```\nAfter a large batch insert of 500,000 new rows, query recall noticeably degrades until the index is manually rebuilt with REINDEX. Which statement best explains this and the recommended fix?",
+    "options": [
+      "ivfflat indexes cluster vectors into a fixed number of lists (partitions) determined at index build time; as new data is inserted, the cluster centroids no longer represent the updated data distribution well, degrading recall until a REINDEX. Switching to an hnsw index avoids this issue because HNSW graphs are incrementally updated with each insert and don't require periodic rebuilding to maintain recall.",
+      "This is expected and unavoidable with pgvector regardless of index type; all pgvector indexes require nightly REINDEX for correctness.",
+      "The fix is to increase lists to 100,000 so every future insert gets its own cluster, eliminating the need for REINDEX permanently.",
+      "Switching to a B-tree index resolves the recall degradation since B-tree indexes update incrementally with every insert by design."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `ivfflat` uses static cluster centroids computed during `CREATE INDEX`. As data shifts with heavy inserts, recall degrades until centroids are recomputed via `REINDEX`. `hnsw` is a graph index that updates incrementally on inserts without requiring routine `REINDEX` to maintain recall.\n\n**Why B is wrong:** `hnsw` indexes do not suffer from static centroid drift.\n\n**Why C is wrong:** Setting `lists` to 100,000 degrades search performance and doesn't make static centroids dynamic.\n\n**Why D is wrong:** B-tree indexes do not support high-dimensional vector search."
+  },
+  {
+    "id": "practice-043",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You write a hybrid pgvector query finding the 5 nearest chunks to a query embedding, restricted to a specific document_id, and need it to use both the vector index and a filter efficiently:\n```sql\nSELECT id, text, embedding <=> :query_vector AS distance\nFROM chunks\nWHERE document_id = :doc_id\nORDER BY embedding <=> :query_vector\nLIMIT 5;\n```\nEXPLAIN ANALYZE shows the planner is performing a full sequential scan despite an hnsw index existing on embedding, even though document_id has very low selectivity (only a few rows match). What is the most likely explanation and fix?",
+    "options": [
+      "PostgreSQL's hnsw vector index scan does not natively support arbitrary pre-filtering by another column; when the filter is highly selective, the planner may reasonably choose a sequential scan (filter first, then compute exact distances on the small remaining set) over probing the vector index and filtering afterward — adding a supporting B-tree index on document_id and analyzing table statistics can help the planner choose a better combined plan.",
+      "The hnsw index must be dropped and recreated with a WHERE document_id IS NOT NULL clause to support filtered queries.",
+      "pgvector does not support any form of filtered vector search; filtering and vector search must always be run as two entirely separate queries.",
+      "Change LIMIT 5 to LIMIT 5 OFFSET 0 to force index usage."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** When an equality filter is highly selective, PostgreSQL's planner frequently calculates that filtering rows via a B-tree index on `document_id` and computing exact vector distances on the tiny matching subset is faster than probing the `hnsw` vector index. Creating a B-tree index on `document_id` and running `ANALYZE` enables optimal execution.\n\n**Why B is wrong:** A partial index on `document_id IS NOT NULL` does not solve general filtering selectivity.\n\n**Why C is wrong:** pgvector supports combining SQL `WHERE` clauses with vector `ORDER BY`.\n\n**Why D is wrong:** `OFFSET 0` has no effect on index selection."
+  },
+  {
+    "id": "practice-044",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your team is choosing among pgvector, Cosmos DB Vector Search, and Redis Vector Search for a new RAG platform. Which comparison statement is the most accurate representation of their core trade-offs?",
+    "options": [
+      "pgvector is ideal when the application already relies on PostgreSQL for relational/transactional data and wants vector search co-located with existing relational queries and ACID transactions; Cosmos DB Vector Search suits globally distributed, elastically scalable NoSQL workloads with native multi-region replication and tunable consistency; Redis Vector Search excels at ultra-low-latency in-memory retrieval, often as a caching/retrieval layer in front of a primary store, at the cost of memory being the primary cost/scale constraint.",
+      "All three provide identical consistency, latency, and scaling characteristics; the choice is purely about licensing cost.",
+      "Only Cosmos DB supports approximate nearest-neighbor search; pgvector and Redis only support brute-force exact search.",
+      "Redis Vector Search is the only option of the three that supports metadata filtering combined with vector search."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** This accurately states the architectural trade-offs: `pgvector` co-locates vectors with relational SQL/ACID data; `Cosmos DB Vector Search` provides distributed NoSQL scale and global multi-region replication; `Redis Vector Search` delivers sub-millisecond in-memory performance for fast retrieval/caching.\n\n**Why B is wrong:** The three platforms differ fundamentally in data model, latency, and scaling.\n\n**Why C is wrong:** All three platforms support approximate nearest-neighbor search (`HNSW`, `ivfflat`, etc.).\n\n**Why D is wrong:** All three platforms support metadata filtering combined with vector search."
+  },
+  {
+    "id": "practice-045",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You write an Azure Function using the Python v2 programming model, triggered by an HTTP request, that should also write a message to a Storage Queue as an output binding:\n```python\nimport azure.functions as func\n\napp = func.FunctionApp()\n\n@app.route(route=\"submit\", auth_level=func.AuthLevel.FUNCTION)\n@app.queue_output(arg_name=\"msg\", queue_name=\"orders-queue\", connection=\"AzureWebJobsStorage\")\ndef submit_order(req: func.HttpRequest, msg: func.Out[str]) -> func.HttpResponse:\n    order_id = req.params.get(\"orderId\")\n    msg.set(order_id)\n    return func.HttpResponse(f\"Order {order_id} submitted\", status_code=200)\n```\nDeploying this function, HTTP requests succeed and return 200, but no messages ever appear in orders-queue. What is the most likely cause?",
+    "options": [
+      "The decorator order matters: @app.route must be the innermost decorator and @app.queue_output the outermost.",
+      "AzureWebJobsStorage does not point to the same storage account as orders-queue, or the queue name/casing doesn't match an existing queue.",
+      "func.Out[str] is invalid; queue output bindings require func.Out[bytes].",
+      "auth_level=func.AuthLevel.FUNCTION blocks all output bindings from executing."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** A HTTP 200 success response without messages appearing in the queue points to a connection/target mismatch: `AzureWebJobsStorage` pointing to a different storage account or a queue name mismatch.\n\n**Why A is wrong:** Python v2 binding decorators can be stacked in any order.\n\n**Why C is wrong:** `func.Out[str]` is the standard type annotation for queue outputs.\n\n**Why D is wrong:** `AuthLevel` controls HTTP trigger authentication, not output bindings."
+  },
+  {
+    "id": "practice-046",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You configure a Service Bus-triggered function that must process messages with limited concurrency to avoid overwhelming a downstream API, and dead-letter messages that fail repeatedly:\n```json\n// host.json\n{\n  \"version\": \"2.0\",\n  \"extensions\": {\n    \"serviceBus\": {\n      \"maxConcurrentCalls\": 1,\n      \"maxAutoLockRenewalDuration\": \"00:05:00\"\n    }\n  }\n}\n```\n```python\n@app.function_name(name=\"ProcessOrder\")\n@app.service_bus_queue_trigger(\n    arg_name=\"msg\",\n    queue_name=\"orders\",\n    connection=\"ServiceBusConnection\"\n)\ndef process_order(msg: func.ServiceBusMessage):\n    body = msg.get_body().decode(\"utf-8\")\n    call_downstream_api(body)\n```\nMessages that repeatedly fail are being reprocessed indefinitely rather than being dead-lettered after a reasonable number of attempts. What must be configured to achieve automatic dead-lettering after repeated failures?",
+    "options": [
+      "maxConcurrentCalls must be increased, since a value of 1 disables dead-lettering entirely.",
+      "Dead-lettering after repeated delivery failures is governed by the Service Bus queue's own MaxDeliveryCount setting (configured on the Service Bus namespace/queue itself, e.g., via Azure CLI az servicebus queue update --max-delivery-count 5), not by host.json.",
+      "Add \"deadLetteringOnMessageExpiration\": true to host.json's serviceBus extension section.",
+      "The function code must explicitly catch exceptions and call msg.dead_letter() for every failure."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Dead-lettering after repeated failed processing attempts is controlled by `MaxDeliveryCount` on the Azure Service Bus queue resource itself, not in `host.json`. When delivery count exceeds this threshold, Service Bus moves the message to the dead-letter queue.\n\n**Why A is wrong:** `maxConcurrentCalls` controls invocation concurrency, not dead-lettering.\n\n**Why C is wrong:** `deadLetteringOnMessageExpiration` is a queue property for expired messages.\n\n**Why D is wrong:** Service Bus handles automatic dead-lettering on `MaxDeliveryCount` exceeded without requiring explicit code."
+  },
+  {
+    "id": "practice-047",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You implement a Durable Functions fan-out/fan-in pattern to process a batch of files in parallel and aggregate results:\n```python\nimport azure.durable_functions as df\n\napp = df.DFApp()\n\n@app.orchestration_trigger(context_name=\"context\")\ndef orchestrator(context: df.DurableOrchestrationContext):\n    files = context.get_input()\n    tasks = []\n    for file in files:\n        tasks.append(context.call_activity(\"process_file\", file))\n    results = yield tasks\n    total = sum(results)\n    return total\n\n@app.activity_trigger(input_name=\"file\")\ndef process_file(file: str) -> int:\n    return len(file)\n```\nThe orchestrator raises a non-deterministic workflow warning/error during replay. What is the bug?",
+    "options": [
+      "yield tasks should be yield context.task_all(tasks) — awaiting a raw Python list of durable task objects directly is not the documented fan-in pattern; context.task_all() is required to properly await all parallel activity tasks and yield their results as a list.",
+      "process_file should be marked with @app.orchestration_trigger instead of @app.activity_trigger.",
+      "The orchestrator function must not use a for loop; fan-out requires context.map() exclusively.",
+      "context.get_input() is non-deterministic and must be replaced with a hardcoded file list."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** In Durable Functions Python SDK, awaiting a fan-out collection requires `yield context.task_all(tasks)`. Yielding a raw Python `list` is non-durable and causes replay errors.\n\n**Why B is wrong:** `process_file` is an activity function, correctly decorated with `@app.activity_trigger`.\n\n**Why C is wrong:** `for` loops appending `context.call_activity` tasks are standard fan-out pattern.\n\n**Why D is wrong:** `context.get_input()` is deterministic and safe."
+  },
+  {
+    "id": "practice-048",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You configure a Cosmos DB trigger function to process change feed events, and need it to use Managed Identity instead of a connection string:\n```json\n// function.json (or equivalent binding in Python v2 model)\n{\n  \"type\": \"cosmosDBTrigger\",\n  \"connectionStringSetting\": \"CosmosDBConnection\",\n  \"databaseName\": \"ragdb\",\n  \"collectionName\": \"chunks\",\n  \"leaseCollectionName\": \"leases\"\n}\n```\nTo use Managed Identity authentication instead of a connection string, which changes are required?",
+    "options": [
+      "Replace connectionStringSetting with a connection property pointing to an app setting prefix (e.g., \"connection\": \"CosmosDBConnection\") where CosmosDBConnection__accountEndpoint is set to the Cosmos DB account URI (no key), and assign the Function App's managed identity the appropriate Cosmos DB RBAC role (e.g., Cosmos DB Built-in Data Contributor) on the account.",
+      "Managed Identity is not supported for Cosmos DB trigger bindings; a connection string is always required.",
+      "Add \"authType\": \"ManagedIdentity\" directly to the binding JSON; no app settings changes are needed.",
+      "Use DefaultAzureCredential inside the function body to authenticate; the binding's connectionStringSetting can remain a placeholder value."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Azure Functions identity-based connections use the `connection` property pointing to an app setting prefix (e.g. `CosmosDBConnection`). Setting `<prefix>__accountEndpoint` to the account URI and assigning the managed identity Cosmos DB RBAC permissions enables identity-based trigger execution without keys.\n\n**Why B is wrong:** Managed Identity is fully supported for Cosmos DB trigger bindings.\n\n**Why C is wrong:** `authType` is not a valid binding property.\n\n**Why D is wrong:** Authentication inside function code does not authenticate the trigger listener runtime."
+  },
+  {
+    "id": "practice-049",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You implement retry logic for a transient-failure-prone HTTP-triggered function calling an external API, using the Python v2 model's built-in retry policy:\n```python\n@app.function_name(name=\"CallExternalApi\")\n@app.route(route=\"call-api\")\n@app.retry(strategy=\"fixed_delay\", max_retry_count=3, delay_interval=\"00:00:05\")\ndef call_external_api(req: func.HttpRequest) -> func.HttpResponse:\n    response = requests.get(\"https://partner-api.example.com/data\")\n    response.raise_for_status()\n    return func.HttpResponse(response.text)\n```\nThe retry policy has no effect — the function still fails immediately on the first raise_for_status() exception without retrying. What is the issue?",
+    "options": [
+      "Function-level retry policies (@app.retry) apply only to specific trigger types that support the Functions runtime's built-in retry mechanism — such as Timer, Queue, Event Hub, Service Bus, and Cosmos DB triggers — not to HTTP triggers, since an HTTP trigger's contract is a synchronous request/response.",
+      "strategy=\"fixed_delay\" is invalid; only \"exponential_backoff\" is a supported retry strategy.",
+      "max_retry_count=3 is too low; retries only activate above 5.",
+      "delay_interval must be specified in seconds as an integer (5), not as a timespan string."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Built-in Functions retry policies (`@app.retry`) apply only to event/message triggers (Service Bus, Event Hubs, Queues, Cosmos DB, Timer) where the runtime controls re-invocation. HTTP triggers are synchronous and do not support runtime auto-retries.\n\n**Why B is wrong:** `\"fixed_delay\"` is a valid retry strategy.\n\n**Why C is wrong:** `max_retry_count=3` is a valid retry count.\n\n**Why D is wrong:** `delay_interval` accepts standard TimeSpan strings (`\"00:00:05\"`)."
+  },
+  {
+    "id": "practice-050",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You inject a shared httpx.AsyncClient into multiple Azure Functions using dependency injection patterns in the Python v2 model to avoid creating a new HTTP client per invocation:\n```python\nimport azure.functions as func\nimport httpx\n\napp = func.FunctionApp()\n_client = None\n\ndef get_client() -> httpx.AsyncClient:\n    global _client\n    if _client is None:\n        _client = httpx.AsyncClient()\n    return _client\n\n@app.route(route=\"fetch\")\nasync def fetch_data(req: func.HttpRequest) -> func.HttpResponse:\n    client = get_client()\n    resp = await client.get(\"https://api.example.com/data\")\n    return func.HttpResponse(resp.text)\n```\nUnder sustained load, the function app eventually starts throwing connection pool exhaustion errors. What is the most likely architectural issue?",
+    "options": [
+      "The module-level singleton pattern shown is reasonable for reusing a client across invocations within a single worker process, but Azure Functions can scale out to multiple worker processes/instances; under high concurrency, either the per-instance pool's default connection limits are being exceeded (requiring explicit httpx.Limits tuning), or the client is never properly closed across the app lifecycle.",
+      "httpx.AsyncClient() does not support connection pooling; it must be replaced with requests.Session().",
+      "The global keyword is invalid in Azure Functions Python apps.",
+      "Connection pool exhaustion is caused exclusively by the external API's rate limiting."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Module-level singletons reuse client connections within a process. However, high concurrency per process can exhaust default connection limits if `httpx.Limits(max_connections=..., max_keepalive_connections=...)` is untuned.\n\n**Why B is wrong:** `httpx.AsyncClient` supports connection pooling natively via `httpx.Limits`.\n\n**Why C is wrong:** `global` is standard Python and functions correctly.\n\n**Why D is wrong:** Client connection pool exhaustion occurs locally before reaching the remote server."
+  },
+  {
+    "id": "practice-051",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You use an Event Grid-triggered function to react to blob creation events and need to filter for only .pdf files above a certain size, minimizing unnecessary invocations:\n```json\n{\n  \"type\": \"Microsoft.EventGrid/eventSubscriptions\",\n  \"properties\": {\n    \"destination\": {\n      \"endpointType\": \"AzureFunction\",\n      \"properties\": {\n        \"resourceId\": \"/subscriptions/.../functions/ProcessBlob\"\n      }\n    },\n    \"filter\": {\n      \"subjectBeginsWith\": \"/blobServices/default/containers/uploads/\",\n      \"subjectEndsWith\": \".pdf\"\n    }\n  }\n}\n```\n```python\n@app.event_grid_trigger(arg_name=\"event\")\ndef process_blob(event: func.EventGridEvent):\n    data = event.get_json()\n    size = data.get(\"contentLength\", 0)\n    if size < 1024 * 1024:\n        return # skip small files\n    process_pdf(data[\"url\"])\n```\nThe team wants to reduce cost by never invoking the function at all for files under 1 MB, rather than invoking it and returning early. What change accomplishes this at the Event Grid subscription level?",
+    "options": [
+      "Add an advancedFilter to the subscription's filter block matching on the event data's contentLength property with a NumberGreaterThanOrEquals operator (data.contentLength >= 1048576) — this filters events server-side at Event Grid before delivery, avoiding function invocation entirely.",
+      "This isn't possible; Event Grid subscription filters only support subject-based string filtering.",
+      "Change contentLength filtering to happen in a Logic App placed in front of the function.",
+      "Reduce maxDeliveryAttempts to 1 so undersized events aren't retried."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Event Grid `advancedFilters` allow filtering on payload fields like `data.contentLength` using `NumberGreaterThanOrEquals`. Events are dropped server-side at Event Grid before invoking the Function App, avoiding execution costs.\n\n**Why B is wrong:** Event Grid explicitly supports `advancedFilters` on payload data fields.\n\n**Why C is wrong:** Adding a Logic App adds unnecessary cost and latency.\n\n**Why D is wrong:** `maxDeliveryAttempts` controls failure retries, not initial event filtering."
+  },
+  {
+    "id": "practice-052",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You tune host.json for a high-throughput Event Hub-triggered function processing telemetry data, aiming to maximize batch processing efficiency:\n```json\n{\n  \"version\": \"2.0\",\n  \"extensions\": {\n    \"eventHubs\": {\n      \"batchCheckpointFrequency\": 1,\n      \"eventProcessorOptions\": {\n        \"maxBatchSize\": 10,\n        \"prefetchCount\": 20\n      }\n    }\n  }\n}\n```\nGiven the goal of maximizing throughput for a high-volume stream, and knowing checkpointing after every single batch adds storage overhead, which change best improves throughput while maintaining reasonable fault-tolerance?",
+    "options": [
+      "Increase maxBatchSize substantially (e.g., to 256 or higher, matched to available memory and processing capacity) to process more events per function invocation, and increase batchCheckpointFrequency (e.g., to 5) so checkpoints are written less often — after every N batches rather than every single batch — reducing checkpoint storage overhead while keeping failure reprocessing bounded.",
+      "Set batchCheckpointFrequency to 0 to disable checkpointing entirely.",
+      "Decrease maxBatchSize to 1 so each event is processed individually.",
+      "Remove prefetchCount entirely; prefetching always reduces throughput."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Increasing `maxBatchSize` amortizes function invocation overhead across more events per execution. Increasing `batchCheckpointFrequency` (checkpointing every N batches instead of 1) reduces storage I/O latency while keeping failure reprocessing bounded.\n\n**Why B is wrong:** Disabling checkpointing causes the processor to lose stream position on restarts.\n\n**Why C is wrong:** Setting `maxBatchSize` to 1 maximizes per-event invocation overhead.\n\n**Why D is wrong:** `prefetchCount` improves throughput by pre-fetching events into memory."
+  },
+  {
+    "id": "practice-053",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You retrieve a secret from Key Vault using DefaultAzureCredential in code that must work identically both locally (developer signed in via Azure CLI) and in production (running in a Container App with a user-assigned managed identity), without any code branching:\n```python\nfrom azure.identity import DefaultAzureCredential\nfrom azure.keyvault.secrets import SecretClient\n\ncredential = DefaultAzureCredential()\nclient = SecretClient(vault_url=\"https://myvault.vault.azure.net/\", credential=credential)\nsecret = client.get_secret(\"db-password\")\n```\nIn production, this throws a credential authentication failure, while locally (via az login) it works fine. The Container App has a user-assigned managed identity configured. What's missing?",
+    "options": [
+      "DefaultAzureCredential must be explicitly told which managed identity to use via managed_identity_client_id (or AZURE_CLIENT_ID environment variable), because when multiple identity sources could apply (and specifically with user-assigned managed identities) DefaultAzureCredential's ManagedIdentityCredential step needs the specific client ID to select the correct identity.",
+      "DefaultAzureCredential only works in local development; production code must always use ManagedIdentityCredential explicitly.",
+      "The Container App's managed identity must be system-assigned; user-assigned identities are not supported by DefaultAzureCredential.",
+      "SecretClient requires an explicit api_version parameter when used with managed identity credentials."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** User-assigned managed identities require specifying the client ID (`managed_identity_client_id` parameter or `AZURE_CLIENT_ID` env var) so `DefaultAzureCredential` knows which identity to request tokens for. Locally, it falls back to Azure CLI without issue.\n\n**Why B is wrong:** `DefaultAzureCredential` is designed for both local and production environments.\n\n**Why C is wrong:** User-assigned managed identities are fully supported by `DefaultAzureCredential`.\n\n**Why D is wrong:** `SecretClient` does not require explicit `api_version` for managed identities."
+  },
+  {
+    "id": "practice-054",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You need to reference a Key Vault secret from an Azure App Configuration store, so that application code reads a single App Configuration value that transparently resolves to the current secret version at runtime without needing direct Key Vault SDK calls:\n```python\nfrom azure.appconfiguration.provider import load\nfrom azure.identity import DefaultAzureCredential\n\nconfig = load(\n    endpoint=\"https://myappconfig.azconfig.io\",\n    credential=DefaultAzureCredential()\n)\nprint(config[\"DbPassword\"])\n```\nThe App Configuration key DbPassword was created as a Key Vault reference pointing to https://myvault.vault.azure.net/secrets/db-password. This code throws an authorization error accessing the Key Vault, even though the App Configuration read itself succeeds. What is missing?",
+    "options": [
+      "load() needs an explicit key_vault_options parameter configured with a credential (e.g. key_vault_options=AzureAppConfigurationKeyVaultOptions(credential=DefaultAzureCredential())) so the App Configuration provider knows how to resolve Key Vault references.",
+      "App Configuration cannot reference Key Vault secrets at all; DbPassword must be stored as a plain App Configuration value instead.",
+      "The identity being used needs the App Configuration Data Reader role only; Key Vault access is automatically inherited from App Configuration's own managed identity.",
+      "config[\"DbPassword\"] returns the Key Vault reference URI as a string, not the resolved secret value, by design."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Resolving Key Vault references via `azure-appconfiguration-provider` requires passing `key_vault_options=AzureAppConfigurationKeyVaultOptions(credential=...)` to `load()`. The calling identity must also have Key Vault secrets read permissions.\n\n**Why B is wrong:** App Configuration Key Vault references are a core supported feature.\n\n**Why C is wrong:** Key Vault access is authenticated using the application credential, not inherited from App Configuration.\n\n**Why D is wrong:** When `key_vault_options` is configured, the provider returns the resolved secret value."
+  },
+  {
+    "id": "practice-055",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You implement secret rotation awareness so your application always uses the latest version of a Key Vault secret without redeploying, and without a long-lived cache serving a stale/revoked version indefinitely:\n```python\nfrom azure.keyvault.secrets import SecretClient\nfrom azure.identity import DefaultAzureCredential\nimport time\n\nclient = SecretClient(vault_url=vault_url, credential=DefaultAzureCredential())\n_cache = {}\n\ndef get_db_password():\n    if \"db-password\" not in _cache:\n        secret = client.get_secret(\"db-password\") # version-less request\n        _cache[\"db-password\"] = {\"value\": secret.value, \"cachedAt\": time.time()}\n    return _cache[\"db-password\"][\"value\"]\n```\nThis caches the secret indefinitely after first retrieval, meaning a rotated secret is never picked up until the process restarts. What is the best fix that balances reducing Key Vault call volume with staying reasonably current after rotation?",
+    "options": [
+      "Remove caching entirely and call get_secret(\"db-password\") on every single use of the password, regardless of call frequency.",
+      "Add a TTL check (e.g., re-fetch if time.time() - cachedAt > 3600) so the cached value is refreshed periodically (e.g., hourly) rather than only once at startup — balancing reduced Key Vault call volume against staying reasonably current within the TTL window after a rotation event.",
+      "Request a specific pinned secret version (e.g., client.get_secret(\"db-password\", version=\"abc123\")) so the cache is always guaranteed correct.",
+      "Rely on Key Vault's server-side push notifications to automatically update the local _cache dictionary in real time; no TTL logic is needed."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** Adding a Time-To-Live (TTL) check balances Key Vault call volume reduction with secret rotation freshness. Periodically re-fetching the secret (e.g. hourly) allows version-less secret rotation to take effect automatically without requiring process restarts or excessive API calls.\n\n**Why A is wrong:** Fetching from Key Vault on every single request introduces severe latency and causes API throttling.\n\n**Why C is wrong:** Requesting a pinned version prevents picking up newly rotated secret versions.\n\n**Why D is wrong:** Azure Key Vault does not push real-time updates directly into application memory."
+  },
+  {
+    "id": "practice-056",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You configure OpenTelemetry tracing for a Python application using the Azure Monitor OpenTelemetry Distro, and need nested spans to correctly represent a call chain: HTTP request → business logic → downstream Cosmos DB call:\n```python\nfrom azure.monitor.opentelemetry import configure_azure_monitor\nfrom opentelemetry import trace\n\nconfigure_azure_monitor(connection_string=app_insights_connection_string)\ntracer = trace.get_tracer(__name__)\n\ndef handle_request():\n    with tracer.start_as_current_span(\"handle_request\"):\n        process_order()\n\ndef process_order():\n    with tracer.start_as_current_span(\"process_order\"):\n        query_cosmos()\n\ndef query_cosmos():\n    with tracer.start_as_current_span(\"query_cosmos\"):\n        container.query_items(query=\"SELECT * FROM c\")\n```\nIn Application Insights, the three spans appear as three separate, unrelated traces instead of one nested trace tree. What is the most likely cause?",
+    "options": [
+      "start_as_current_span must be called with record_exception=True for spans to be linked into a shared trace.",
+      "The functions are likely being invoked in separate threads or async tasks without proper context propagation (e.g., via ThreadPoolExecutor without OpenTelemetry's context-aware wrappers, or across an await boundary without correct context passing), causing each start_as_current_span call to create a new root span because it can't find the parent context.",
+      "configure_azure_monitor only supports a single span per process; multiple start_as_current_span calls are not supported.",
+      "Span names must be globally unique across the application; reusing generic names like process_order causes Application Insights to treat each as an unrelated trace."
+    ],
+    "answer": 1,
+    "explanation": "**Why B is correct:** `start_as_current_span` relies on Python `contextvars` to implicitly set parent-child span relationships. Executing across raw thread pools or async tasks without context propagation detaches the parent context, causing each span to originate as a disconnected root span.\n\n**Why A is wrong:** `record_exception` records exception details onto span events, not parent-child trace linkage.\n\n**Why C is wrong:** Azure Monitor OpenTelemetry Distro supports unlimited nested spans per process.\n\n**Why D is wrong:** Span names are human-readable labels; trace correlation depends on trace/span IDs."
+  },
+  {
+    "id": "practice-057",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You add custom baggage to propagate a tenantId across service boundaries in a distributed trace using OpenTelemetry:\n\nSender:\n```python\nfrom opentelemetry import baggage, context\nfrom opentelemetry.propagate import inject\n\nctx = baggage.set_baggage(\"tenantId\", \"tenant-42\")\nheaders = {}\ninject(headers, context=ctx)\nresponse = requests.post(\"https://inventory-service/api/check\", headers=headers)\n```\nReceiver:\n```python\ntenant_id = baggage.get_baggage(\"tenantId\")\n```\nOn the receiving service, code attempts to read the baggage value but gets None. What is missing on the receiving side?",
+    "options": [
+      "The receiving service must extract the incoming context from the request headers using opentelemetry.propagate.extract(headers) and activate it (e.g., via context.attach(extracted_ctx)) before calling baggage.get_baggage(), which by default reads from the current active context.",
+      "baggage.set_baggage on the sender must be called with persist=True for the value to survive HTTP transport.",
+      "Baggage cannot be propagated over HTTP; it only works within a single process's contextvars.",
+      "The header format used by inject() is incompatible with requests; a raw dict cannot be used as the headers argument."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** Baggage received over HTTP headers must be extracted on the receiver side via `opentelemetry.propagate.extract(headers)` and attached to the execution context (`context.attach(extracted_ctx)`). Without extraction and attachment, `baggage.get_baggage()` queries an empty active context.\n\n**Why B is wrong:** `baggage.set_baggage` does not have a `persist` parameter.\n\n**Why C is wrong:** OpenTelemetry Baggage is explicitly designed for cross-service context propagation.\n\n**Why D is wrong:** `inject(headers)` populates standard W3C baggage headers into Python dicts."
+  },
+  {
+    "id": "practice-058",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You write a KQL query against Application Insights to find, per API endpoint, the 95th-percentile response time over the last 24 hours, along with the count of requests, grouped into 1-hour buckets for a trend chart:\n```kql\nrequests\n| where timestamp > ago(24h)\n| ???\n```\nWhich completion correctly produces per-endpoint, per-hour p95 latency and request count?",
+    "options": [
+      "| summarize p95 = percentile(duration, 95), count() by name, bin(timestamp, 1h)",
+      "| summarize p95 = avg(duration) * 0.95, count() by name, bin(timestamp, 1h)",
+      "| extend p95 = percentile(duration, 95) | summarize count() by name, bin(timestamp, 1h)",
+      "| summarize p95 = percentile(duration, 95), count() by name, timestamp"
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `percentile(duration, 95)` computes the 95th percentile duration within each summarized group. Grouping by `name, bin(timestamp, 1h)` aggregates results per endpoint and 1-hour time window.\n\n**Why B is wrong:** `avg(duration) * 0.95` computes 95% of average duration, not the 95th percentile.\n\n**Why C is wrong:** `percentile()` is an aggregation function and cannot be used inside `extend`.\n\n**Why D is wrong:** Grouping by raw `timestamp` creates a group per individual log event instead of hourly buckets."
+  },
+  {
+    "id": "practice-059",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You write a KQL query to find, for each cloud_RoleInstance, only the most recent exception event, using arg_max():\n```kql\nexceptions\n| where timestamp > ago(7d)\n| ???\n```\nWhich completion correctly returns one row per cloud_RoleInstance representing its most recent exception, including all columns of that specific event?",
+    "options": [
+      "| summarize arg_max(timestamp, *) by cloud_RoleInstance",
+      "| summarize max(timestamp) by cloud_RoleInstance",
+      "| top 1 by timestamp desc",
+      "| summarize arg_max(timestamp) by cloud_RoleInstance"
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `arg_max(timestamp, *) by cloud_RoleInstance` is KQL's standard aggregator for returning the full row (`*`) corresponding to the maximum timestamp per group (`cloud_RoleInstance`).\n\n**Why B is wrong:** `max(timestamp)` returns only the timestamp scalar column, omitting exception message/details.\n\n**Why C is wrong:** `top 1 by timestamp desc` returns a single row overall across the entire dataset.\n\n**Why D is wrong:** `arg_max(timestamp)` without `*` returns only the timestamp value."
+  },
+  {
+    "id": "practice-060",
+    "domain": "secure-monitor",
+    "type": "scenario",
+    "question": "You configure OpenTelemetry metrics with a custom sampling strategy for a high-volume Azure Function to reduce Application Insights ingestion cost, while ensuring at least all failed requests are always traced (never sampled out), and successful requests are sampled at a lower rate:\n```python\nfrom azure.monitor.opentelemetry import configure_azure_monitor\n\nconfigure_azure_monitor(\n    connection_string=conn_str,\n    sampling_ratio=0.1\n)\n```\nA teammate is concerned that a flat sampling_ratio=0.1 might drop traces for failed requests, which are critical for debugging. What is the most accurate assessment of this concern for the Azure Monitor OpenTelemetry Distro's default sampling behavior?",
+    "options": [
+      "The concern is valid and unaddressed by this configuration: sampling_ratio applies a fixed-percentage probabilistic sampler uniformly to all traces (a form of head-based sampling decided before the outcome/status of the request is known), so failed requests are sampled at the same 10% rate as successful ones by default — achieving \"always keep failures\" requires additional configuration, such as a custom sampler or ingestion-time sampling strategy.",
+      "The concern is unfounded: Azure Monitor OpenTelemetry Distro's default sampler automatically detects failed requests and always retains them regardless of sampling_ratio.",
+      "sampling_ratio only applies to metrics, not traces; all traces are always retained.",
+      "Sampling in Azure Monitor OpenTelemetry Distro is applied server-side after ingestion, so no data is ever dropped."
+    ],
+    "answer": 0,
+    "explanation": "**Why A is correct:** `sampling_ratio=0.1` applies head-based probabilistic sampling at trace initialization before request outcome is known. Failed requests are sampled at the same 10% rate as successful ones. Guaranteeing 100% retention of failed requests requires tail-based or outcome-aware custom sampling.\n\n**Why B is wrong:** Head-based `sampling_ratio` does not automatically retain failed requests.\n\n**Why C is wrong:** `sampling_ratio` explicitly controls trace telemetry sampling.\n\n**Why D is wrong:** Head-based sampling drops telemetry client-side before ingestion."
+  }
+]
