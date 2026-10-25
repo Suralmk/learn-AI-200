@@ -1,0 +1,32 @@
+name: New practice question
+description: Propose a question for an exam objective
+labels: [question]
+body:
+  - type: input
+    id: objective
+    attributes:
+      label: Objective id
+      description: From lib/exam-outline.ts, for example aca-keda or pg-indexing.
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question and options
+      description: Mark the correct option(s). Say "Select two." in the text for multi-select.
+    validations:
+      required: true
+  - type: textarea
+    id: explanation
+    attributes:
+      label: Explanation
+      description: Why the right answer is right AND why each other option is wrong.
+    validations:
+      required: true
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Confirm
+      options:
+        - label: I wrote this myself. It is not copied from a real exam, a paid question bank or an exam dump.
+          required: true

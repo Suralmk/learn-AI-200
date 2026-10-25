@@ -1,0 +1,23 @@
+name: Content error
+description: Something in the study notes is wrong, outdated or unclear
+labels: [content]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page URL
+      placeholder: https://azure.sura.work/study/...
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong?
+      description: Quote the sentence or snippet and explain the problem.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      description: A Microsoft Learn or Azure docs link that shows the correct behavior.

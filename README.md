@@ -1,78 +1,108 @@
 # AI-200 Learn
 
-**Your focused companion for the Microsoft AI-200 exam** — cut through the noise and study what actually matters for *Developing AI Cloud Solutions on Azure*.
+**Free, open-source study notes and practice questions for Microsoft Exam AI-200: Developing AI Cloud Solutions on Azure** (Microsoft Certified: Azure AI Cloud Developer Associate). Every page and question maps to the 27 objectives in the official skills outline (version of October 7, 2026), so you can study from start to finish in one place.
 
-This repo is a lightweight learning site built for developers preparing for the **Azure AI Cloud Developer Associate** certification. Instead of jumping between docs, videos, and random practice tests, you get one place to read, practice, and test yourself — organized exactly around the official exam objectives.
+**Live site: [azure.sura.work](https://azure.sura.work)**
 
----
+[![License: MIT](https://img.shields.io/badge/code-MIT-0177d1)](LICENSE)
+[![Content: CC BY 4.0](https://img.shields.io/badge/content-CC%20BY%204.0-0177d1)](content/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/Suralmk/learn-AI-200?style=flat&color=f0643a)](https://github.com/Suralmk/learn-AI-200/stargazers)
 
-## Why use this?
+> ⭐ **Star this repo if it helps you prepare.** Stars help other candidates find it.
 
-AI-200 is a hands-on, back-end focused exam. You need to know containers, vector databases, messaging, serverless, security, and observability — not just theory. This site is built around that reality.
+![AI-200 Learn home page: headline, start buttons, and a chart of exam weight by skill area](docs/images/home.png)
 
-- **Study with context** — Notes tied to real exam domains, not random blog posts
-- **Learn by doing** — Python and Azure CLI samples you can reference during labs and revision
-- **Practice under pressure** — Questions that mirror MCQ and scenario-style exam formats
-- **Find your weak spots** — Mock exam scores broken down by domain so you know where to focus
-- **Stay exam-aligned** — Content structured around the four official skill areas and their weights
+## Features
 
-Whether you are refreshing after AZ-204, moving into Azure AI engineering, or sitting AI-200 for the first time, this repo gives you a clear path from reading → practicing → testing.
+- **137 study pages across 9 learning paths and 8 quick-reference guides**, grouped by the four official skill areas. Each page has key concepts, a Mermaid diagram where useful, Azure CLI and Python (C# where Microsoft shows it), exam-trap callouts, a quick review and links to the Microsoft Learn sources.
+- **376 practice questions** (300 originals + 76 new), with **at least 10 for each of the 27 objectives**. Single and multi-select, and every answer explains why each option is right or wrong.
+- **Mock exams:** a full-length run with an optional 120-minute timer, scored out of 1,000 (700 to pass), with accuracy per skill area; plus focused tests for each area.
+- **Practice your way:** see answers after each question or at the end, review wrong answers, and use the keyboard (1–9 / A–D to choose, Enter to check, N for next).
+- **Progress that stays in your browser:** topics read and best scores, with no account or backend.
+- **Search** across every title and heading (Ctrl K or /).
+- Light and dark themes, WCAG 2.2 AA contrast, responsive from 360 px, statically generated.
 
----
+| Practice with explanations | Study notes (dark mode) |
+|---|---|
+| ![A practice question with the correct answer highlighted](docs/images/practice.png) | ![A topic page in dark mode with sidebar and table of contents](docs/images/topic-dark.png) |
 
-## What you get
-
-### Study guides
-In-depth notes across every AI-200 domain — concepts, key terms, exam tips, and links to Microsoft Learn. Code blocks include syntax highlighting, language labels (Python, Azure CLI, KQL), and one-click copy for quick use in your terminal or editor.
-
-### Practice questions
-MCQ and scenario-style questions with detailed explanations after each answer. Filter by domain to drill the areas you struggle with most — containers, data management, Azure services, or security and monitoring.
-
-### Mock exam
-A timed-style practice run of 20 random questions pulled from all domains. Finish with a score and a per-domain breakdown so you can prioritize revision before exam day.
-
-### Built for long study sessions
-Dark mode, clean layout, and a distraction-free reading experience — no clutter, no paywalls, no account required.
-
----
-
-## Exam coverage
-
-| Domain | Weight | What you'll study |
-|--------|--------|-------------------|
-| **Containerized Solutions** | 20–25% | ACR, Container Apps, AKS, KEDA |
-| **Data Management for AI** | 25–30% | Cosmos DB, PostgreSQL pgvector, Managed Redis |
-| **Azure Services Integration** | 20–25% | Service Bus, Event Grid, Azure Functions |
-| **Secure, Monitor & Troubleshoot** | 20–25% | Key Vault, App Configuration, OpenTelemetry, KQL |
-
-Content lives in plain markdown and JSON under `content/` — easy to extend, fix, and keep accurate as the exam evolves.
-
----
-
-## Get started
+## Quick start
 
 ```bash
+git clone https://github.com/Suralmk/learn-AI-200.git && cd learn-AI-200
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and start with **Study**, then **Questions**, then the **Mock exam**.
+Then open http://localhost:3000. Node.js 20+ is required.
+
+## Project structure
+
+```text
+app/                    Next.js App Router routes (home, /study, /practice, /questions, /exam, search, sitemap, OG images)
+components/
+  shell/                Top bar, search, sidebar, footer, GitHub links
+  doc/                  Study page layout: DocPage, TocPanel, Callout, ComparisonTable, Mermaid, PrevNext
+  quiz/                 QuizSession, QuestionCard, OptionButton, ScoreSummary, SetBest
+  seo/                  JSON-LD helpers (WebSite, Course, LearningResource, Quiz, BreadcrumbList)
+  ui/                   shadcn/base-ui primitives
+  viz.tsx               Meter, BlueprintBars, StatTile, AccuracyBars
+content/
+  study/                Markdown notes: learning-paths/, topics/<path>/, guides/
+  questions/            Practice questions (JSON) and objective-map.json
+lib/                    Exam outline, loaders, zod schemas, scoring, progress, search, SEO helpers
+scripts/                validate-content and question tooling
+tests/                  Vitest unit tests
+docs/                   Content template, design spec and plan, screenshots
+```
+
+## How content is organized
+
+- **Exam outline:** `lib/exam-outline.ts` is the single source for the 4 skill areas, their weights and the 27 objectives. Each learning path belongs to one area.
+- **Study pages:** Markdown with frontmatter (`title`, `pathSlug`, `moduleName`, `description`, `last_reviewed`, `source_version`, `tags`, `objectives`), following [docs/content-template.md](docs/content-template.md).
+- **Questions:** JSON validated by `lib/schemas.ts`. Originals map to objectives through `content/questions/objective-map.json`; new questions carry `objective` and `source: "generated"`.
+- `npm run validate:content` and `npm run build` fail on broken content.
+
+### Add a topic
+
+1. Create `content/study/topics/<path>/<slug>.md` from the template.
+2. Add its title to the right module's `topics:` list in `content/study/learning-paths/<path>.md` (the filename must be the slug of that title).
+3. Run `npm run validate:content -- --verbose`.
+
+### Add a question
+
+Append to `content/questions/generated-<area>.json` (or a new file) with an `objective` from `lib/exam-outline.ts`, then run `npm test`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the schema and the explanation rules.
+
+## Scripts
+
+| Script | Purpose |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript |
+| `npm run validate:content` | Content checks (`-- --verbose` lists template warnings) |
+| `npm test` | Unit tests |
+
+## Deployment
+
+azure.sura.work deploys from the `main` branch through the hosting provider's Git integration (there is no CI workflow in this repo). Every page is prerendered at build time, so any static-capable Next.js host works. The canonical origin is set in `lib/site.ts` (`SITE_URL`).
+
+## Roadmap
+
+- Review the 11 original questions flagged as possibly wrong or outdated (see CLAUDE.md, "Open items").
+- Durable Functions and Container Apps dynamic sessions modules (on Microsoft Learn, not yet in the notes).
+- More case-study questions that span several objectives.
+- CI workflow that runs lint, typecheck, tests and content validation on every pull request.
+
+## Contributing
+
+Fixes and new questions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). AI-assisted contributions should follow [CLAUDE.md](CLAUDE.md).
+
+## License
+
+Code: [MIT](LICENSE). Study notes and questions: [CC BY 4.0](content/LICENSE).
 
 ---
 
-## Who is this for?
-
-- Developers preparing for **AI-200** or the **Azure AI Cloud Developer Associate** credential
-- Engineers transitioning from general Azure development (e.g. AZ-204) into AI solution back-ends
-- Anyone who wants a **self-hosted, customizable** study tool they can fork and grow with the community
-
----
-
-## Official Microsoft resources
-
-- [AI-200 study guide](https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200)
-- [Azure AI Cloud Developer Associate certification](https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-cloud-developer-associate/)
-
----
-
-*This is an independent study project — not affiliated with Microsoft. Always cross-check with the latest official study guide before your exam.*
+Not affiliated with or endorsed by Microsoft. Azure and Microsoft Learn are trademarks of Microsoft Corporation.
