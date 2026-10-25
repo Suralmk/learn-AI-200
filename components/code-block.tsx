@@ -1,7 +1,4 @@
-"use client";
-
-import { useState } from "react";
-import { Check, Copy, Code2 } from "lucide-react";
+import { Code2 } from "lucide-react";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-light";
 import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
 import bicep from "react-syntax-highlighter/dist/esm/languages/prism/bicep";
@@ -25,7 +22,7 @@ for (const [name, lang] of Object.entries({
 })) {
   SyntaxHighlighter.registerLanguage(name, lang);
 }
-import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/copy-button";
 import { cn } from "@/lib/utils";
 
 const LANGUAGE_LABELS: Record<string, { label: string; prismLanguage: string }> =
@@ -101,6 +98,10 @@ function getLanguageMeta(language: string) {
   );
 }
 
+/**
+ * Highlighted code with a language label and copy button. Hook-free, so on
+ * study pages it renders on the server and Prism never reaches the browser.
+ */
 export function CodeBlock({
   code,
   language,
@@ -110,19 +111,7 @@ export function CodeBlock({
   language?: string;
   className?: string;
 }) {
-  const [copied, setCopied] = useState(false);
-  const detectedLang = autoDetectLanguage(code, language);
-  const meta = getLanguageMeta(detectedLang);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-    } catch {
-      return; // Clipboard blocked (insecure context or permissions): leave the button as is.
-    }
-    setTimeout(() => setCopied(false), 2000);
-  }
+  const meta = getLanguageMeta(autoDetectLanguage(code, language));
 
   return (
     <div className={cn("not-prose group/code my-6 overflow-hidden rounded-lg border border-border bg-surface", className)}>
@@ -131,16 +120,7 @@ export function CodeBlock({
           <Code2 className="size-3.5" aria-hidden />
           {meta.label}
         </span>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={handleCopy}
-          className="gap-1.5 text-muted-foreground hover:text-foreground"
-          aria-label={copied ? "Copied" : `Copy ${meta.label} code`}
-        >
-          {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
-          <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
-        </Button>
+        <CopyButton text={code} label={meta.label} />
       </div>
       <div className="overflow-x-auto">
         <SyntaxHighlighter

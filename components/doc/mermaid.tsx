@@ -9,8 +9,27 @@ export function Mermaid({ code }: { code: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const [failed, setFailed] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  // Mermaid is large; load and render it only when the diagram nears the viewport.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "400px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
+    if (!visible) return;
     let cancelled = false;
     (async () => {
       try {
@@ -41,7 +60,7 @@ export function Mermaid({ code }: { code: string }) {
     return () => {
       cancelled = true;
     };
-  }, [code, id, resolvedTheme]);
+  }, [code, id, resolvedTheme, visible]);
 
   if (failed) {
     return (

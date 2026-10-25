@@ -12,16 +12,18 @@ import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
   variable: "--font-plex-sans",
   display: "swap",
 });
 
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400"],
   variable: "--font-plex-mono",
   display: "swap",
+  // Code blocks are rarely above the fold; don't compete with the text font.
+  preload: false,
 });
 
 export const metadata: Metadata = {
