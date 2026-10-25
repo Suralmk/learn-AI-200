@@ -2,161 +2,180 @@
 title: "Choose and apply revision modes"
 pathSlug: "deploy-and-manage-apps-on-azure-container-apps"
 moduleName: "Scale containers in Azure Container Apps"
+description: >-
+  Single vs multiple revision mode in Azure Container Apps: zero-downtime swaps, traffic splitting, latest weight, labels and per-revision cost.
+last_reviewed: 2026-10-25
+source_version: 2026-10-07
+tags: [Container Apps, Revisions, Traffic splitting, Canary, Blue-green]
+objectives: [aca-deploy, aca-keda]
 ---
 
-## Overview
+## What this covers
 
-**Revision modes** control how Azure Container Apps deploys new versions and whether multiple versions run at once. Your choice affects zero-downtime updates, traffic splitting, canary releases, and how replicas scale during rollouts.
+**Revision modes** control how Azure Container Apps rolls out new versions and whether more than one version runs at the same time. The choice affects zero-downtime updates, traffic splitting, canary and blue-green releases, and how replicas (and cost) scale during a rollout.
 
-## Revision
+**Exam weight:** Develop containerized solutions on Azure (20–25%)
 
-> A **revision** is an **immutable snapshot** of a container app at a point in time. Deploying changes to images, scale rules, env vars, or template settings creates a **new revision** — you cannot edit an existing one. Roll back by reactivating an older revision.
+**Skills measured**
 
-**Replicas** are running instances of a **specific revision**. Each active revision scales on its own rules and traffic share.
+- "Deploy applications to Azure Container Apps, including environment configuration and revision management"
+- "Implement event-driven scaling by using KEDA in Container Apps"
 
-## Exam tips
+## Key concepts
 
-- **Single revision mode** = default; only one active revision; zero-downtime swap is automatic
-- **Multiple revision mode** = several active revisions; you manage traffic and deactivation
-- **Revision-scope** changes (image, scale rules, env vars) → **new revision**
-- **Application-scope** changes (secrets, ingress, traffic split) → **no new revision**
-- Traffic weights must total **100%**; routing is **probabilistic**
-- **`latest`** weight targets the newest revision without updating names each deploy
-- **Labels** = direct URL to one revision; independent of traffic splitting
-- Up to **100 inactive revisions** kept; oldest purged when exceeded
-- Multiple active revisions → **higher cost** (each has its own min replicas)
+### Revisions and replicas
 
----
+A **revision** is an immutable snapshot of the app. Changing the image, scale rules, env vars or other `template` properties creates a **new revision**. You can't edit an existing one, and you roll back by reactivating an older one. **Replicas** are running instances of a specific revision. Each active revision scales on its own rules and its own share of traffic.
 
-## Revision-scope vs application-scope changes
-
-| Creates new revision | Does not create new revision |
-|----------------------|------------------------------|
+| Creates a new revision (revision-scope) | Doesn't (application-scope) |
+|---|---|
 | Container image | Secrets |
 | Scale rules | Ingress settings |
 | Environment variables | Traffic splitting weights |
-| Template properties | — |
+| Other `template` properties (CPU/memory, probes) | Registries, Dapr, identity |
 
----
+### Single revision mode (default)
 
-## Single revision mode
+Keeps **one active revision**. When you deploy, ACA starts the new revision, waits until it's ready (readiness probes pass and it reaches the previous replica count), moves **all traffic** to it, then **deactivates** the old one. That's zero downtime by default. A broken revision never takes traffic, and the old one keeps serving.
 
-> **Single revision mode** keeps **one active revision** at a time. When you deploy, ACA starts the new revision, waits for health checks, shifts **all traffic**, then **deactivates** the old one — zero-downtime by default.
+**Use when:** simple replace-style deployments. **Don't use when:** you need canary releases, A/B tests or gradual rollout.
 
-**Use when:** Simple replace deployments; no canary or A/B testing needed.
+### Multiple revision mode
 
-**Do not use when:** You need gradual rollouts or traffic splitting — switch to multiple revision mode.
-
-```text
-Deploy v2 → v2 becomes ready → 100% traffic to v2 → v1 deactivated
-```
-
----
-
-## Multiple revision mode
-
-> **Multiple revision mode** allows **several active revisions** at once. Each can receive traffic, scale independently, and stay running until you **deactivate** it. Enables canary, blue-green, and A/B patterns.
-
-**Use when:** Canary releases, production validation with partial traffic, blue-green cutover.
-
-**Trade-off:** More ops work — manage weights, monitor each revision, deactivate old ones promptly.
-
-```bash
-az containerapp update \
-  --name order-api \
-  --resource-group rg-ecommerce \
-  --revision-mode multiple
-```
-
-### Revision states
+Several revisions stay **active** at once. Each can receive traffic and scale independently until you deactivate it. This enables canary, blue-green and A/B patterns, at the cost of more operational work: you manage weights, watch each revision, and deactivate old ones.
 
 | State | Receives traffic | Uses compute |
-|-------|------------------|--------------|
-| **Active** | Yes | Yes — scales per its rules |
-| **Inactive** | No | No — kept for rollback (max 100) |
+|---|---|---|
+| **Active** | Yes (if it has weight or a label) | Yes, scales per its rules |
+| **Inactive** | No | No. Kept for rollback (max 100 by default) |
 
----
+### Traffic splitting
 
-## Traffic splitting
+Weights across active revisions must add up to **100**. Routing is **probabilistic** per request, so actual percentages drift slightly. A `latest` weight targets the newest revision automatically, so CI/CD doesn't have to know revision names. Canary pattern: 5–10%, monitor, 50%, 100%, then deactivate the old revision.
 
-> **Traffic splitting** sends incoming requests to active revisions by **percentage weights** (must sum to 100). Assignment is random per request — actual split may vary slightly from configured values.
+### Revision labels
 
-```bash
-az containerapp ingress traffic set \
-  --name order-api \
-  --resource-group rg-ecommerce \
-  --revision-weight order-api--v1=80 order-api--v2=20
+A **label** gives a revision its own stable URL (`<app>---<label>.<env-domain>`). That URL always reaches the labeled revision and **ignores** the traffic split on the main URL. Moving a label is atomic. Use labels for tester-only canary URLs and blue/green staging. Naming rules: start with a letter, lowercase letters, digits and dashes only, no consecutive dashes, max 64 characters.
+
+## How it works
+
+```mermaid
+flowchart LR
+  U[Users] --> M[Main FQDN]
+  M -- 80% --> V1[order-api--v1]
+  M -- 20% --> V2[order-api--v2]
+  T[Testers] --> L[order-api---canary URL]
+  L --> V2
 ```
 
-**Canary pattern:** 5–10% → monitor → 50% → 100% → deactivate old revision.
-
-| Weight target | Behavior |
-|---------------|----------|
-| `order-api--v1=80` | Fixed revision name |
-| `latest=20` | Newest revision gets 20% automatically |
-
----
-
-## Revision labels
-
-> A **revision label** is a **named URL** that always routes to one specific revision — **ignoring** traffic split on the main app URL. Move a label to switch which revision it points to (atomic).
-
-**Use for:** Tester-only URLs during canary; blue/green staging endpoints before shifting production traffic.
-
-**Rules:** Start with a letter; lowercase letters, numbers, dashes only; no consecutive dashes; max 64 chars.
-
-```text
-Main URL     → follows traffic split (e.g. 80/20)
-Label URL    → always hits the labeled revision (e.g. v2-canary)
-```
-
----
-
-## Scaling with multiple revisions
-
-Each active revision scales on **its own traffic and scale rules** — total replicas can exceed what one revision would need.
+### Scaling with multiple revisions
 
 | Scenario | Effect |
-|----------|--------|
-| 50/50 split, `minReplicas: 1` each | At least **2 replicas** total |
-| Half traffic per revision | Each may scale slower than a single revision at 100% |
-| Long 50/50 split | Higher cost — deactivate old revision when done |
+|---|---|
+| 50/50 split, `minReplicas: 1` each | At least **2 replicas** in total |
+| Each revision sees half the traffic | Each may scale more slowly than one revision at 100% |
+| Long-running 50/50 split | Higher cost. Deactivate the old revision when done |
 
-**Tip:** Move through splits quickly (10% → validate → 100%). Monitor replica count, errors, and CPU per revision in Azure Monitor.
+Move through splits quickly (10%, validate, 100%) and watch replica count, errors and CPU **per revision** in Azure Monitor.
 
----
+## Hands-on
 
-## Single vs multiple — quick comparison
+### Azure portal
+
+1. Open **Application > Revisions and replicas > Choose revision mode** and select **Multiple**.
+2. Deploy a new revision. In **Revisions**, set **Traffic %** for each active revision (the total must be 100) and save.
+3. Add a **Label** to the new revision and share its URL with testers.
+4. After cutover, **Deactivate** the old revision.
+
+### Azure CLI
+
+```bash
+# Switch to multiple revision mode
+az containerapp revision set-mode --name order-api --resource-group rg-ecommerce --mode multiple
+# (equivalently: az containerapp update ... --revision-mode multiple)
+
+# Deploy v2 with a readable name
+az containerapp update --name order-api --resource-group rg-ecommerce \
+  --image myregistry.azurecr.io/order-api:v2 --revision-suffix v2
+
+# Canary 80/20
+az containerapp ingress traffic set --name order-api --resource-group rg-ecommerce \
+  --revision-weight order-api--v1=80 order-api--v2=20
+
+# Or let new deployments get 20% automatically
+az containerapp ingress traffic set --name order-api --resource-group rg-ecommerce \
+  --revision-weight order-api--v1=80 latest=20
+
+# Label for direct testing; swap labels for blue/green
+az containerapp revision label add --name order-api --resource-group rg-ecommerce \
+  --label canary --revision order-api--v2
+az containerapp revision label swap --name order-api --resource-group rg-ecommerce \
+  --source blue --target green
+
+# Finish: 100% to v2, retire v1
+az containerapp ingress traffic set --name order-api --resource-group rg-ecommerce \
+  --revision-weight order-api--v2=100
+az containerapp revision deactivate --name order-api --resource-group rg-ecommerce \
+  --revision order-api--v1
+```
+
+### Python
+
+```python
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.appcontainers import ContainerAppsAPIClient
+from azure.mgmt.appcontainers.models import TrafficWeight
+
+client = ContainerAppsAPIClient(DefaultAzureCredential(), "<subscription-id>")
+rg, name = "rg-ecommerce", "order-api"
+app = client.container_apps.get(rg, name)
+app.configuration.active_revisions_mode = "Multiple"
+app.configuration.ingress.traffic = [
+    TrafficWeight(revision_name="order-api--v1", weight=90),
+    TrafficWeight(revision_name="order-api--v2", weight=10, label="canary"),
+]
+client.container_apps.begin_create_or_update(rg, name, app).result()
+```
+
+## Exam traps
 
 | | Single revision | Multiple revision |
-|---|-----------------|-------------------|
+|---|---|---|
 | Active revisions | 1 | Many |
-| Zero-downtime deploy | Automatic | Manual traffic management |
-| Traffic splitting | No | Yes |
-| Canary / A/B | No | Yes |
-| Labels | Limited need | Very useful |
+| Zero-downtime deploy | Automatic | You shift traffic |
+| Traffic splitting / canary / A/B | No | Yes |
+| Labels | Rarely needed | Very useful |
 | Operational effort | Low | Higher |
 | Default | Yes | Opt-in |
 
----
+> [!WARNING]
+> **Exam trap:** Traffic weights and secrets are application-scope. Changing them never creates a revision. Changing the image or env vars always does.
 
-## Best practices
+> [!WARNING]
+> **Exam trap:** A label URL bypasses the traffic split. Testers on the label reach the labeled revision even when its weight is 0%.
 
-1. **Default to single revision** unless you need canary or traffic split
-2. **Enable multiple revision** for production validation before full rollout
-3. **Deactivate old revisions** after cutover — active revisions still bill
-4. **Test with labels** before adding a revision to traffic weights
-5. **Use `latest` weight** in CI/CD to avoid updating revision names every deploy
-6. **Watch per-revision metrics** during canary — errors on 10% traffic before going to 100%
+> [!TIP]
+> Canary = multiple mode + weights. Blue/green = multiple mode + labels (swap). Simple replace = single mode.
 
----
+> [!NOTE]
+> Each active revision has its own `minReplicas`, so leaving old revisions active quietly doubles the baseline cost.
 
-## Summary
+## Quick review
 
-A **revision** is an immutable app version. **Single mode** replaces the old version automatically with zero downtime. **Multiple mode** runs versions side by side for **traffic splitting** and **labels**. Plan scaling and cost when several revisions stay active — deactivate old ones as soon as the rollout finishes.
+- Single mode is the default: one active revision and an automatic zero-downtime swap.
+- Multiple mode: many active revisions, `ingress traffic set --revision-weight`.
+- Weights total 100, routing is probabilistic, and `latest` follows the newest revision.
+- Labels: a stable per-revision URL, independent of weights, atomic swap.
+- Up to 100 inactive revisions are kept for rollback.
+- Active revisions scale independently. Deactivate old ones promptly.
 
-## Learn more
+## Practice
 
+[Practice: Container Apps deployment questions](/practice/aca-deploy) · [Practice: KEDA scaling questions](/practice/aca-keda)
+
+## Official references
+
+- [Learn unit: Choose and apply revision modes](https://learn.microsoft.com/en-us/training/modules/scale-containers-azure-container-apps/6-revision-modes-traffic-management)
 - [Revisions in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/revisions)
 - [Traffic splitting](https://learn.microsoft.com/en-us/azure/container-apps/traffic-splitting)
 - [Revision labels](https://learn.microsoft.com/en-us/azure/container-apps/revisions-manage#revision-labels)

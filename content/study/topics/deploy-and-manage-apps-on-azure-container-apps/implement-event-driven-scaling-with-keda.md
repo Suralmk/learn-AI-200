@@ -2,68 +2,88 @@
 title: "Implement event-driven scaling with KEDA"
 pathSlug: "deploy-and-manage-apps-on-azure-container-apps"
 moduleName: "Scale containers in Azure Container Apps"
+description: >-
+  KEDA in Azure Container Apps: Service Bus, Storage Queue and Event Hubs rules, threshold math, managed identity auth and partition limits.
+last_reviewed: 2026-10-25
+source_version: 2026-10-07
+tags: [Container Apps, KEDA, Service Bus, Event Hubs, Storage Queue]
+objectives: [aca-keda]
 ---
 
-## Overview
+## What this covers
 
-**Event-driven scaling** lets your Container Apps respond to signals beyond HTTP traffic — message queues, event streams, and other Azure services. Azure Container Apps integrates with **KEDA** (Kubernetes Event-driven Autoscaling) so AI workloads (embedding jobs, inference queues, document processors) scale on **actual backlog**, not just request volume.
+Event-driven scaling lets a container app respond to backlog instead of HTTP traffic. Container Apps runs **KEDA** (Kubernetes Event-driven Autoscaling) for you. You declare a scaler type, its metadata and its auth, and the platform polls the event source and sets the replica count, including down to zero. Typical AI uses are embedding workers, document processors and batch inference queues that idle overnight and burst when work arrives.
 
-## Exam tips
+**Exam weight:** Develop containerized solutions on Azure (20–25%)
 
-- Know **KEDA** translates external metrics (queue depth, partition lag) into replica count — polls every **30 seconds**
-- **Service Bus**: `messageCount` threshold → replicas = messages ÷ threshold
-- **Event Hubs**: max effective replicas ≤ **number of partitions** in the hub
-- **Storage Queue**: simpler/cheaper than Service Bus; fewer features
-- Prefer **managed identity** for scale-rule auth in production vs connection-string secrets
-- **Scale-to-zero** is supported for event-driven rules — ideal for async AI pipelines
-- First-party KEDA scalers on ACA: Service Bus, Event Hubs, Storage Queue, Blob, Log Analytics, Monitor
+**Skills measured**
 
-## When to use vs when not to use
+- "Implement event-driven scaling by using Kubernetes Event-driven Autoscaling (KEDA) in Container Apps"
+
+## Key concepts
+
+### KEDA on Container Apps
+
+Custom scale rules follow the KEDA **ScaledObject** pattern: `type` + `metadata` + `auth`. The platform polls every **30 seconds** and turns the metric into a desired replica count. You never install KEDA or write a ScaledObject yourself.
+
+Microsoft-maintained (first-party) Azure scalers: **Service Bus, Event Hubs, Storage Queue, Blob Storage, Log Analytics, Azure Monitor**. Community scalers cover non-Azure sources (see [Apply KEDA scalers for custom workloads](/study/deploy-and-manage-apps-on-azure-container-apps/apply-keda-scalers-for-custom-workloads)).
+
+### When to use it
 
 | Use event-driven (KEDA) scaling | Prefer HTTP/TCP/CPU scaling instead |
-|--------------------------------|-------------------------------------|
-| Queue processors, embedding workers, batch inference | Public REST APIs with steady browser traffic |
+|---|---|
+| Queue processors, embedding workers, batch inference | Public REST APIs with steady traffic |
 | Workloads with idle periods (scale to zero) | Low-latency sync APIs where cold start hurts |
-| Backlog grows faster than HTTP RPS reflects | Simple monolith with predictable CPU load |
+| Backlog grows faster than HTTP RPS reflects | Simple service with predictable CPU load |
 | Service Bus / Event Hubs / Storage Queue triggers | No external event source to monitor |
 
----
+### Azure Service Bus (`azure-servicebus`)
 
-## KEDA
+Enterprise messaging (queues and topics/subscriptions) with dead-lettering, sessions and scheduled delivery. Metadata: `queueName` **or** `topicName` + `subscriptionName`, plus `namespace` and `messageCount`. **Desired replicas = active messages ÷ `messageCount`**: threshold 5 with 50 messages gives 10 replicas. Each subscription scales on its own backlog.
 
-> **KEDA** (Kubernetes Event-driven Autoscaling) is an open-source component that scales workloads based on **external event sources** — not just CPU or memory. Azure Container Apps uses KEDA under the hood: you define scaler type, metadata, and auth; the platform polls metrics and adjusts replicas (including **scale-to-zero**).
+### Azure Storage Queue (`azure-queue`)
 
-Azure Container Apps follows the **ScaledObject** pattern: scaler type + metadata + authentication. Microsoft maintains first-party scalers for Azure Service Bus, Event Hubs, Storage Queue, Blob Storage, Log Analytics, and Azure Monitor. Community scalers exist for non-Azure sources.
+A simple, cheap queue inside a storage account. It has fewer features (no DLQ, no sessions) and lower throughput. Metadata: `queueName`, `accountName`, `queueLength` (messages per replica). Managed identity needs **Storage Queue Data Reader** or a higher role.
 
-**Use case:** An AI embedding worker that sits idle overnight but must spin up when 50 documents land on a Service Bus queue.
+### Azure Event Hubs (`azure-eventhub`)
 
-```text
-Queue depth ↑  →  KEDA scaler  →  ACA adds replicas  →  Workers drain queue  →  Scale to zero
+High-throughput, partitioned event streaming. It scales on **unprocessed events (lag)** between the newest event and the consumer group's checkpoint, not on a message count. Metadata: `consumerGroup`, `unprocessedEventThreshold`, `checkpointStrategy` (`blobMetadata` for the current Event Hubs SDK checkpoint store), plus `eventHubName` and `blobContainer`. A storage connection is needed to read checkpoints. **Useful replicas ≤ partition count**, because only one consumer per partition per consumer group is active. With 32 partitions, more than 32 replicas does nothing.
+
+### Authentication
+
+| Method | How | Notes |
+|---|---|---|
+| Secrets | Store the connection string as an app secret, then `--scale-rule-auth "connection=<secret>"` (YAML `auth: - secretRef / triggerParameter`) | Works everywhere. You rotate it |
+| Managed identity (preferred) | `--scale-rule-identity <identity-resource-id>` or `system`, plus an RBAC role on the source | No secrets. For example **Azure Service Bus Data Receiver** (some setups need Data Owner to read entity counts) |
+
+## How it works
+
+```mermaid
+flowchart LR
+  P[Producer] --> Q[Service Bus queue]
+  Q -. 30 s poll .-> K[KEDA scaler]
+  K --> D[desired = backlog / threshold]
+  D --> A[Container Apps replicas 0..max]
+  A --> Q
 ```
 
----
+Example: an AI embedding worker sits at 0 replicas overnight. When 50 documents land on the queue with `messageCount=5`, it scales to 10 replicas, drains the queue, then returns to zero after the 300 s cooldown.
 
-## Scale rules
+**Threshold from processing time:** if one message takes 10 s and you need 100 messages per minute, you need 100 × 10 ÷ 60 ≈ **17** concurrent workers. Size `messageCount` × replicas to give that much parallelism.
 
-> **Scale rules** in Container Apps define *when* to add or remove replicas: HTTP concurrency, TCP connections, CPU/memory, or **custom KEDA rules** tied to Azure services. Each rule has a name, type, metadata (thresholds, resource names), and optional auth.
+## Hands-on
 
-Combine rules carefully — HTTP rules suit APIs; custom KEDA rules suit async AI backends. Set `minReplicas: 0` for cost savings on batch jobs; set `maxReplicas` to cap spend and respect downstream limits (e.g. Event Hub partition count).
+### Azure portal
 
----
+1. Open **Application > Scale**, set **Min replicas 0** and a sensible **Max**.
+2. Select **Add > Custom**. Set the type (`azure-servicebus`, `azure-queue` or `azure-eventhub`) and add the metadata key/value pairs.
+3. Under **Authentication**, either map a secret to a trigger parameter (for example `connection`) or choose a managed identity. Save to create a revision.
+4. Send test messages and watch **Replica count** in **Metrics**.
 
-## Azure Service Bus
-
-> **Azure Service Bus** is a managed **enterprise messaging** service (queues and topics/subscriptions) for decoupling AI pipeline stages — e.g. ingest → embed → index. KEDA monitors **active message count** and scales replicas so backlog is processed within your SLA.
-
-**When to use:** Dead-letter queues, sessions, topics with multiple consumers, higher throughput, enterprise messaging patterns.
-
-**When not to use:** Simple, low-cost FIFO queues with minimal features — consider Storage Queue instead.
-
-### Configure Service Bus scaling
-
-The scaler divides current message count by your `messageCount` threshold. Example: threshold `5` and 50 messages → **10 replicas** requested.
+### Azure CLI
 
 ```bash
+# Service Bus queue, secret-based auth
 az containerapp create \
   --name order-processor \
   --resource-group rg-ecommerce \
@@ -74,79 +94,10 @@ az containerapp create \
   --secrets "sb-connection=<SERVICE_BUS_CONNECTION_STRING>" \
   --scale-rule-name servicebus-scaling \
   --scale-rule-type azure-servicebus \
-  --scale-rule-metadata "queueName=orders" \
-                        "namespace=sb-ecommerce" \
-                        "messageCount=5" \
+  --scale-rule-metadata "queueName=orders" "namespace=sb-ecommerce" "messageCount=5" \
   --scale-rule-auth "connection=sb-connection"
-```
 
-For **topics**, use `topicName` + `subscriptionName` instead of `queueName`. Each subscription scales independently.
-
-**AI use case:** Service Bus queue receives "document uploaded" events; Container App workers generate embeddings and write to Cosmos DB.
-
----
-
-## Azure Storage Queue
-
-> **Azure Storage Queue** is a **simple, low-cost** queue built on Azure Storage accounts. KEDA watches **approximate message count** (`queueLength` threshold) and scales replicas similarly to Service Bus — but with lower throughput and fewer messaging features.
-
-**When to use:** Straightforward queue processing, dev/test, cost-sensitive batch jobs.
-
-**When not to use:** You need dead-letter handling, sessions, scheduled delivery, or high throughput — use Service Bus.
-
-### Configure Storage Queue scaling
-
-Metadata: `queueName`, `accountName`, `queueLength`. Auth via connection string secret or **managed identity** with Storage Queue Data Reader.
-
-**AI use case:** Nightly batch job reads image URLs from a queue and runs vision inference — scales to zero between batches.
-
----
-
-## Azure Event Hubs
-
-> **Azure Event Hubs** is a **high-throughput event streaming** platform (Kafka-style partitions). KEDA scales based on **consumer lag** — unprocessed events vs checkpoint position — not simple message count.
-
-**When to use:** Streaming telemetry, high-volume ingestion, real-time AI pipelines reading partitioned event streams.
-
-**When not to use:** Simple point-to-point job queues — Service Bus or Storage Queue is simpler.
-
-**Critical exam point:** Max useful replicas ≤ **partition count**. A 32-partition hub cannot benefit from 50 replicas in one consumer group.
-
-### Configure Event Hubs scaling
-
-Key metadata: `consumerGroup`, `unprocessedEventThreshold`, `checkpointStrategy` (prefer `blobMetadata` when checkpointing to Blob Storage).
-
-```yaml
-scale:
-  minReplicas: 0
-  maxReplicas: 32
-  rules:
-    - name: eventhubs-scaling
-      custom:
-        type: azure-eventhub
-        metadata:
-          consumerGroup: "$Default"
-          unprocessedEventThreshold: "64"
-          checkpointStrategy: "blobMetadata"
-        auth:
-          - secretRef: eh-connection
-            triggerParameter: connection
-```
-
-**AI use case:** Stream of user events fed to Event Hubs; Container Apps consumers run real-time feature extraction before model inference.
-
----
-
-## Authenticate scale rules
-
-Custom scalers need auth to read queue/event metrics.
-
-| Method | Description |
-|--------|-------------|
-| **Secrets** | Store connection strings as ACA secrets; map via `--scale-rule-auth` |
-| **Managed identity** (preferred) | User-assigned identity + RBAC (e.g. Service Bus Data Receiver); no secrets in config |
-
-```bash
+# Storage Queue, managed identity (no secrets)
 az containerapp create \
   --name queue-processor \
   --resource-group rg-ecommerce \
@@ -157,65 +108,95 @@ az containerapp create \
   --max-replicas 20 \
   --scale-rule-name storage-queue-scaling \
   --scale-rule-type azure-queue \
-  --scale-rule-metadata "accountName=stecommerce" \
-                        "queueName=inventory-updates" \
-                        "queueLength=10" \
+  --scale-rule-metadata "accountName=stecommerce" "queueName=inventory-updates" "queueLength=10" \
   --scale-rule-identity <MANAGED_IDENTITY_RESOURCE_ID>
 ```
 
----
+Event Hubs in YAML:
 
-## Best practices
-
-1. **Use managed identity** — fewer secrets, easier rotation, better security posture
-2. **Set thresholds from processing time** — if one message takes 10s and you need 100/min, target ~17 concurrent workers; tune `messageCount` / `queueLength` accordingly
-3. **Scale to zero** for async AI workers — messages/events trigger scale-up automatically
-4. **Monitor queue depth + replica count** in Azure Monitor — growing backlog means lower threshold; idle replicas mean raise threshold
-5. **Cap `maxReplicas`** — control cost and respect Event Hub partition limits
-6. **Match scaler to pattern** — queue = Service Bus/Storage; stream = Event Hubs; API = HTTP rules
-
----
-
-## Pricing and cost optimization
-
-### How Container Apps is charged
-
-| Component | Billing model |
-|-----------|----------------|
-| **vCPU & memory** | Per second, per replica, while running |
-| **Requests** | HTTP request count (ingress) |
-| **Idle (scale to zero)** | **No compute charge** when replicas = 0 |
-| **Environment** | Shared infrastructure; no per-app environment fee for standard usage |
-
-Event-driven scaling saves money when workloads are **spiky or idle**: embedding workers, batch inference, and queue processors pay only while messages exist.
-
-### Cost optimization features
-
-- **`minReplicas: 0`** — scale to zero when queue/stream is empty (biggest saver for async AI)
-- **Right-size CPU/memory** per replica — don't over-provision GPU/CPU for light queue handlers
-- **Tune scale thresholds** — avoid over-scaling (too many idle replicas) or under-scaling (long backlogs)
-- **Choose the right queue** — Storage Queue is cheaper than Service Bus for simple scenarios
-- **Limit `maxReplicas`** — prevents runaway scale during poison-message storms
-- **Managed identity** — no secret rotation ops cost; reduces security incident risk
-- **Consumption plan** — pay per use; no cluster management overhead vs AKS
-
-### Example cost mindset
-
-```text
-1000 docs/day, 2 min processing each, burst over 2 hours
-→ Without scale-to-zero: replicas run 24h
-→ With KEDA + minReplicas 0: replicas run ~2h
-→ ~90%+ compute savings on idle time
+```yaml
+scale:
+  minReplicas: 0
+  maxReplicas: 32          # = partition count
+  rules:
+    - name: eventhubs-scaling
+      custom:
+        type: azure-eventhub
+        metadata:
+          eventHubName: "telemetry"
+          consumerGroup: "$Default"
+          unprocessedEventThreshold: "64"
+          checkpointStrategy: "blobMetadata"
+          blobContainer: "checkpoints"
+        auth:
+          - secretRef: eh-connection
+            triggerParameter: connection
+          - secretRef: storage-connection
+            triggerParameter: storageConnection
 ```
 
----
+### Python
 
-## Summary
+The worker that the scaler feeds. It uses managed identity to talk to Service Bus:
 
-**KEDA** on Azure Container Apps lets AI backends scale on **Service Bus**, **Storage Queue**, and **Event Hubs** metrics — not just HTTP. Configure scale rules with the right threshold, authenticate with **managed identity** when possible, respect **Event Hub partition limits**, and use **scale-to-zero** to optimize cost for asynchronous AI workloads.
+```python
+# pip install azure-identity azure-servicebus
+from azure.identity import DefaultAzureCredential
+from azure.servicebus import ServiceBusClient
 
-## Learn more
+with ServiceBusClient("sb-ecommerce.servicebus.windows.net", DefaultAzureCredential()) as sb:
+    with sb.get_queue_receiver("orders", max_wait_time=30) as receiver:
+        for msg in receiver:
+            # embed document, write to vector store ...
+            receiver.complete_message(msg)
+```
 
+## Exam traps
+
+| Source | Scaler type | Threshold key | Scales on |
+|---|---|---|---|
+| Service Bus queue/topic | `azure-servicebus` | `messageCount` | Active messages |
+| Storage Queue | `azure-queue` | `queueLength` | Approximate message count |
+| Event Hubs | `azure-eventhub` | `unprocessedEventThreshold` | Partition lag vs checkpoint |
+
+> [!WARNING]
+> **Exam trap:** Event Hubs (and Kafka) can't use more replicas than partitions in one consumer group. Raising `maxReplicas` above the partition count only adds idle cost.
+
+> [!WARNING]
+> **Exam trap:** For topics, use `topicName` **and** `subscriptionName`, not `queueName`.
+
+> [!TIP]
+> Replicas ≈ backlog ÷ threshold. A lower threshold means more replicas sooner.
+
+> [!NOTE]
+> Choose Storage Queue for cheap and simple. Choose Service Bus when you need DLQ, sessions, topics or scheduled messages. Choose Event Hubs for streams.
+
+### Pricing and cost
+
+| Component | Billing |
+|---|---|
+| vCPU & memory | Per second, per replica, while running (lower idle rate) |
+| Requests | HTTP requests through ingress |
+| Scale to zero | No compute charge when replicas = 0 |
+
+Example: 1,000 docs a day at 2 minutes each, arriving in a 2-hour burst. Always-on replicas run 24 hours. With KEDA and `minReplicas 0`, they run about 2 hours, so roughly 90% of idle compute is saved. Also cap `maxReplicas` to contain poison-message storms, right-size CPU and memory for light handlers, and use Storage Queue when Service Bus features aren't needed.
+
+## Quick review
+
+- KEDA polls every 30 s. Event-driven rules can scale to zero.
+- First-party scalers: Service Bus, Event Hubs, Storage Queue, Blob, Log Analytics, Azure Monitor.
+- Service Bus: `messageCount`. Storage Queue: `queueLength`. Event Hubs: `unprocessedEventThreshold` + checkpoint.
+- Auth: `--scale-rule-auth` (secret) or `--scale-rule-identity` (managed identity + RBAC).
+- Event Hubs replicas ≤ partitions.
+- Set the threshold from processing time, monitor queue depth against replica count, and cap `maxReplicas`.
+
+## Practice
+
+[Practice: KEDA scaling questions](/practice/aca-keda)
+
+## Official references
+
+- [Learn unit: Implement event-driven scaling with KEDA](https://learn.microsoft.com/en-us/training/modules/scale-containers-azure-container-apps/3-event-driven-scaling-keda)
 - [Scale rules in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/scale-app)
 - [KEDA scalers on Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/scale-app#custom)
 - [Azure Service Bus](https://learn.microsoft.com/en-us/azure/service-bus-messaging/)

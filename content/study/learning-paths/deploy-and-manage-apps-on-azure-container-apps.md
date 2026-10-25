@@ -22,6 +22,7 @@ modules:
     duration: ""
     description: "Deploy a containerized application to Azure Container Apps. Configure secrets and environment variables, set up image pull authentication for private registries, and verify the deployment with logs and status."
     topics:
+      - "Explore Container Apps environments"
       - "Configure secrets and variables and deploy to ACA in Azure"
       - "Configure image pull authentication on private registries"
       - "Verify deployment with logs and status"

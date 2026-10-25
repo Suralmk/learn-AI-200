@@ -2,126 +2,125 @@
 title: "Apply KEDA scalers for custom workloads"
 pathSlug: "deploy-and-manage-apps-on-azure-container-apps"
 moduleName: "Scale containers in Azure Container Apps"
+description: >-
+  Community KEDA scalers in Azure Container Apps: Kafka lag, Redis Lists and Streams, cron and Prometheus, plus ScaledObject conversion.
+last_reviewed: 2026-10-25
+source_version: 2026-10-07
+tags: [Container Apps, KEDA, Kafka, Redis, Cron, Prometheus]
+objectives: [aca-keda]
 ---
 
-## Overview
+## What this covers
 
-Beyond Azure-native scalers, Azure Container Apps supports **any ScaledObject-based KEDA scaler** — Kafka consumer lag, Redis queue depth, Prometheus metrics, cron schedules, PostgreSQL, MongoDB, and more. Custom scalers let AI workloads respond to diverse signals: streaming pipelines, in-memory task queues, business KPIs, and predictable peak windows.
+Beyond the Azure-native scalers, Container Apps accepts any **ScaledObject-based** KEDA scaler: Kafka consumer lag, Redis Lists and Streams, Prometheus queries, cron windows, PostgreSQL, MySQL, MongoDB and more. This page covers the common ones, how their metadata maps to replicas, how to combine scheduled and reactive scaling, and how to translate a Kubernetes KEDA `ScaledObject` into Container Apps scale rules.
 
-## Exam tips
+**Exam weight:** Develop containerized solutions on Azure (20–25%)
 
-- ACA supports **ScaledObject-based** KEDA scalers — not every advanced KEDA feature (external scalers, custom intervals) maps 1:1
-- **Kafka**: `lagThreshold` per partition; max replicas ≤ **partition count** (same rule as Event Hubs)
-- **Redis Lists**: `listLength` via `LLEN`; **Redis Streams**: tracks **pending** (unacknowledged) entries — better for failure handling
-- **Cron**: `start` / `end` cron expressions + `desiredReplicas` — establishes **baseline** capacity, not reactive scaling alone
-- **Multiple rules**: ACA uses the **highest** replica count among active scalers
-- **Prometheus**: `query` (PromQL) ÷ `threshold` = desired replicas
-- Prefer **Azure-native scalers** first when the event source is on Azure (first-party support)
-- Scaler categories: **Microsoft-maintained** (Azure), **community-maintained**, **external** (separate deployment — limited on ACA)
+**Skills measured**
 
-## When to use vs when not to use
+- "Implement event-driven scaling by using Kubernetes Event-driven Autoscaling (KEDA) in Container Apps"
 
-| Use custom KEDA scalers | Avoid or use alternatives |
-|-------------------------|---------------------------|
-| Kafka, Redis, or Prometheus already in your stack | Event source is Azure Service Bus / Event Hubs — use native scalers |
-| Business metrics only in Prometheus | Simple HTTP API with steady traffic — use HTTP concurrency rules |
-| Predictable peak hours (cron + HTTP) | Need sub-second scale response — KEDA polls ~30s |
-| Multi-cloud or hybrid messaging (Kafka) | External KEDA scalers requiring separate gRPC deployment |
-| AI pipeline with Redis task queue between stages | Greenfield on Azure only — native queues are simpler to operate |
+## Key concepts
 
----
-
-## KEDA scalers (custom workloads)
-
-> **KEDA scalers** are pluggable adapters that read metrics from an event source (queue depth, consumer lag, PromQL result, cron window) and compute a **desired replica count**. On Container Apps, each scaler becomes a **custom scale rule** with `type`, `metadata`, and `auth` — following the ScaledObject pattern without running KEDA yourself.
-
-Commonly used non-Azure scalers: **Apache Kafka**, **Redis Lists/Streams**, **Prometheus**, **Cron**, PostgreSQL, MySQL, MongoDB, and external metrics APIs. Evaluate each scaler's auth support, metric semantics, and how threshold maps to replicas before production use.
-
-**Scaler maintainer tiers:**
+### Scaler tiers
 
 | Tier | Examples | Exam note |
-|------|----------|-----------|
-| Microsoft-maintained | Service Bus, Event Hubs, Storage Queue | Prefer for Azure resources |
-| Community-maintained | Kafka, Redis, Cron, Prometheus | Varying docs/support |
-| External scalers | Custom gRPC scaler services | Extra deployment; limited ACA support |
+|---|---|---|
+| Microsoft-maintained | Service Bus, Event Hubs, Storage Queue | Prefer these for Azure resources |
+| Community-maintained | Kafka, Redis, Cron, Prometheus, PostgreSQL | Support and docs vary |
+| External scalers | Your own gRPC scaler service | Separate deployment. Not part of built-in ACA config |
 
-**AI use case:** A RAG pipeline uses Redis Streams as a task queue between document chunking and embedding workers — KEDA scales embedding replicas on pending message count.
+Before using a scaler in production, check which auth methods it supports, what its metric means and how the threshold maps to replicas.
 
-```text
-Event source  →  KEDA scaler (30s poll)  →  desired replicas  →  ACA scales app
+### When to use custom scalers
+
+| Use custom KEDA scalers | Avoid or use alternatives |
+|---|---|
+| Kafka, Redis or Prometheus is already in your stack | The source is Service Bus or Event Hubs: use native scalers |
+| Business metrics exist only in Prometheus | Simple HTTP API: use HTTP concurrency |
+| Predictable peak hours (cron + HTTP) | You need sub-second reaction (KEDA polls about every 30 s) |
+| Multi-cloud or hybrid messaging (Kafka) | You'd need an external gRPC scaler |
+
+### Apache Kafka (`kafka`)
+
+Scales on **consumer-group lag** (latest offset minus committed offset). Metadata: `bootstrapServers`, `consumerGroup`, `topic`, `lagThreshold` (lag per replica). Lag of 500 with a threshold of 100 gives 5 replicas. Auth supports SASL/PLAIN, SASL/SCRAM and TLS through secrets mapped to `sasl`, `username` and `password` (and `tls`). **Replicas ≤ partitions**, the same rule as Event Hubs. For greenfield Azure workloads, Event Hubs (which also speaks the Kafka protocol) has a first-party scaler.
+
+### Redis
+
+- **Redis Lists** (`redis`): `LLEN` on `listName` compared with `listLength`. Good for simple `LPUSH`/`BRPOP` work queues.
+- **Redis Streams** (`redis-streams`): `pendingEntriesCount` for a `consumerGroup` on a `stream`. It counts delivered but **unacknowledged** entries, so work held by a crashed worker still counts.
+- Cluster and Sentinel variants exist (`redis-cluster`, `redis-sentinel`, and so on). Pick the one that matches your topology.
+- Don't use Redis as a durable, high-volume broker. Memory cost and eviction risk make Service Bus or Kafka the better fit for that.
+
+### Cron (`cron`)
+
+Requests a **fixed** `desiredReplicas` between `start` and `end` (cron expressions) in a `timezone`. Outside the window it has no effect. It sets a baseline, so pair it with a reactive rule.
+
+### Prometheus (`prometheus`)
+
+Runs the PromQL `query` against `serverAddress` and computes **result ÷ `threshold`** as the desired replica count. Use it for active sessions, pending transactions, SLO signals and other app-specific metrics. (`metricName` is optional in newer KEDA versions.)
+
+### Multiple rules
+
+When several scalers are active, Container Apps uses the **highest** replica count among them.
+
+## How it works
+
+```mermaid
+flowchart LR
+  S1[Kafka lag] --> K[KEDA ~30 s poll]
+  S2[Redis pending] --> K
+  S3[Cron window] --> K
+  S4[PromQL value] --> K
+  K --> M[max of desired counts]
+  M --> R[Replicas within min..max]
 ```
 
----
+### Converting a ScaledObject
 
-## Apache Kafka
+| KEDA ScaledObject | Container Apps |
+|---|---|
+| `triggers[].type` | `--scale-rule-type` / `custom.type` |
+| `triggers[].metadata` | `--scale-rule-metadata` / `custom.metadata` |
+| `TriggerAuthentication` | Secrets + `--scale-rule-auth` / `auth[]`, or `--scale-rule-identity` |
+| `minReplicaCount` / `maxReplicaCount` | `--min-replicas` / `--max-replicas` |
 
-> **Apache Kafka** is a distributed **event streaming** platform (topics, partitions, consumer groups). The KEDA Kafka scaler monitors **consumer group lag** — the gap between the latest partition offset and your consumer's committed offset — and scales replicas to drain backlog faster.
+Container Apps has no `TriggerAuthentication` resource. You reference secrets inline. External scalers and custom polling intervals may not be available.
 
-**When to use:** Existing Kafka clusters (on-prem, Confluent Cloud, AKS), high-throughput streaming AI pipelines, multi-cloud event buses.
+## Hands-on
 
-**When not to use:** Greenfield Azure-only workloads — **Azure Event Hubs** has a native KEDA scaler with tighter ACA integration.
+### Azure portal
 
-### Configure Kafka scaling
+1. Open **Application > Scale > Add > Custom**.
+2. Enter the KEDA type exactly as KEDA names it (`kafka`, `redis`, `redis-streams`, `cron`, `prometheus`) and add the metadata pairs.
+3. Add authentication by mapping app secrets to trigger parameters. Save, then watch **Replica count**.
 
-Key metadata: `bootstrapServers`, `consumerGroup`, `topic`, `lagThreshold`. Auth: SASL (PLAIN, SCRAM) or TLS via secrets.
-
-Lag math: `lagThreshold=100` and 500 total lag → **5 replicas** requested.
-
-**Partition limit (exam):** One active consumer per partition per consumer group — `maxReplicas` above partition count wastes money.
-
-```yaml
-scale:
-  minReplicas: 1
-  maxReplicas: 50
-  rules:
-    - name: kafka-scaling
-      custom:
-        type: kafka
-        metadata:
-          bootstrapServers: "kafka-broker:9092"
-          consumerGroup: "order-consumers"
-          topic: "orders"
-          lagThreshold: "100"
-        auth:
-          - secretRef: kafka-credentials
-            triggerParameter: sasl
-```
+### Azure CLI
 
 ```bash
-az containerapp update \
-  --name ai-stream-processor \
-  --resource-group rg-ai200 \
-  --min-replicas 1 \
-  --max-replicas 32 \
-  --scale-rule-name kafka-scaling \
-  --scale-rule-type kafka \
-  --scale-rule-metadata "bootstrapServers=kafka:9092" \
-                        "consumerGroup=embedding-workers" \
-                        "topic=document-events" \
-                        "lagThreshold=50" \
-  --scale-rule-auth "sasl=kafka-credentials"
+# Kafka lag scaler
+az containerapp update --name ai-stream-processor --resource-group rg-ai200 \
+  --min-replicas 1 --max-replicas 32 \
+  --secrets "kafka-sasl=plaintext" "kafka-user=<user>" "kafka-password=<password>" \
+  --scale-rule-name kafka-scaling --scale-rule-type kafka \
+  --scale-rule-metadata "bootstrapServers=kafka:9092" "consumerGroup=embedding-workers" \
+      "topic=document-events" "lagThreshold=50" \
+  --scale-rule-auth "sasl=kafka-sasl" "username=kafka-user" "password=kafka-password"
+
+# Cron baseline during business hours
+az containerapp update --name chat-api --resource-group rg-ai200 \
+  --scale-rule-name business-hours --scale-rule-type cron \
+  --scale-rule-metadata "timezone=America/New_York" "start=0 8 * * 1-5" \
+      "end=0 18 * * 1-5" "desiredReplicas=5"
+
+# Prometheus query scaler
+az containerapp update --name llm-gateway --resource-group rg-ai200 \
+  --scale-rule-name prometheus-scaling --scale-rule-type prometheus \
+  --scale-rule-metadata "serverAddress=http://prometheus:9090" \
+      "metricName=active_inference_requests" "query=sum(active_inference_requests)" "threshold=20"
 ```
 
-**AI use case:** Kafka topic receives real-time user events; Container Apps workers run feature extraction before sending prompts to an LLM endpoint.
-
----
-
-## Redis
-
-> **Azure Cache for Redis** (or self-hosted Redis) provides **in-memory** data structures used as lightweight task queues. KEDA offers two scalers: **Redis Lists** (`LLEN` on a list key) and **Redis Streams** (pending entries in a consumer group — includes in-flight, unacknowledged work).
-
-**When to use:**
-
-- **Redis Lists** — Simple producer/consumer (`LPUSH` / `BRPOP`), dev/test, low-latency in-memory queues between AI microservices
-- **Redis Streams** — Consumer groups, acknowledgment, better recovery when workers crash mid-job
-
-**When not to use:** Durable, high-volume enterprise messaging — use Service Bus or Kafka. Very large backlogs — memory cost and eviction risk.
-
-ACA supports standard Redis, **Redis Cluster**, and **Redis Sentinel** — pick the scaler variant matching your topology.
-
-### Redis Lists scaler
-
-Metadata: `address`, `listName`, `listLength` (threshold).
+YAML for Redis and cron + HTTP:
 
 ```yaml
 scale:
@@ -139,49 +138,6 @@ scale:
         auth:
           - secretRef: redis-password
             triggerParameter: password
-```
-
-### Redis Streams scaler
-
-Metadata: `address`, `stream`, `consumerGroup`, `pendingEntriesCount` (threshold).
-
-```yaml
-scale:
-  rules:
-    - name: redis-streams-scaling
-      custom:
-        type: redis-streams
-        metadata:
-          address: "redis:6379"
-          stream: "inference-tasks"
-          consumerGroup: "gpu-workers"
-          pendingEntriesCount: "5"
-        auth:
-          - secretRef: redis-password
-            triggerParameter: password
-```
-
-**AI use case:** API gateway pushes inference requests to a Redis Stream; GPU-backed Container Apps scale on pending entries, ack on completion.
-
----
-
-## Cron
-
-> **Cron scaling** is a KEDA scaler that requests a **fixed replica count** during **scheduled time windows** — not based on live metrics. Use cron expressions for `start` and `end`, plus `timezone` and `desiredReplicas`. Outside the window, the cron rule is inactive and does not influence replica count.
-
-**When to use:** Known peak periods (business hours, batch ETL windows, scheduled model retraining), pre-warming before traffic spikes, combining with HTTP/event scalers for baseline + reactive capacity.
-
-**When not to use:** Sole scaling strategy for unpredictable load — pair with HTTP or queue-based rules. Workloads that should scale to zero 24/7 with no scheduled peaks.
-
-### Configure cron + HTTP scaling
-
-During the cron window, at least `desiredReplicas` run. ACA picks the **maximum** across all active rules.
-
-```yaml
-scale:
-  minReplicas: 0
-  maxReplicas: 20
-  rules:
     - name: business-hours
       custom:
         type: cron
@@ -196,86 +152,10 @@ scale:
           concurrentRequests: "50"
 ```
 
-```bash
-az containerapp update \
-  --name chat-api \
-  --resource-group rg-ai200 \
-  --scale-rule-name business-hours \
-  --scale-rule-type cron \
-  --scale-rule-metadata "timezone=America/New_York" \
-                        "start=0 8 * * 1-5" \
-                        "end=0 18 * * 1-5" \
-                        "desiredReplicas=5"
-```
-
-**Behavior:** Off-hours + no HTTP → scale to zero. Business hours → minimum 5 replicas even if idle. HTTP spikes above 5 → HTTP rule wins.
-
-**AI use case:** Customer support chatbot API pre-scales 5 replicas at 8 AM; HTTP rule adds more during lunch-hour traffic.
-
----
-
-## Prometheus
-
-> **Prometheus** is an open-source **metrics and alerting** system that scrapes time-series data. The KEDA Prometheus scaler runs a **PromQL query** against your Prometheus server and divides the result by `threshold` to compute desired replicas — enabling scale on **custom business metrics**, SLOs, or app-specific signals HTTP/queue rules cannot see.
-
-**When to use:** Active sessions, GPU utilization proxies, pending transactions, custom AI inference queue depth exported to Prometheus, SLO-driven scaling.
-
-**When not to use:** Metric already available as a native ACA/Azure Monitor signal — simpler to use built-in scalers. No Prometheus in your observability stack.
-
-### Configure Prometheus scaling
-
-Metadata: `serverAddress`, `metricName`, `query`, `threshold`.
+ScaledObject to Container Apps:
 
 ```yaml
-scale:
-  minReplicas: 1
-  maxReplicas: 30
-  rules:
-    - name: prometheus-scaling
-      custom:
-        type: prometheus
-        metadata:
-          serverAddress: "http://prometheus.monitoring:9090"
-          metricName: "active_inference_requests"
-          query: "sum(active_inference_requests)"
-          threshold: "20"
-```
-
-```bash
-az containerapp update \
-  --name llm-gateway \
-  --resource-group rg-ai200 \
-  --scale-rule-name prometheus-scaling \
-  --scale-rule-type prometheus \
-  --scale-rule-metadata "serverAddress=http://prometheus:9090" \
-                        "metricName=active_inference_requests" \
-                        "query=sum(active_inference_requests)" \
-                        "threshold=20"
-```
-
-**AI use case:** Scale LLM gateway replicas when `sum(active_inference_requests)` exceeds 20 per replica — correlates with token throughput better than raw HTTP count.
-
----
-
-## Convert KEDA ScaledObject to Container Apps rules
-
-> A **KEDA ScaledObject** is the Kubernetes CRD that binds a deployment to one or more triggers. On Container Apps, you map the same fields to **scale rules** in YAML or `az containerapp` CLI — secrets replace TriggerAuthentication, and `minReplicaCount`/`maxReplicaCount` become `minReplicas`/`maxReplicas`.
-
-### Conversion steps
-
-| KEDA ScaledObject | Container Apps |
-|-------------------|----------------|
-| `triggers[].type` | `--scale-rule-type` or `custom.type` |
-| `triggers[].metadata` | `--scale-rule-metadata` or `custom.metadata` |
-| `TriggerAuthentication` | Secrets + `--scale-rule-auth` or `auth[]`; or `--scale-rule-identity` |
-| `minReplicaCount` | `--min-replicas` / `minReplicas` |
-| `maxReplicaCount` | `--max-replicas` / `maxReplicas` |
-
-### Example: KEDA ScaledObject → ACA YAML
-
-**KEDA (Kubernetes):**
-
-```yaml
+# KEDA (Kubernetes)
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -294,11 +174,8 @@ spec:
         lagThreshold: "100"
       authenticationRef:
         name: kafka-auth
-```
-
-**Container Apps equivalent:**
-
-```yaml
+---
+# Container Apps equivalent (template.scale)
 scale:
   minReplicas: 0
   maxReplicas: 50
@@ -312,68 +189,74 @@ scale:
           topic: "orders"
           lagThreshold: "100"
         auth:
-          - secretRef: kafka-credentials
+          - secretRef: kafka-sasl
             triggerParameter: sasl
+          - secretRef: kafka-user
+            triggerParameter: username
+          - secretRef: kafka-password
+            triggerParameter: password
 ```
 
-**ACA limitations vs native KEDA:** No full `TriggerAuthentication` resource — reference secrets inline. External scalers and custom polling intervals may not be available.
+### Python
 
----
+A Redis Streams worker that acknowledges entries, so `pendingEntriesCount` reflects work that is actually unfinished:
 
-## Best practices
+```python
+# pip install redis
+import redis
 
-1. **Start with Azure-native scalers** when the event source is on Azure (Service Bus, Event Hubs, Storage Queue)
-2. **Test in staging** — validate poll interval (~30s), threshold math, and scale-down behavior before production
-3. **Combine cron + reactive** — cron for baseline; HTTP/Kafka/Redis/Prometheus for spikes
-4. **Respect partition limits** — Kafka and Event Hubs: `maxReplicas` ≤ partitions
-5. **Document thresholds** — why `lagThreshold=100`, who owns the PromQL query, rotation for secrets
-6. **Cap `maxReplicas`** — prevent runaway cost from misconfigured thresholds or poison messages
+r = redis.Redis(host="<redis-host>", port=6380, ssl=True, password="<from-secret-env>")
+try:
+    r.xgroup_create("inference-tasks", "gpu-workers", id="0", mkstream=True)
+except redis.ResponseError:
+    pass  # group exists
 
----
-
-## Pricing and cost optimization
-
-### How this affects billing
-
-Custom KEDA scalers do not add a separate KEDA fee on Container Apps. You pay standard ACA **compute** (vCPU + memory per replica per second), **HTTP requests** (if ingress), and the **backing services** (Kafka cluster, Redis cache, Prometheus VM/AKS, etc.).
-
-| Cost driver | Custom scaler impact |
-|-------------|---------------------|
-| **Replicas running** | Kafka/Redis/Prometheus rules add replicas when backlog/metrics rise |
-| **Cron scaler** | Keeps `desiredReplicas` running during window — **baseline cost** even if idle |
-| **Scale to zero** | Kafka/Redis/Prometheus can use `minReplicas: 0`; cron windows may prevent zero during business hours |
-| **Redis / Kafka** | Separate service billing (Cache SKU, Confluent, self-hosted infra) |
-
-### Cost optimization
-
-- **`minReplicas: 0`** on Kafka/Redis/Prometheus rules — avoid paying for idle workers
-- **Tune thresholds** — too low → excess replicas; too high → slow backlog drain and SLA misses
-- **Cron only for real peaks** — don't set `desiredReplicas: 10` all day if HTTP scaling suffices mornings only
-- **Right-size Redis** — in-memory queues are fast but costly at scale; move durable backlog to Service Bus
-- **Kafka partitions** — match partition count to max needed parallelism; don't over-partition
-- **Prometheus query cost** — simple queries; avoid expensive PromQL evaluated every 30s across large datasets
-- **`maxReplicas` cap** — hard limit on spend during metric storms or lag spikes
-- **Prefer Azure-native scalers** — fewer moving parts, no extra Kafka/Redis infra if Azure queues suffice
-
-### Example: cron vs scale-to-zero trade-off
-
-```text
-Cron: 5 replicas × 10 business hours/day × $0.000024/vCPU-s
-  → Baseline cost for instant morning capacity
-
-Kafka lag scaler: 0 replicas overnight, scale on demand
-  → Save ~70% compute vs always-on 5 replicas
-  → Accept cold-start latency when first messages arrive
+while True:
+    for _, entries in r.xreadgroup("gpu-workers", "replica-1", {"inference-tasks": ">"},
+                                   count=5, block=5000) or []:
+        for entry_id, fields in entries:
+            # run inference ...
+            r.xack("inference-tasks", "gpu-workers", entry_id)
 ```
 
----
+## Exam traps
 
-## Summary
+| Signal | Scaler | Threshold key |
+|---|---|---|
+| Kafka consumer lag | `kafka` | `lagThreshold` |
+| Redis list length | `redis` | `listLength` |
+| Redis unacked entries | `redis-streams` | `pendingEntriesCount` |
+| Business-hours baseline | `cron` | `desiredReplicas` |
+| Custom app metric | `prometheus` | `threshold` |
 
-Custom KEDA scalers on Container Apps unlock **Kafka**, **Redis**, **Cron**, and **Prometheus** (plus dozens more) for event-driven AI workloads. Map ScaledObject specs to ACA scale rules, combine scheduled and reactive scaling, respect **partition limits**, and optimize cost with **scale-to-zero**, tuned thresholds, and capped `maxReplicas`.
+> [!WARNING]
+> **Exam trap:** Cron alone doesn't react to load. During the window it holds `desiredReplicas` even when idle, and that costs money. Combine it with HTTP or queue rules.
 
-## Learn more
+> [!WARNING]
+> **Exam trap:** If the source is on Azure (Service Bus, Event Hubs, Storage Queue), the expected answer is the first-party scaler, not a community one.
 
+> [!TIP]
+> Multiple rules means max wins. Off-hours with no traffic gives 0 replicas. Business hours give at least 5. A traffic spike lets the HTTP rule go above 5.
+
+> [!NOTE]
+> There's no separate KEDA fee. You pay for replicas plus the backing service (Kafka cluster, Redis SKU, Prometheus hosting). Keep PromQL queries cheap, because they run every poll.
+
+## Quick review
+
+- ACA supports ScaledObject-based scalers, but not the `TriggerAuthentication` resource or external scalers.
+- Kafka: `lagThreshold` per replica, replicas ≤ partitions, SASL via `sasl`/`username`/`password`.
+- Redis Lists use `LLEN`. Redis Streams count pending (unacked) entries.
+- Cron: `start`/`end`/`timezone`/`desiredReplicas` set a baseline.
+- Prometheus: query ÷ threshold = replicas.
+- With several active rules, the highest replica count wins.
+
+## Practice
+
+[Practice: KEDA scaling questions](/practice/aca-keda)
+
+## Official references
+
+- [Learn unit: Apply KEDA scalers for custom workloads](https://learn.microsoft.com/en-us/training/modules/scale-containers-azure-container-apps/4-keda-scalers-custom-workloads)
 - [Scale rules in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/scale-app)
 - [KEDA scalers catalog](https://keda.sh/docs/latest/scalers/)
 - [KEDA Apache Kafka scaler](https://keda.sh/docs/latest/scalers/apache-kafka/)

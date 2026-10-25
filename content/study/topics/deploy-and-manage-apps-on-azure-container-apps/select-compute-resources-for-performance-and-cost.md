@@ -2,82 +2,111 @@
 title: "Select compute resources for performance and cost"
 pathSlug: "deploy-and-manage-apps-on-azure-container-apps"
 moduleName: "Scale containers in Azure Container Apps"
+description: >-
+  Size Azure Container Apps for cost and speed: valid CPU/memory pairs, Consumption vs Dedicated workload profiles, GPU, replica math and idle billing.
+last_reviewed: 2026-10-25
+source_version: 2026-10-07
+tags: [Container Apps, Workload profiles, Cost, Performance]
+objectives: [aca-keda, aca-deploy]
 ---
 
-## Overview
+## What this covers
 
-**CPU**, **memory**, **replica count**, and **workload profile** choices on Azure Container Apps directly control AI workload performance and cost. A chat API, embedding worker, and GPU inference container each need different sizing — this unit covers how to allocate resources, pick Consumption vs Dedicated profiles, and balance scale limits with per-replica capacity.
+CPU, memory, replica limits and the workload profile together decide how fast an AI workload runs and how much it costs. A chat API, an embedding worker and a GPU inference container each need different choices. This page covers the allowed resource combinations, what happens at the limits, Consumption versus Dedicated profiles, capacity math and billing.
 
-## Exam tips
+**Exam weight:** Develop containerized solutions on Azure (20–25%)
 
-- **Memory constraint:** `memory (GiB) ≥ 2 × CPU (cores)` — e.g. 0.5 CPU → minimum 1.0 GiB
-- **Defaults:** 0.25 cores, 0.5 GiB per container
-- **Consumption max per container:** 4 cores, 8 GiB (not per replica — per container in the pod)
-- **Memory over limit** → replica **terminated and restarted**; **CPU over limit** → **throttled** (degraded performance, not killed)
-- **Billing:** vCPU-seconds + GiB-seconds while replicas run; idle replicas cost **less** than active; **scale-to-zero** = no compute charge
-- **Dedicated workload profiles** required for **GPU** and allocations **> 4 cores / 8 GiB**
-- **Total capacity** = per-replica resources × `maxReplicas` (max 1000 replicas per revision)
-- Multi-container apps: **each container** has its own CPU/memory allocation
+**Skills measured**
 
-## When to use vs when not to use
+- "Implement event-driven scaling by using KEDA in Container Apps"
+- "Deploy applications to Azure Container Apps, including environment configuration and revision management"
 
-| Choose Consumption (serverless) | Choose Dedicated workload profile |
-|--------------------------------|-----------------------------------|
-| Variable traffic, scale-to-zero savings | GPU inference (CUDA workloads) |
-| Web APIs, queue workers, embedding jobs | Need > 4 cores or > 8 GiB per container |
-| Cost-sensitive AI microservices | Strict, consistent latency (no noisy-neighbor) |
-| Spiky batch inference | Compliance requires dedicated infrastructure |
-| Start with defaults, right-size from metrics | Sustained high utilization justifies reserved VMs |
+## Key concepts
 
-| Right-size smaller replicas | Right-size larger replicas |
-|-----------------------------|----------------------------|
-| Finer scaling granularity | Fewer replicas for same total capacity |
-| More scale events | Coarser steps — may over-provision between thresholds |
-| Light API handlers, small models | CPU-heavy JSON, image prep, large in-memory caches |
+### Resource allocation
 
----
+You allocate CPU (cores or fractions) and memory (GiB) **per container**. Every replica gets the full allocation. Billing counts **vCPU-seconds** and **GiB-seconds**.
 
-## Resource allocation
+On the **Consumption** plan, the **total across all containers in the app** (main + sidecars) must be one of the fixed pairs where memory is exactly twice the CPU:
 
-> **Resource allocation** is the CPU (cores or fractions) and memory (GiB) assigned to **each container** in a replica. Every replica gets the full allocation; the platform enforces limits so apps in the same environment do not contend for unbounded resources.
+| CPU (cores) | Memory |
+|---|---|
+| 0.25 | 0.5Gi |
+| 0.5 | 1.0Gi |
+| 1.0 | 2.0Gi |
+| 2.0 | 4.0Gi |
+| 4.0 | 8.0Gi (Consumption max in a workload profiles environment) |
 
-Billing tracks **vCPU-seconds** and **GiB-seconds** — larger per-replica sizes cost more per second but may reduce the replica count needed for peak load.
+Steps of 0.25 core / 0.5Gi in between are also valid. Apps in a legacy **Consumption-only** environment top out at **2 cores / 4Gi**. The Learn module teaches a starting point of **0.25 cores / 0.5 GiB** and states the rule as "memory at least 2× CPU". In practice, use the exact 1:2 pairs.
 
-### CPU vs memory behavior
+### What happens at the limit
 
-| Limit exceeded | Platform behavior | Impact |
-|----------------|-------------------|--------|
-| **Memory** | Replica **terminated and restarted** | Hard failure — requests may fail mid-flight |
-| **CPU** | Replica **throttled** | Slower responses, timeouts under load — no automatic restart |
+| Limit exceeded | Behavior | Impact |
+|---|---|---|
+| **Memory** | Container is **killed and restarted** (OOM) | Hard failure. In-flight requests fail |
+| **CPU** | Container is **throttled** | Slower responses and timeouts, but no restart |
 
-### Memory–CPU constraint
+### Multi-container replicas
 
-| CPU (cores) | Minimum memory (GiB) |
-|-------------|----------------------|
-| 0.25 | 0.5 (default) |
-| 0.5 | 1.0 |
-| 1.0 | 2.0 |
-| 2.0 | 4.0 |
-| 4.0 | 8.0 (Consumption max) |
+| Container | Typical role | Sizing note |
+|---|---|---|
+| Main app | API or worker | Size for the request work |
+| Sidecar | OTel collector, auth proxy | Keep small (0.25 / 0.5Gi) |
+| Init | Model download | Runs once per replica start |
 
-**AI use case:** An LLM gateway at 0.5 CPU / 1 GiB handles routing; bump to 2 CPU / 4 GiB if you cache tokenizers and prompt templates in memory.
+Sidecar resources count toward the replica total and the allowed pair.
 
----
+### Environment types and workload profiles
 
-## Replica
+| Feature | Consumption (serverless) | Dedicated workload profile |
+|---|---|---|
+| Billing | Per vCPU-s + GiB-s + requests. Idle rate when idle. Zero at 0 replicas | Per node (VM size) for the profile, plus a management charge |
+| Max per app | 4 vCPU / 8 GiB | Up to the VM size (D-series, E-series memory-optimized) |
+| GPU | Serverless GPU in some regions | NC/A100-class GPU profiles |
+| Performance | Shared, some variability, cold starts | Isolated and consistent |
+| Best for | Most APIs and async workers | GPU inference, big memory, steady load, compliance |
 
-> A **replica** is one running instance of your container app revision. **Total capacity** = (CPU per replica) × (replica count). Scale rules add or remove replicas; each active replica bills for its configured CPU and memory.
+A **workload profiles environment** can mix the Consumption profile and Dedicated profiles. Each app picks one with `--workload-profile-name`.
+
+### Replica math
 
 ```text
-Peak capacity = --cpu × --max-replicas
-Example: 0.5 CPU × 20 replicas = 10 cores maximum
+Peak capacity = cpu-per-replica × maxReplicas
+Required maxReplicas = peak load ÷ throughput per replica
+Example: 2000 RPS ÷ 100 RPS/replica = 20 replicas × 0.5 CPU = 10 cores
 ```
 
----
+The ceiling is **1,000 replicas per revision**, but cost or downstream limits usually bind first.
 
-## Configure container resources
+## How it works
 
-Use `--cpu` and `--memory` on create or update. Defaults suit lightweight apps; increase when you see throttling, OOM restarts, or latency tied to resource pressure.
+```mermaid
+flowchart LR
+  W[Workload] --> G{GPU or >4 vCPU/8 GiB?}
+  G -- yes --> D[Dedicated profile]
+  G -- no --> S{Steady high use or strict isolation?}
+  S -- yes --> D
+  S -- no --> C[Consumption profile]
+  C --> Z[minReplicas 0 if async]
+```
+
+| Scenario | Per replica | Peak need | Config |
+|---|---|---|---|
+| Chat API | 100 RPS at 0.5 CPU | 2000 RPS | `--cpu 0.5 --memory 1.0Gi --max-replicas 20` |
+| Embedding worker | 10 docs/min at 1 CPU | 500 docs/min | `--cpu 1.0 --memory 2.0Gi --max-replicas 50` |
+| GPU inference | 5 req/s | 50 req/s | GPU workload profile, `--max-replicas 10` |
+
+**Bigger vs smaller replicas:** bigger replicas mean fewer scale events but coarser steps, so you may over-provision. Smaller replicas track demand more closely but scale more often, so connections need to drain gracefully.
+
+## Hands-on
+
+### Azure portal
+
+1. When you create the environment, choose **Workload profiles** and add a Dedicated profile (for example D4 or a GPU type) if needed.
+2. In **Containers > Edit and deploy**, set **CPU and Memory** from the allowed list, then **Create**.
+3. Under **Scale**, set min/max replicas. Check the **Metrics** blade for CPU usage, memory working set and restarts.
+
+### Azure CLI
 
 ```bash
 az containerapp create \
@@ -89,197 +118,70 @@ az containerapp create \
   --memory 1.0Gi \
   --min-replicas 2 \
   --max-replicas 20
+
+# Right-size after monitoring (new revision, same image)
+az containerapp update --name embedding-worker --resource-group rg-ai200 \
+  --cpu 1.0 --memory 2.0Gi --min-replicas 0 --max-replicas 50
+
+# Add a Dedicated profile and pin an app to it
+az containerapp env workload-profile add --name my-environment --resource-group rg-ai200 \
+  --workload-profile-name d8 --workload-profile-type D8 --min-nodes 1 --max-nodes 3
+az containerapp update --name big-model-api --resource-group rg-ai200 \
+  --workload-profile-name d8 --cpu 6 --memory 24Gi
 ```
 
-```bash
-# Right-size after monitoring — update without redeploying image
-az containerapp update \
-  --name embedding-worker \
-  --resource-group rg-ai200 \
-  --cpu 1.0 \
-  --memory 2.0Gi \
-  --min-replicas 0 \
-  --max-replicas 50
+### Python
+
+```python
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.appcontainers import ContainerAppsAPIClient
+from azure.mgmt.appcontainers.models import ContainerResources
+
+client = ContainerAppsAPIClient(DefaultAzureCredential(), "<subscription-id>")
+app = client.container_apps.get("<resource-group>", "embedding-worker")
+app.template.containers[0].resources = ContainerResources(cpu=1.0, memory="2Gi")
+app.template.scale.min_replicas, app.template.scale.max_replicas = 0, 50
+client.container_apps.begin_create_or_update("<resource-group>", "embedding-worker", app).result()
 ```
 
-### Multi-container replicas
+## Exam traps
 
-> In a **multi-container** replica (app + sidecar), **each container** declares its own `--cpu` and `--memory`. Sidecars for logging, OpenTelemetry, or model warm-up add to the per-replica footprint and environment capacity usage.
+| Requirement | Choose |
+|---|---|
+| Variable traffic, pay only when used | Consumption + `minReplicas 0` |
+| GPU, or > 4 vCPU / 8 GiB per app | Dedicated workload profile |
+| Consistent latency, no noisy neighbors | Dedicated profile |
+| Sub-200 ms first response | `minReplicas ≥ 1` |
+| Cost ceiling | Cap `maxReplicas` (worst case ≈ cpu × memory × max) |
 
-| Container | Typical AI role | Sizing note |
-|-----------|-----------------|-------------|
-| Main app | API or worker | Size for request handling |
-| Sidecar | OTel collector, auth proxy | Keep small (0.25 CPU / 0.5 GiB) |
-| Init | Model download | Runs once per replica start |
+> [!WARNING]
+> **Exam trap:** `--cpu 0.5 --memory 2.0Gi` fails on Consumption. The pair must be 0.5/1.0Gi. CPU and memory move together at 1:2.
 
----
+> [!WARNING]
+> **Exam trap:** The Consumption limit applies to the **sum of all containers** in the replica. A sidecar eats into the same 4 vCPU / 8 GiB.
 
-## Workload profiles and environment types
+> [!TIP]
+> Restarts mean memory. Slowness means CPU. Restarts plus large models suggest a Dedicated profile with more memory.
 
-> A **Container Apps environment** hosts your apps. **Consumption-only** environments use shared, serverless compute with pay-per-use billing. **Workload profile** environments add **Dedicated** VM pools reserved for your workloads — required for GPU and larger per-container limits.
+> [!NOTE]
+> Billing summary: active replicas pay the full rate, idle replicas a reduced rate, zero replicas nothing for compute. Dedicated profiles bill per node even when apps scale down.
 
-### Environment comparison
+## Quick review
 
-| Feature | Consumption-only environment | Workload profiles environment |
-|---------|------------------------------|-------------------------------|
-| Billing | vCPU + GiB per second (active/idle rates) | Consumption profile: same; Dedicated: VM reservation |
-| Max per container | 4 CPU, 8 GiB | Dedicated: larger (VM-size dependent) |
-| GPU | Not supported | Supported on GPU workload profiles |
-| Performance | Shared tenants — some variability | Dedicated: consistent, isolated |
-| Best for | Most APIs, async AI workers | GPU inference, compliance, large memory |
+- Consumption pairs are fixed at 1:2 (0.25/0.5Gi up to 4/8Gi), summed across containers.
+- A Consumption-only environment caps apps at 2 vCPU / 4 GiB.
+- Over memory means OOM kill and restart. Over CPU means throttling.
+- Dedicated profiles: GPU, larger sizes, isolation, per-node billing.
+- Capacity = cpu × maxReplicas. Max 1,000 replicas per revision.
+- Start small, right-size from metrics, and use `minReplicas 0` for async work.
 
-### Consumption plan
+## Practice
 
-> The **Consumption plan** (serverless) charges only while replicas run. You do not provision VMs; the platform scales infrastructure. **Scale-to-zero** eliminates compute cost during idle periods — ideal for intermittent embedding or batch jobs.
+[Practice: KEDA scaling questions](/practice/aca-keda) · [Practice: Container Apps deployment questions](/practice/aca-deploy)
 
-**When to use:** Variable traffic, cost optimization, most web and background AI services.
+## Official references
 
-**When not to use:** GPU workloads, per-container needs above 4 CPU / 8 GiB, or strict latency SLAs that cannot tolerate cold starts or shared-tenant variability.
-
-### Dedicated workload profile
-
-> A **Dedicated workload profile** assigns specific VM sizes (e.g. D-series, GPU SKUs) to your environment. Your container apps run on reserved capacity — more predictable performance, higher baseline cost, required for **GPU** and large memory models.
-
-**When to use:** Local LLM inference on GPU, large in-memory vector indexes, compliance-mandated isolation.
-
-**When not to use:** Low-traffic dev APIs where Consumption + scale-to-zero is cheaper.
-
-**AI use case:** Consumption profile for a document-ingestion API (scale-to-zero nights); Dedicated GPU profile for real-time image generation with stable sub-second latency.
-
----
-
-## Optimize for cost efficiency
-
-> **Cost optimization** on Container Apps means minimizing billable vCPU-seconds and GiB-seconds without missing SLAs — scale-to-zero, right-sizing, and Consumption over Dedicated when utilization is spiky.
-
-### What you pay for
-
-| Charge type | Details |
-|-------------|---------|
-| **Active replicas** | Full vCPU + GiB rate while processing |
-| **Idle replicas** | Lower rate — still running but not handling requests |
-| **Scale-to-zero** | **$0 compute** for that app when replicas = 0 |
-| **HTTP requests** | Per-request ingress charge (separate from compute) |
-| **Dedicated VMs** | Reserved profile cost even when apps scale down |
-
-### Cost optimization checklist
-
-- Set **`minReplicas: 0`** for intermittent queue workers and batch inference
-- **Start at defaults** (0.25 CPU / 0.5 GiB) — increase only from Azure Monitor data
-- Prefer **Consumption** over Dedicated unless GPU, size limits, or compliance require it
-- **Cap `maxReplicas`** — defines cost ceiling: `max cost ∝ cpu × memory × maxReplicas`
-- Avoid **over-sized cron baselines** — idle replicas during business hours still bill
-- **Right-size before scaling out** — doubling replicas costs more than modest CPU bump if app is CPU-throttled
-
-```text
-Async embedding worker:
-  minReplicas 0 + KEDA queue scaler → pay only when documents arrive
-  vs minReplicas 2 24/7 → ~100% idle compute waste overnight
-```
-
----
-
-## Optimize for performance
-
-> **Performance optimization** ensures each replica has enough CPU and memory to meet latency and throughput targets — and enough **minimum replicas** to avoid cold-start delays where SLAs require it.
-
-### Performance levers
-
-| Lever | Action | AI example |
-|-------|--------|------------|
-| **More CPU** | Reduce throttling on serialization, tokenization, image decode | PDF chunking API |
-| **More memory** | Larger caches, bigger request payloads, in-memory indexes | RAG context cache |
-| **`minReplicas ≥ 1`** | Eliminate cold start on first request | User-facing chat API |
-| **Dedicated profile** | Consistent CPU, GPU access | Stable LLM inference |
-| **Tune `maxReplicas`** | Enough peak cores for concurrent inference | 2000 RPS ÷ 100 RPS/replica = 20 replicas |
-
-### Cold start trade-off
-
-| Setting | Latency | Cost |
-|---------|---------|------|
-| `minReplicas: 0` | First request waits for provision + pull image | Lowest idle cost |
-| `minReplicas: 1+` | Always warm | Always-on compute charge |
-
-Monitor **CPU utilization**, **memory working set**, and **replica restart count** (OOM indicator) in Azure Monitor before and after changes.
-
----
-
-## Balance scaling limits with resources
-
-> **Scaling limits** (`minReplicas`, `maxReplicas`) and **per-replica resources** together define peak capacity and maximum spend. Plan both from expected peak load and per-replica throughput.
-
-### Capacity planning formula
-
-```text
-Required maxReplicas = peak load ÷ throughput per replica
-Total peak CPU = --cpu × maxReplicas
-Total peak memory = --memory × maxReplicas
-```
-
-| Scenario | Per replica | Peak need | Config |
-|----------|-------------|-----------|--------|
-| Chat API | 100 RPS, 0.5 CPU | 2000 RPS | `--cpu 0.5 --max-replicas 20` |
-| Embedding worker | 10 docs/min, 1 CPU | 500 docs/min | `--cpu 1.0 --max-replicas 50` |
-| GPU inference | 5 req/s, 4 CPU + GPU | 50 req/s | Dedicated profile, `--max-replicas 10` |
-
-### Replica size vs granularity
-
-**Larger replicas (fewer copies):**
-
-- Fewer scale events, less orchestration overhead
-- Risk of over-provisioning between scale steps
-
-**Smaller replicas (more copies):**
-
-- Finer match to demand
-- More scale events; ensure app handles connection drain gracefully
-
-**Exam cap:** Maximum **1000 replicas** per revision — practical limits usually come from workload and cost before hitting this.
-
----
-
-## Best practices
-
-1. **Start with defaults, scale from data** — 0.25 CPU / 0.5 GiB, then tune from Azure Monitor
-2. **Use Consumption for most AI microservices** — Dedicated only when GPU, size, or compliance demands it
-3. **Remember memory ≥ 2× CPU** — invalid combos fail at deploy time
-4. **Scale-to-zero for async** — pair with reliable KEDA/HTTP triggers
-5. **`minReplicas: 1` for sync user APIs** — when cold start is unacceptable
-6. **Monitor OOM vs throttle** — restarts = memory; slow under load = CPU
-7. **Plan total cost** — `cpu × memory × maxReplicas` is your worst-case compute envelope
-8. **Size sidecars separately** — don't starve the main inference container
-
----
-
-## Pricing and billing summary
-
-| Plan / profile | Billing model | Cost optimization highlight |
-|----------------|---------------|----------------------------|
-| **Consumption** (serverless) | Per vCPU-second + GiB-second + requests | Scale-to-zero, right-sizing, variable traffic |
-| **Idle replicas** | Reduced rate vs active | Lower than active but not free — prefer zero min for batch |
-| **Dedicated workload profile** | Reserved VM capacity + app consumption | Use only when utilization is steady or GPU required |
-| **Multi-container** | Sum of each container's allocation × replicas | Minimize sidecar resources |
-
-### Example: cost vs performance decision
-
-```text
-LLM routing API (lightweight):
-  0.25 CPU, 0.5 GiB, minReplicas 1, maxReplicas 10
-  → Low per-replica cost, always-warm for <200ms SLA
-
-Batch summarization worker:
-  1.0 CPU, 2.0 GiB, minReplicas 0, maxReplicas 30, KEDA on Service Bus
-  → Zero cost overnight, scales with queue depth
-```
-
----
-
-## Summary
-
-Select **CPU and memory** per container (memory at least **2× CPU** in GiB), pick **Consumption** for most variable AI workloads and **Dedicated** for GPU or large allocations, and align **`maxReplicas` × per-replica resources** with peak load and budget. Use **scale-to-zero** and monitoring to optimize cost; use **`minReplicas ≥ 1`** and Dedicated profiles when latency and consistency matter more than idle savings.
-
-## Learn more
-
+- [Learn unit: Select compute resources for performance and cost](https://learn.microsoft.com/en-us/training/modules/scale-containers-azure-container-apps/5-compute-resources-performance-cost)
 - [Containers in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/containers)
 - [Workload profiles](https://learn.microsoft.com/en-us/azure/container-apps/workload-profiles-overview)
 - [Scale apps in Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/scale-app)

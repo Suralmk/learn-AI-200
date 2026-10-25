@@ -2,562 +2,197 @@
 title: "Configure secrets and variables and deploy to ACA in Azure"
 pathSlug: "deploy-and-manage-apps-on-azure-container-apps"
 moduleName: "Deploy a container to Container Apps"
+description: >-
+  Deploy to Azure Container Apps with env vars, secrets, secretref, Key Vault references, managed identity and DefaultAzureCredential.
+last_reviewed: 2026-10-25
+source_version: 2026-10-07
+tags: [Container Apps, Secrets, Key Vault, Managed Identity, Environment variables]
+objectives: [aca-deploy]
 ---
 
-## Overview
+## What this covers
 
-Complete guide to **secure secret management and deployment** with Azure Container Apps, Managed Identity, and Azure Key Vault. Your AI apps never store secrets permanently — Azure authenticates the app and Key Vault returns secrets at runtime.
+How to deploy a container app and give it runtime configuration without baking anything sensitive into the image. Plain settings go in environment variables. Sensitive values go in Container Apps secrets, which can be stored inline or pulled from Azure Key Vault by the app's managed identity. Your code can also read Key Vault directly with `DefaultAzureCredential`. The goal is an app that holds no passwords, keys or client secrets of its own.
 
-## Exam tips
+**Exam weight:** Develop containerized solutions on Azure (20–25%)
 
-- Prefer **Managed Identity + Key Vault** over hardcoding secrets or embedding them in Docker images
-- Use **Key Vault Secrets User** (least privilege), not Key Vault Administrator
-- `DefaultAzureCredential` works for both local (`az login`) and production (managed identity) with no code changes
-- Separate non-secret config (env vars) from secrets (Key Vault)
+**Skills measured**
 
-## Why use Azure Key Vault?
+- "Deploy applications to Azure Container Apps, including environment configuration and revision management"
 
-Your application may need:
+## Key concepts
 
-- Database passwords
-- OpenAI API keys
-- Stripe secret keys
-- JWT signing keys
-- SMTP passwords
-- OAuth client secrets
+### Why secrets don't belong in code or images
 
-A beginner usually writes:
+Apps need database passwords, API keys, JWT signing keys, SMTP passwords and OAuth client secrets. Hard-coding them (`OPENAI_KEY = "sk-..."`), putting them in a committed `.env` file or writing `ENV DB_PASSWORD=...` in a Dockerfile means they end up in Git history and image layers. Anyone with repo or registry access can read them, and rotating them takes a rebuild.
+
+### Environment variables vs secrets
+
+| Non-secret (env vars) | Secret (Container Apps secret or Key Vault) |
+|---|---|
+| `APP_ENV`, `PORT`, `LOG_LEVEL`, feature flags, endpoint URLs | API keys, passwords, connection strings, JWT secrets |
+
+- `--env-vars` sets variables on `create`. `--set-env-vars` adds or updates variables on `update` and keeps the others. `--remove-env-vars` deletes specific ones, and `--replace-env-vars` replaces the whole list.
+- `az containerapp secret set --secrets name=value` stores a secret on the app. Secret names may only contain lowercase letters, numbers and hyphens.
+- An env var points to a secret with `secretref:<secret-name>` on the CLI, or `secretRef:` in YAML. YAML then holds only the secret name, never the value.
+- A secret can also be a **Key Vault reference** (`keyvaultref:<secret-uri>,identityref:<system|identity-resource-id>`). Key Vault stays the system of record.
+
+### Authentication vs authorization
+
+| Concept | Question | Who answers it for Key Vault |
+|---|---|---|
+| Authentication | Who are you? | Microsoft Entra ID issues a token |
+| Authorization | What may you do? | Azure RBAC (or legacy access policies) on the vault |
+
+### Managed identity
+
+A managed identity is an identity that Azure manages and Entra ID trusts, so there is no password, client secret or certificate for you to rotate.
+
+- **System-assigned:** one identity tied to the app and deleted with it. The right default for most apps.
+- **User-assigned:** a standalone resource that you can attach to several apps. Use it when apps share permissions, when the identity must outlive an app, or when it must exist before the app does (for example, for image pulls at create time).
+
+Grant the identity **Key Vault Secrets User**. It can read secret values. Don't grant Key Vault Administrator.
+
+## How it works
+
+```mermaid
+sequenceDiagram
+  participant App as Container App
+  participant MI as Managed identity endpoint
+  participant Entra as Microsoft Entra ID
+  participant KV as Azure Key Vault
+  App->>MI: request token (DefaultAzureCredential)
+  MI->>Entra: authenticate identity
+  Entra-->>App: access token
+  App->>KV: get secret + token
+  KV-->>App: secret (RBAC: Key Vault Secrets User)
+```
+
+There are two ways to consume a secret:
+
+1. **The app reads Key Vault directly** with `SecretClient`. It always gets the latest version and can reload at runtime, which suits long-running services.
+2. **Container Apps resolves a Key Vault reference** into an app secret and maps it to an env var. The code just reads `os.environ`. This suits config loaded at startup.
+
+Typical flow: build the image, push to ACR, create the app, assign the identity, grant RBAC, then add secrets and env vars, which creates a new revision.
+
+## Hands-on
+
+### Azure portal
+
+1. Open the container app, then **Settings > Identity**. Turn **System assigned** on and save.
+2. In the Key Vault, go to **Access control (IAM)** and assign **Key Vault Secrets User** to the app's identity.
+3. In the app, open **Settings > Secrets > Add**. Choose **Key Vault reference**, paste the secret URI and pick the identity.
+4. Open **Application > Containers > Edit and deploy**. Edit the container and add an env var with source **Reference a secret**. Click **Create** to deploy a new revision.
+
+### Azure CLI
+
+```bash
+az group create --name my-rg --location eastus
+az acr create --resource-group my-rg --name myregistry --sku Basic
+az keyvault create --resource-group my-rg --name my-demo-kv --location eastus
+az containerapp env create --name my-env --resource-group my-rg --location eastus
+
+az containerapp create --name my-api --resource-group my-rg --environment my-env \
+  --image myregistry.azurecr.io/api:v1 --target-port 8000 --ingress external \
+  --env-vars APP_ENV=prod LOG_LEVEL=info
+
+az keyvault secret set --vault-name my-demo-kv --name DatabasePassword --value '<value>'
+az keyvault secret set --vault-name my-demo-kv --name OpenAIKey --value '<value>'
+
+# Identity + least-privilege role
+az containerapp identity assign --name my-api --resource-group my-rg --system-assigned
+PRINCIPAL_ID=$(az containerapp show --name my-api --resource-group my-rg \
+  --query identity.principalId -o tsv)
+az role assignment create --assignee "$PRINCIPAL_ID" --role "Key Vault Secrets User" \
+  --scope "$(az keyvault show --name my-demo-kv --query id -o tsv)"
+
+# Key Vault reference secret -> env var
+az containerapp secret set --name my-api --resource-group my-rg \
+  --secrets "db-password=keyvaultref:https://my-demo-kv.vault.azure.net/secrets/DatabasePassword,identityref:system"
+az containerapp update --name my-api --resource-group my-rg \
+  --set-env-vars DATABASE_PASSWORD=secretref:db-password
+
+# Shared user-assigned identity (optional)
+az identity create --resource-group my-rg --name shared-identity
+az containerapp identity assign --name my-api --resource-group my-rg \
+  --user-assigned "$(az identity show -g my-rg -n shared-identity --query id -o tsv)"
+```
+
+The same settings in YAML, applied with `az containerapp update --yaml ./app.yml` (other flags are ignored when `--yaml` is used):
+
+```yaml
+properties:
+  template:
+    containers:
+      - name: my-api
+        env:
+          - name: LOG_LEVEL
+            value: info
+          - name: DATABASE_PASSWORD
+            secretRef: db-password
+```
+
+### Python
 
 ```python
-OPENAI_KEY = "sk-xxxxxxxx"
-DATABASE_PASSWORD = "mypassword"
-JWT_SECRET = "supersecret"
-```
-
-Or:
-
-```env
-OPENAI_KEY=sk-xxxxxxxx
-DB_PASSWORD=password123
-```
-
-This is dangerous because:
-
-- Secrets get committed to GitHub
-- Developers can see them in source
-- Passwords are difficult to rotate
-- Compromised repositories expose everything
-
-Instead, the app calls Key Vault at runtime:
-
-```text
-Application → Azure Key Vault → Secrets stored securely
-```
-
-Your application never stores secrets permanently.
-
----
-
-## Authentication vs authorization
-
-People often confuse these.
-
-| Concept | Question answered |
-|---------|-------------------|
-| **Authentication** | Who are you? |
-| **Authorization** | What are you allowed to do? |
-
-For Azure Key Vault:
-
-```text
-Application
-      │
-      ▼
-Microsoft Entra ID  (authentication → access token)
-      │
-      ▼
-Azure Key Vault     (authorization → RBAC / access policies)
-      │
-      ▼
-Secret returned
-```
-
-- **Authentication** is performed by Microsoft Entra ID
-- **Authorization** is performed by Azure RBAC (or older access policies)
-
----
-
-## Overall architecture
-
-```text
-                     Microsoft Entra ID
-                              ▲
-                              │ Access Token
-                              ▲
-                     Managed Identity
-                              ▲
-                              │
-                 Azure Container App
-                              │
-                              ▼
-                    Azure Key Vault
-                              │
-            ┌─────────────────┴────────────────┐
-            ▼                                  ▼
-   Database Password                      OpenAI Key
-```
-
-Notice: the application never stores username, password, service principal secret, or client secret. Azure handles authentication automatically.
-
----
-
-## Resources you'll create
-
-```text
-Resource Group
-│
-├── Azure Container Registry
-├── Container Apps Environment
-├── Azure Container App
-├── Azure Key Vault
-└── Managed Identity
-```
-
----
-
-## Creating Azure resources
-
-### Create a resource group
-
-```bash
-az group create \
-  --name my-rg \
-  --location eastus
-```
-
-Everything lives inside this resource group.
-
-### Create Azure Container Registry
-
-```bash
-az acr create \
-  --resource-group my-rg \
-  --name myregistry \
-  --sku Basic
-```
-
-Your Docker images are stored here.
-
-### Create a Key Vault
-
-```bash
-az keyvault create \
-  --resource-group my-rg \
-  --name my-demo-kv \
-  --location eastus
-```
-
-### Create a Container Apps environment
-
-```bash
-az containerapp env create \
-  --name my-env \
-  --resource-group my-rg \
-  --location eastus
-```
-
-Think of this as the infrastructure hosting your Container Apps.
-
-### Create the Container App
-
-```bash
-az containerapp create \
-  --name my-api \
-  --resource-group my-rg \
-  --environment my-env \
-  --image myregistry.azurecr.io/api:latest
-```
-
-At this point the Container App has **no identity**. If it tries to access Key Vault, Key Vault asks “Who are you?” and access is denied.
-
----
-
-## Storing secrets in Key Vault
-
-Store an OpenAI key:
-
-```bash
-az keyvault secret set \
-  --vault-name my-demo-kv \
-  --name OpenAIKey \
-  --value sk-xxxxxxxx
-```
-
-Store a PostgreSQL password:
-
-```bash
-az keyvault secret set \
-  --vault-name my-demo-kv \
-  --name DatabasePassword \
-  --value superSecret123
-```
-
-Store a JWT secret:
-
-```bash
-az keyvault secret set \
-  --vault-name my-demo-kv \
-  --name JwtSecret \
-  --value myjwtsecret
-```
-
-Key Vault now contains:
-
-- `OpenAIKey`
-- `DatabasePassword`
-- `JwtSecret`
-
----
-
-## Managed identity explained
-
-Managed Identity is an **Azure-managed identity that Microsoft Entra ID trusts**.
-
-Instead of username / password / client secret, you get an Azure identity — no passwords, no secrets, no credentials to rotate.
-
----
-
-## System-assigned vs user-assigned identity
-
-### System-assigned
-
-```text
-Container App → Identity
-```
-
-- One identity tied to the resource
-- Deleted with the resource
-- Perfect for most applications
-
-### User-assigned
-
-```text
-User Assigned Identity
-│
-├── Container A
-└── Container B
-```
-
-- Identity exists independently
-- Useful when multiple apps need the same permissions, the identity must survive app deletion, or identity is shared
-
----
-
-## Assigning a managed identity
-
-### System-assigned
-
-```bash
-az containerapp identity assign \
-  --name my-api \
-  --resource-group my-rg
-```
-
-Azure creates a principal similar to:
-
-```text
-Managed Identity
-Principal ID: 9d8b...
-Tenant ID: ...
-```
-
-### Retrieve the principal ID
-
-```bash
-az containerapp show \
-  --name my-api \
-  --resource-group my-rg \
-  --query identity.principalId \
-  -o tsv
-```
-
-Example output: `5c48d9...`
-
-### Create a user-assigned identity
-
-```bash
-az identity create \
-  --resource-group my-rg \
-  --name shared-identity
-```
-
-Attach it:
-
-```bash
-az containerapp identity assign \
-  --resource-group my-rg \
-  --name my-api \
-  --user-assigned "/subscriptions/.../resourceGroups/my-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/shared-identity"
-```
-
-Grant Key Vault permissions once — every app using that identity inherits them.
-
----
-
-## Granting Key Vault permissions
-
-Assign the built-in role **Key Vault Secrets User**:
-
-```bash
-az role assignment create \
-  --assignee 5c48d9... \
-  --role "Key Vault Secrets User" \
-  --scope $(az keyvault show \
-    --name my-demo-kv \
-    --query id \
-    -o tsv)
-```
-
-Now the managed identity can read secrets.
-
-### Behind the scenes
-
-When the application starts:
-
-```text
-Container App
-  → Managed Identity
-  → Microsoft Entra ID
-  → Access Token
-  → Key Vault
-  → Secret
-```
-
-Your application never authenticates using a password.
-
----
-
-## Accessing secrets from Python
-
-Install packages:
-
-```bash
-pip install azure-identity azure-keyvault-secrets
-```
-
-### Option 1 — read secrets directly in code
-
-```python
+# pip install azure-identity azure-keyvault-secrets
+import os
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
-credential = DefaultAzureCredential()
-
-client = SecretClient(
-    vault_url="https://my-demo-kv.vault.azure.net/",
-    credential=credential,
-)
-
+# Option 1: read Key Vault directly. No client_id/secret/tenant in code.
+client = SecretClient(vault_url="https://my-demo-kv.vault.azure.net/",
+                      credential=DefaultAzureCredential())
 db_password = client.get_secret("DatabasePassword").value
-openai_key = client.get_secret("OpenAIKey").value
 
-print(db_password)
+# Option 2: Container Apps injected it via secretref
+db_password_env = os.environ["DATABASE_PASSWORD"]
+log_level = os.getenv("LOG_LEVEL", "info")
 ```
 
-Notice there is **no** `client_id`, `client_secret`, or `tenant_id`. Everything is automatic.
+`DefaultAzureCredential` uses your `az login` session locally and the managed identity when deployed, so the same code runs in both places. Avoid `ClientSecretCredential` for Azure-hosted apps: it brings back a secret you have to store and rotate.
 
-**Advantages:** always gets the latest version; can reload secrets; ideal for long-running services.
+## Exam traps
 
-### What DefaultAzureCredential does
+| Need | Use |
+|---|---|
+| Non-sensitive config (log level, URLs) | Env var (`--env-vars` / `--set-env-vars`) |
+| Sensitive value, app reads it as an env var | App secret + `secretref:` |
+| Central rotation, single source of truth | Key Vault reference (`keyvaultref:`) or `SecretClient` |
+| Several apps sharing the same permissions | User-assigned managed identity |
+| Read secret values only | Key Vault Secrets User role |
 
-**Local development** (after `az login`):
+> [!WARNING]
+> **Exam trap:** Changing a secret is an application-scope change. It does **not** create a new revision, so running replicas keep the old value in their env vars until you restart the revision or deploy a new one.
 
-```text
-Azure CLI login → DefaultAzureCredential → Entra ID → Access Token
-```
+> [!WARNING]
+> **Exam trap:** On `update`, `--replace-env-vars` swaps out the entire env list. Use `--set-env-vars` to add or change one variable and keep the rest, and `--remove-env-vars` to drop one.
 
-**When deployed:**
+> [!TIP]
+> Authentication comes from Entra ID ("who"). Authorization comes from RBAC ("what"). If the token works but the call returns 403, the role assignment is missing or hasn't propagated yet.
 
-```text
-Managed Identity → DefaultAzureCredential → Entra ID → Access Token
-```
+> [!NOTE]
+> A Key Vault reference without a version in the URI follows the latest version. Container Apps picks up rotated values periodically, but env vars only change in new or restarted replicas.
 
-Your code never changes between environments.
+## Quick review
 
----
+- Env vars hold config. Secrets hold credentials. Never use `ENV` in a Dockerfile for secrets.
+- `secretref:<name>` (CLI) or `secretRef` (YAML) maps a secret into an env var.
+- `keyvaultref:<uri>,identityref:system` makes Key Vault the source of a Container Apps secret.
+- Grant **Key Vault Secrets User**, not Administrator.
+- System-assigned identity is the per-app default. User-assigned identities are shared and independent of the app.
+- `DefaultAzureCredential` works unchanged locally (`az login`) and in Azure (managed identity).
+- Secret updates don't create a revision. Restart the revision to pick them up.
 
-## Using secrets as environment variables
+## Practice
 
-Container Apps support environment variables for non-secret config:
+[Practice: Container Apps deployment questions](/practice/aca-deploy)
 
-| Non-secrets (env vars) | Secrets (Key Vault) |
-|------------------------|---------------------|
-| `APP_ENV`, `PORT`, `LOG_LEVEL` | API keys, passwords, connection strings, JWT secrets |
+## Official references
 
-### Option 2 — Container Apps retrieves secrets
-
-Azure Container Apps can retrieve Key Vault secrets using its managed identity and expose them as secrets / environment variables:
-
-```text
-Container App
-  → Managed Identity
-  → Azure Key Vault
-  → Container App Secret
-  → Environment Variable
-  → Python Application
-```
-
-Your application simply reads:
-
-```python
-import os
-
-db_password = os.environ["DATABASE_PASSWORD"]
-```
-
-It does not need to know the value came from Key Vault. Ideal for config loaded at startup.
-
-### Typical environment variables
-
-```env
-DATABASE_HOST=
-DATABASE_PORT=
-DATABASE_NAME=
-DATABASE_USER=
-DATABASE_PASSWORD=
-OPENAI_API_KEY=
-REDIS_URL=
-JWT_SECRET=
-LOG_LEVEL=
-APP_ENV=
-```
-
-### Example application configuration
-
-```python
-import os
-
-DATABASE_HOST = os.getenv("DATABASE_HOST")
-DATABASE_PORT = os.getenv("DATABASE_PORT")
-DATABASE_NAME = os.getenv("DATABASE_NAME")
-DATABASE_USER = os.getenv("DATABASE_USER")
-DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-```
-
----
-
-## Deploying to Azure Container Apps
-
-Typical deployment flow:
-
-```text
-Build Docker Image
-  → Push Image
-  → Azure Container Registry
-  → Azure Container App
-  → Managed Identity
-  → Key Vault
-  → Secrets
-  → Application Starts
-```
-
-Example deployment:
-
-```bash
-az containerapp create \
-  --name my-api \
-  --resource-group my-rg \
-  --environment my-env \
-  --image myregistry.azurecr.io/api:latest \
-  --target-port 8000 \
-  --ingress external
-```
-
----
-
-## Complete end-to-end flow
-
-```text
-Developer
-  → Docker Build
-  → Azure Container Registry
-  → Azure Container Apps
-  → Managed Identity
-  → Microsoft Entra ID
-  → Access Token
-  → Azure Key Vault
-  → Secrets Returned
-  → Application Uses Secrets
-```
-
----
-
-## Best practices
-
-1. **Use Managed Identity** — never store Azure credentials in the app
-2. **Use Key Vault** — never hardcode secrets
-3. **Grant least privilege** — use `Key Vault Secrets User`, not Administrator
-4. **Separate config from secrets** — env vars for `APP_ENV` / `LOG_LEVEL`; Key Vault for passwords and API keys
-5. **Use DefaultAzureCredential** — avoid `ClientSecretCredential` unless you truly need a service principal
-6. **Prefer one identity per app** — system-assigned unless sharing is required
-7. **Rotate secrets in Key Vault** — never bake secrets into Docker images
-
----
-
-## Common mistakes
-
-### Storing secrets in Git
-
-```python
-# ❌ Don't do this
-PASSWORD = "password123"
-```
-
-### Putting secrets inside Docker images
-
-```dockerfile
-# ❌ Don't do this
-ENV DATABASE_PASSWORD=password123
-```
-
-### Using client secrets in Azure
-
-```python
-# ❌ Avoid for Azure-hosted apps
-from azure.identity import ClientSecretCredential
-
-credential = ClientSecretCredential(
-    tenant_id="...",
-    client_id="...",
-    client_secret="...",
-)
-```
-
-Prefer:
-
-```python
-from azure.identity import DefaultAzureCredential
-
-credential = DefaultAzureCredential()
-```
-
-### Granting administrator permissions
-
-Avoid giving applications **Key Vault Administrator** when they only need **Key Vault Secrets User**.
-
----
-
-## Summary
-
-Azure Container Apps integrates with **Microsoft Entra ID** through **Managed Identity**, allowing your application to authenticate without storing credentials. After assigning a managed identity and granting it **Key Vault Secrets User**, your app can securely retrieve secrets from **Azure Key Vault** using `DefaultAzureCredential()`, or have Container Apps inject those secrets as environment variables.
-
-This architecture eliminates hardcoded credentials, simplifies secret rotation, and follows Azure security best practices — with the same application code for local development and production.
-
-## Learn more
-
-- [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/)
-- [Managed identities for Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/managed-identity)
+- [Learn unit: Configure runtime settings with environment variables and secrets](https://learn.microsoft.com/en-us/training/modules/deploy-containers-azure-container-apps/4-configure-runtime)
 - [Manage secrets in Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/manage-secrets)
+- [Managed identities for Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/managed-identity)
+- [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/)
 - [DefaultAzureCredential](https://learn.microsoft.com/en-us/python/api/overview/azure/identity-readme)
 - [AI-200 study guide](https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200)
