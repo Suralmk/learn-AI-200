@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run validate:content)",
+      "Bash(npm run validate:content -- --verbose)",
+      "Bash(npm test)",
+      "Bash(npx vitest run:*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx eslint:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "WebFetch(domain:learn.microsoft.com)"
+    ],
+    "deny": [
+      "Edit(content/questions/advanced-scenarios.json)",
+      "Edit(content/questions/ai200-practice-set.json)",
+      "Edit(content/questions/azure-services.json)",
+      "Edit(content/questions/azure-services-160.json)",
+      "Edit(content/questions/containers.json)",
+      "Edit(content/questions/containers-160.json)",
+      "Edit(content/questions/data-management.json)",
+      "Edit(content/questions/data-management-160.json)",
+      "Edit(content/questions/sdk-cli-part1.json)",
+      "Edit(content/questions/sdk-cli-part2.json)",
+      "Edit(content/questions/secure-monitor.json)",
+      "Edit(content/questions/secure-monitor-160.json)",
+      "Bash(git push --force:*)"
+    ]
+  }
+}
