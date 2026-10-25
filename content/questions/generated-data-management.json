@@ -1,0 +1,1125 @@
+[
+  {
+    "id": "gen-cosmos-sdk-queries-01",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A .NET Azure Function creates a `new CosmosClient(endpoint, credential)` at the start of every invocation and disposes it at the end. Under load, p99 latency climbs and the instance logs socket and port exhaustion warnings. What is the recommended fix?",
+    "options": [
+      "Switch the client to Gateway connection mode while still creating a client for each invocation",
+      "Create one CosmosClient for the app's lifetime (a static or DI singleton) and reuse it for every invocation",
+      "Increase the container's provisioned RU/s so each new client connects faster",
+      "Call client.Dispose() earlier, right after the first query, so sockets are released sooner"
+    ],
+    "answer": 1,
+    "explanation": "`CosmosClient` is thread-safe and expensive to create. It caches account metadata, routing information, and connection pools. Use **one instance for the app's lifetime**. Creating a client per call throws all of that away and opens new connections every time.\n\n```csharp\nprivate static readonly CosmosClient Client =\n    new(endpoint, new DefaultAzureCredential());\n```\n\nWhy the other options are wrong:\n\n- **Gateway mode** uses fewer ports, but the cost of creating a client per call stays.\n- **More RU/s** adds throughput. It doesn't speed up connection setup or stop socket churn.\n- **Disposing earlier** adds churn instead of removing it, because the next invocation still builds a new client.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Connect to Azure Cosmos DB for NoSQL by using the SDK and run queries",
+    "source": "generated",
+    "objective": "cosmos-sdk-queries"
+  },
+  {
+    "id": "gen-cosmos-sdk-queries-02",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "A chat service needs to load one conversation document. It already knows the document's `id` (`conv-981`) and partition key value (`user-42`). Which Python SDK call returns the document at the lowest RU cost?",
+    "options": [
+      "container.query_items(\"SELECT * FROM c WHERE c.id = 'conv-981'\", enable_cross_partition_query=True)",
+      "container.query_items(\"SELECT * FROM c WHERE c.id = 'conv-981'\", partition_key='user-42')",
+      "container.read_item(item='conv-981', partition_key='user-42')",
+      "container.read_all_items(), then filter on id in Python"
+    ],
+    "answer": 2,
+    "explanation": "A **point read** (`read_item` with both `id` and partition key) goes straight to the item without the query engine. It's the cheapest operation in Cosmos DB, about **1 RU for a 1 KB item**.\n\nWhy the other options are wrong:\n\n- **A cross-partition query** fans out to every physical partition and pays query-engine overhead. It's the most expensive choice here.\n- **A single-partition query** avoids the fan-out but still costs more than a point read.\n- **`read_all_items()`** scans the whole container, which wastes RUs, and then filters on the client.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Connect to Azure Cosmos DB for NoSQL by using the SDK and run queries",
+    "source": "generated",
+    "objective": "cosmos-sdk-queries"
+  },
+  {
+    "id": "gen-cosmos-sdk-queries-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A Python app connects to Cosmos DB with `CosmosClient(url, credential=DefaultAzureCredential())`. At startup it calls `create_database_if_not_exists` and `create_container_if_not_exists`, then runs queries. Local (key) authentication is disabled on the account. Every call fails with 403 Forbidden. Which two changes fix this while keeping Microsoft Entra authentication? Select two.",
+    "options": [
+      "Create a Cosmos DB data-plane role assignment for the app identity, for example with the Cosmos DB Built-in Data Contributor role through az cosmosdb sql role assignment create",
+      "Assign the Azure RBAC Contributor role on the Cosmos DB account to the app identity; this also grants data access",
+      "Provision the database and container through the control plane (Bicep, ARM, or the CLI) and remove the create_*_if_not_exists calls from the app",
+      "Re-enable local authentication and pass the primary key to CosmosClient",
+      "Set the account's default consistency level to Strong"
+    ],
+    "answer": [
+      0,
+      2
+    ],
+    "explanation": "Two separate problems cause the 403:\n\n1. **Data access needs a Cosmos DB data-plane role assignment.** Azure RBAC roles like Contributor don't grant it.\n\n```bash\naz cosmosdb sql role assignment create -a cosmos-prod -g rg \\\n  --role-definition-id 00000000-0000-0000-0000-000000000002 \\\n  --principal-id <objectId> --scope \"/\"\n```\n\n2. **Data-plane RBAC can't create databases or containers.** Those are control-plane operations, so create them with Bicep, ARM, or the CLI, and have the app call only `get_database_client` and `get_container_client`.\n\nWhy the other options are wrong:\n\n- **Contributor** is a control-plane role. It doesn't include Cosmos DB data actions such as reading items.\n- **Re-enabling keys** goes against the requirement to keep Entra authentication.\n- **Consistency level** has nothing to do with authorization.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Connect to Azure Cosmos DB for NoSQL by using the SDK and run queries",
+    "source": "generated",
+    "objective": "cosmos-sdk-queries"
+  },
+  {
+    "id": "gen-cosmos-change-feed-01",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A change feed processor named `embedder` monitors a container whose feed is split into 4 leases. To speed up processing, you start 6 instances of the processor, all with the same processor name and lease container. What happens?",
+    "options": [
+      "Each change is delivered to all 6 instances, so every document is embedded 6 times",
+      "The processor fails to start because the instance count must equal the lease count",
+      "Changes are split round-robin across all 6 instances, so each instance gets about a sixth of the work",
+      "The 4 leases are spread across the instances, so at most 4 do work and 2 sit idle until a lease becomes available"
+    ],
+    "answer": 3,
+    "explanation": "The change feed processor spreads work by giving out **leases**. Each lease covers a range of the feed and is owned by **one instance at a time**. With 4 leases and 6 instances, only 4 instances can own a lease. The other 2 stay idle and take over a lease if an owner fails.\n\nWhy the other options are wrong:\n\n- **Delivery to all instances** only happens when processors use *different* processor names (separate deployments). Instances with the same name share the work.\n- **The processor doesn't fail.** Extra instances are allowed and act as standbys.\n- **Round-robin** isn't how it works. Work is assigned per lease, not per change.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement a change feed processor to detect and handle new or updated items",
+    "source": "generated",
+    "objective": "cosmos-change-feed"
+  },
+  {
+    "id": "gen-cosmos-change-feed-02",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A change feed processor in latest version mode keeps a vector search index in sync with a Cosmos DB container. When source documents are deleted, their vectors stay in the search index. What is the standard way to make deletes visible to this processor?",
+    "options": [
+      "Mark documents as deleted (for example isDeleted: true), let the processor remove them from the index, and set a TTL on the item so Cosmos DB removes it later",
+      "Restart the processor with a start time of the beginning of time so that it replays deletions",
+      "Raise the lease renew interval so that the processor has time to observe delete operations",
+      "Switch the account to Strong consistency, which makes deletes appear in the change feed"
+    ],
+    "answer": 0,
+    "explanation": "**Latest version mode** only shows creates and updates. Hard deletes never appear. The usual pattern is a **soft delete**: update the document with a deletion flag (that update *does* appear in the feed), handle it in the processor, and set a `ttl` so Cosmos DB purges the item afterwards. (Where it's available, *all versions and deletes* mode is another option, but it has extra requirements.)\n\nWhy the other options are wrong:\n\n- **Replaying from the beginning** replays what is still in the feed. Deleted items aren't there.\n- **The lease renew interval** controls how leases are kept alive. It doesn't change what the feed contains.\n- **The consistency level** doesn't change which operations the change feed records.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement a change feed processor to detect and handle new or updated items",
+    "source": "generated",
+    "objective": "cosmos-change-feed"
+  },
+  {
+    "id": "gen-cosmos-change-feed-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You deploy a new .NET change feed processor to backfill embeddings for the 2 million documents already in a container, then keep processing new changes. With a fresh, empty lease container, the processor handles only documents written after it starts. What should you add to the builder before the first start?",
+    "options": [
+      ".WithPollInterval(TimeSpan.Zero)",
+      ".WithMaxItems(10000)",
+      ".WithStartTime(DateTime.MinValue.ToUniversalTime())",
+      ".WithInstanceName(\"backfill\")"
+    ],
+    "answer": 2,
+    "explanation": "By default, a **new** processor starts from *now*. **`WithStartTime(DateTime.MinValue.ToUniversalTime())`** makes it read from the start of the container's history. The start time only applies when the processor first creates its leases, which is why the lease container must be fresh.\n\n```csharp\ncontainer.GetChangeFeedProcessorBuilder<Doc>(\"embedder\", HandleAsync)\n  .WithInstanceName(Environment.MachineName)\n  .WithLeaseContainer(leases)\n  .WithStartTime(DateTime.MinValue.ToUniversalTime())\n  .Build();\n```\n\nWhy the other options are wrong:\n\n- **`WithPollInterval`** sets how often the processor checks for new changes, not where it starts.\n- **`WithMaxItems`** sets the batch size per delivery.\n- **`WithInstanceName`** identifies the host for lease ownership. It doesn't affect the starting point.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement a change feed processor to detect and handle new or updated items",
+    "source": "generated",
+    "objective": "cosmos-change-feed"
+  },
+  {
+    "id": "gen-cosmos-change-feed-04",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Which two statements about the lease container used by the Cosmos DB change feed processor are true? Select two.",
+    "options": [
+      "The lease container must use /id as its partition key",
+      "Processors with different processor names can share one lease container, and each keeps its own independent leases",
+      "The change feed processor guarantees exactly-once delivery of each change",
+      "The lease container must be in a different Cosmos DB account from the monitored container",
+      "The change feed guarantees a single global order of changes across all partition key values"
+    ],
+    "answer": [
+      0,
+      1
+    ],
+    "explanation": "**True statements:**\n\n- The lease container must be partitioned on **`/id`**.\n- **Different processor names** can share a lease container. Each name gets its own set of lease documents, so separate pipelines track their progress independently.\n\nWhy the other options are wrong:\n\n- **Delivery is at least once.** After a failure, a batch can be delivered again, so handlers must be idempotent.\n- **The lease container doesn't need a separate account.** It's usually in the same account and often the same database.\n- **Ordering is guaranteed only within a partition key value**, not across the whole container.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Cosmos DB for NoSQL",
+    "relatedObjective": "Implement a change feed processor to detect and handle new or updated items",
+    "source": "generated",
+    "objective": "cosmos-change-feed"
+  },
+  {
+    "id": "gen-cosmos-change-feed-05",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Two separate function apps use a Cosmos DB trigger on the same `products` container. One refreshes embeddings and the other writes audit records. Both use the `leases` container. After the second app is deployed, each app sees only some of the changes. What should you configure?",
+    "options": [
+      "Set maxItemsPerInvocation to 1 in both apps so that every change is delivered separately",
+      "Give each app a different leaseContainerPrefix (or a separate lease container) so each keeps its own independent leases",
+      "Change the products container's partition key to /id",
+      "Deploy both functions into one function app so that they share a single trigger instance"
+    ],
+    "answer": 1,
+    "explanation": "Function apps that use the same lease container **without a prefix** look like *one* processor, so they split the leases and each one gets only part of the feed. A distinct **`leaseContainerPrefix`** (or a separate lease container) makes each app its own processor that receives every change.\n\n```python\n@app.cosmos_db_trigger(arg_name=\"docs\", connection=\"CosmosConn\",\n    database_name=\"shop\", container_name=\"products\",\n    lease_container_name=\"leases\", lease_container_prefix=\"audit-\")\n```\n\nWhy the other options are wrong:\n\n- **`maxItemsPerInvocation`** changes the batch size. The apps would still share the leases.\n- **Changing the partition key** of the monitored container has nothing to do with lease ownership.\n- **Putting both functions in one app with the same lease settings** still splits the work. Each trigger needs its own leases either way.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Implement a change feed processor to detect and handle new or updated items",
+    "source": "generated",
+    "objective": "cosmos-change-feed"
+  },
+  {
+    "id": "gen-redis-data-ops-01",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You add a cache-aside layer in Azure Managed Redis in front of an expensive LLM summarization call. Summaries should be reused for 10 minutes. Which flow is correct?",
+    "options": [
+      "GET the key; on a miss, call the LLM, then SET key value EX 600 and return the value",
+      "Call the LLM on every request, then SET the result so other services can read it",
+      "SET every possible key with PERSIST at startup and never call the LLM again",
+      "GET the key; on a miss, return an empty result and let a nightly job fill the cache"
+    ],
+    "answer": 0,
+    "explanation": "**Cache-aside** means: read from the cache first, and on a miss load from the source, store the result **with a TTL**, and return it. `EX 600` sets the 10-minute expiry in the same command.\n\n```python\nval = r.get(key)\nif val is None:\n    val = summarize(doc)\n    r.set(key, val, ex=600)\n```\n\nWhy the other options are wrong:\n\n- **Calling the LLM every time** gets none of the benefit of caching.\n- **Pre-filling everything without expiry** is impossible for open-ended inputs, serves stale data forever, and `PERSIST` *removes* a TTL rather than setting one.\n- **Returning empty results on a miss** breaks correctness. The caller must get a real answer.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Implement Azure Managed Redis caching, expiration, and invalidation",
+    "source": "generated",
+    "objective": "redis-data-ops"
+  },
+  {
+    "id": "gen-redis-data-ops-02",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A trending-topics summary is cached in Redis with a 5-minute TTL. Each time it expires, hundreds of concurrent requests miss at once and each calls Azure OpenAI, which causes 429 throttling. What is the best mitigation?",
+    "options": [
+      "Remove the TTL so the key never expires",
+      "Use FLUSHALL every 5 minutes so all keys refresh together",
+      "On a miss, let only one caller rebuild the value (for example with a SET lock NX PX lock) while others briefly wait or serve the previous value, and add jitter to TTLs",
+      "Increase the Redis cache size so that more keys fit in memory"
+    ],
+    "answer": 2,
+    "explanation": "This is a **cache stampede**. Fix it by making sure **only one caller recomputes** the value. A short-lived lock taken with `SET lock:key token NX PX 30000` works: the winner rebuilds the value, and the other callers retry shortly or serve the previous value. **TTL jitter** also stops many keys from expiring at the same moment.\n\nWhy the other options are wrong:\n\n- **No TTL** means users see a stale summary forever.\n- **FLUSHALL** wipes the whole cache and makes the stampede worse.\n- **More memory** doesn't change what happens when a single hot key expires.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Implement Azure Managed Redis caching, expiration, and invalidation",
+    "source": "generated",
+    "objective": "redis-data-ops"
+  },
+  {
+    "id": "gen-redis-data-ops-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A RAG service caches generated answers in Redis. Each answer depends on several source documents. When a source document is updated, every cached answer built from it must be invalidated right away. No other keys should be affected and the production cache must not be blocked. What should you implement?",
+    "options": [
+      "Run KEYS answer:* on each update and delete the keys that match",
+      "When you cache an answer, add its key to a per-document set (SADD doc:{id}:answers <key>); on update, read that set and DEL or UNLINK its members",
+      "Run FLUSHDB whenever any document changes",
+      "Rely on volatile-lru eviction to remove stale answers"
+    ],
+    "answer": 1,
+    "explanation": "Keep an **index from each document to the cache keys built from it**. On update, delete exactly those keys. `UNLINK` frees memory asynchronously.\n\n```python\nr.sadd(f\"doc:{doc_id}:answers\", answer_key)  # when caching\n...\nkeys = r.smembers(f\"doc:{doc_id}:answers\")  # on update\nif keys:\n    r.unlink(*keys)\nr.delete(f\"doc:{doc_id}:answers\")\n```\n\nWhy the other options are wrong:\n\n- **`KEYS`** walks the whole keyspace and blocks the server. It must not be used in production.\n- **`FLUSHDB`** removes unrelated keys too, and every flush causes a cold-cache storm.\n- **Eviction** happens only under memory pressure and picks keys by recency, not freshness. Stale answers can stay indefinitely.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Implement Azure Managed Redis caching, expiration, and invalidation",
+    "source": "generated",
+    "objective": "redis-data-ops"
+  },
+  {
+    "id": "gen-redis-data-ops-04",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Your app moves from Azure Cache for Redis to Azure Managed Redis. Which connection settings does a redis-py client typically need for an Azure Managed Redis instance?",
+    "options": [
+      "host=<name>.redis.cache.windows.net, port=6379, ssl=False",
+      "host=<name>.redis.cache.windows.net, port=6380, ssl=True",
+      "host=<name>.<region>.redis.azure.net, port=10000, ssl=True",
+      "host=<name>.documents.azure.com, port=443, ssl=True"
+    ],
+    "answer": 2,
+    "explanation": "Azure Managed Redis endpoints use the **`<name>.<region>.redis.azure.net`** hostname on port **10000**, with **TLS**. You can authenticate with Microsoft Entra ID (recommended) or with an access key.\n\nWhy the other options are wrong:\n\n- **`redis.cache.windows.net:6379` without TLS** is the legacy Azure Cache for Redis non-TLS port. It's disabled by default and is the wrong service.\n- **`redis.cache.windows.net:6380`** is the TLS endpoint of Azure Cache for Redis, not Azure Managed Redis.\n- **`documents.azure.com`** is a Cosmos DB endpoint.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Implement Azure Managed Redis caching, expiration, and invalidation",
+    "source": "generated",
+    "objective": "redis-data-ops"
+  },
+  {
+    "id": "gen-redis-data-ops-05",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Starting from a key `k` that doesn't exist, which two command sequences leave `k` holding value `v` and set to expire in 900 seconds? Select two.",
+    "options": [
+      "SET k v EX 900",
+      "SET k v, then TTL k 900",
+      "SETEX k 900 v",
+      "SET k v, then PERSIST k",
+      "SET k v KEEPTTL"
+    ],
+    "answer": [
+      0,
+      2
+    ],
+    "explanation": "**`SET k v EX 900`** and **`SETEX k 900 v`** both write the value and set a 900-second expiry in one atomic command. (`SET k v` followed by `EXPIRE k 900` also works, but it takes two round trips.)\n\nWhy the other options are wrong:\n\n- **`TTL`** only *reads* the remaining time to live. It takes no seconds argument and sets nothing.\n- **`PERSIST`** *removes* any expiry from the key.\n- **`KEEPTTL`** keeps an existing TTL. A new key has none, so it never expires.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Implement Azure Managed Redis caching, expiration, and invalidation",
+    "source": "generated",
+    "objective": "redis-data-ops"
+  },
+  {
+    "id": "gen-redis-data-ops-06",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your Azure Managed Redis instance uses the OSS clustering policy. A call to `MGET user:42:profile user:42:prefs` fails with a `CROSSSLOT` error. You want to fetch both keys in one call. What should you change?",
+    "options": [
+      "Rename the keys with a hash tag, such as {user:42}:profile and {user:42}:prefs, so both map to the same slot",
+      "Run SELECT 1 before MGET so both keys are read from database 1",
+      "Replace MGET with KEYS user:42:*",
+      "Turn on data persistence so multi-key commands are allowed"
+    ],
+    "answer": 0,
+    "explanation": "In a cluster, a multi-key command only works if all of its keys hash to the **same slot**. A **hash tag** (the part inside `{...}`) is the only part of the key that gets hashed, so related keys land on the same shard.\n\nWhy the other options are wrong:\n\n- **`SELECT`** switches logical databases. Cluster mode supports only database 0, and slot routing is unchanged.\n- **`KEYS`** blocks the server, lists names without returning values, and can't help across shards.\n- **Persistence** (RDB or AOF) controls durability, not key distribution.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Managed Redis",
+    "relatedObjective": "Implement Azure Managed Redis caching, expiration, and invalidation",
+    "source": "generated",
+    "objective": "redis-data-ops"
+  },
+  {
+    "id": "gen-pg-connect-query-01",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "A Python service connects to Azure Database for PostgreSQL flexible server with Microsoft Entra authentication. It gets a token with `DefaultAzureCredential().get_token(...)` and passes the token as the password. Which token scope should it request?",
+    "options": [
+      "https://management.azure.com/.default",
+      "https://database.windows.net/.default",
+      "https://cognitiveservices.azure.com/.default",
+      "https://ossrdbms-aad.database.windows.net/.default"
+    ],
+    "answer": 3,
+    "explanation": "Entra tokens for Azure Database for PostgreSQL (and MySQL) are issued for the **`https://ossrdbms-aad.database.windows.net/.default`** scope. The token is sent as the password, and the user name is the Entra principal's role name.\n\n```python\ntoken = cred.get_token(\"https://ossrdbms-aad.database.windows.net/.default\").token\nconn = psycopg.connect(host=host, dbname=\"rag\", user=\"rag-api\",\n                       password=token, sslmode=\"require\")\n```\n\nWhy the other options are wrong:\n\n- **`management.azure.com`** is the Azure Resource Manager (control-plane) audience.\n- **`database.windows.net`** is the audience for Azure SQL Database.\n- **`cognitiveservices.azure.com`** is the audience for Azure AI services such as Azure OpenAI.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-02",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A long-running API uses a psycopg connection pool that authenticates to PostgreSQL with an Entra access token fetched once at startup. Roughly an hour after each deployment, every new connection fails with `password authentication failed`, while connections that are already open keep working. What is the fix?",
+    "options": [
+      "Raise max_connections so the pool never needs to open new connections",
+      "Fetch a fresh token each time the pool opens a connection (for example, in a connection factory or password callback), relying on the credential's token cache",
+      "Switch sslmode to disable, because TLS renegotiation invalidates tokens",
+      "Restart the API every 50 minutes from a scheduled job"
+    ],
+    "answer": 1,
+    "explanation": "Entra access tokens are **short-lived** (typically 60–90 minutes). They're checked only when a connection **is opened**, which is why existing connections keep working while new ones fail. Get a token **each time a connection is created**. `DefaultAzureCredential` caches tokens and refreshes them before they expire, so this is cheap.\n\n```python\nclass EntraConnection(psycopg.Connection):\n    @classmethod\n    def connect(cls, conninfo=\"\", **kw):\n        kw[\"password\"] = cred.get_token(SCOPE).token\n        return super().connect(conninfo, **kw)\n\npool = ConnectionPool(conninfo, connection_class=EntraConnection)\n```\n\n(In .NET, `NpgsqlDataSourceBuilder.UsePeriodicPasswordProvider` does the same thing.)\n\nWhy the other options are wrong:\n\n- **A bigger max_connections** doesn't help. Pools still recycle and open connections, and those still need a valid token.\n- **Disabling TLS** isn't allowed by default and has nothing to do with token lifetime.\n- **Scheduled restarts** are a fragile workaround that causes downtime.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-03",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "A psycopg 3 function filters chunks by a `tenant_id` value that comes from user input. Which call is safe from SQL injection?",
+    "options": [
+      "cur.execute(f\"SELECT id FROM chunks WHERE tenant_id = '{tenant_id}'\")",
+      "cur.execute(\"SELECT id FROM chunks WHERE tenant_id = '%s'\" % tenant_id)",
+      "cur.execute(\"SELECT id FROM chunks WHERE tenant_id = %s\", (tenant_id,))",
+      "cur.execute(\"SELECT id FROM chunks WHERE tenant_id = '{}'\".format(tenant_id))"
+    ],
+    "answer": 2,
+    "explanation": "Passing values in the **parameters argument** lets the driver send them separately from the SQL text (server-side binding in psycopg 3), so input can never change the query's structure. The `%s` placeholder is psycopg syntax, *not* Python string formatting.\n\nWhy the other options are wrong:\n\n- **The f-string**, **the `%` operator**, and **`str.format`** all paste user input straight into the SQL text before the driver sees it. A value like `x' OR '1'='1` changes the query, which is classic SQL injection.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-04",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A new container image connects to Azure Database for PostgreSQL flexible server with `sslmode=disable` copied from a local Docker Compose file. The connection is rejected with an error saying SSL is off and the server requires secure connections. What should you do?",
+    "options": [
+      "Set the server parameter require_secure_transport to OFF",
+      "Connect to port 6432 instead of 5432",
+      "Add the client IP address to the server firewall",
+      "Connect with sslmode=require, or verify-full with the trusted root CA for stronger checks"
+    ],
+    "answer": 3,
+    "explanation": "Flexible server enforces **TLS by default** (`require_secure_transport=ON`). The client must use TLS, for example `sslmode=require`. For production, `verify-full` with the trusted root CA bundle also checks the server certificate and host name.\n\nWhy the other options are wrong:\n\n- **Turning off `require_secure_transport`** weakens security to work around a client bug. Credentials and data would travel in plain text.\n- **Port 6432** is the built-in PgBouncer port. Its TLS requirements are the same.\n- **Firewall rules** produce a different error (the connection is refused or times out). The error here is explicitly about SSL.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-05",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "You use psycopg 3 with the `pgvector` Python package and want to pass NumPy arrays as query parameters and get `vector` columns back as NumPy arrays. What must you call on the connection?",
+    "options": [
+      "register_vector(conn) from pgvector.psycopg",
+      "conn.execute(\"CREATE EXTENSION vector\") on every connection",
+      "psycopg.types.json.Json(embedding) around each parameter",
+      "conn.adapters.register_dumper(bytes, 'vector')"
+    ],
+    "answer": 0,
+    "explanation": "**`register_vector(conn)`** registers adapters that convert between NumPy arrays and the `vector` type. After that, `cur.execute(\"... ORDER BY embedding <=> %s LIMIT 5\", (np_array,))` just works.\n\nWhy the other options are wrong:\n\n- **`CREATE EXTENSION`** runs once per database, not per connection. It enables the type on the server but doesn't teach the Python driver how to adapt NumPy arrays.\n- **`Json(...)`** sends a JSON value, which PostgreSQL won't implicitly cast to `vector`.\n- **Registering a dumper for `bytes`** with a made-up name isn't how pgvector adaptation works, and NumPy arrays aren't `bytes`.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-06",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "An Entra administrator has been configured on a flexible server. A Container App with a user-assigned managed identity named `rag-api-id` now needs to log in to the database through Entra authentication. What must the Entra administrator do in the database?",
+    "options": [
+      "Run CREATE USER \"rag-api-id\" WITH PASSWORD '<client-secret>'",
+      "Run SELECT * FROM pgaadauth_create_principal('rag-api-id', false, false); and then GRANT the privileges the app needs",
+      "Add rag-api-id as a second Entra administrator so that it can log in",
+      "Nothing; every identity in the tenant can log in once Entra authentication is enabled"
+    ],
+    "answer": 1,
+    "explanation": "Entra principals must be **mapped to a PostgreSQL role**. While connected to the `postgres` database, an Entra admin runs **`pgaadauth_create_principal(roleName, isAdmin, isMfa)`**, then grants least-privilege permissions such as `GRANT SELECT, INSERT ON chunks TO \"rag-api-id\";`.\n\nWhy the other options are wrong:\n\n- **`CREATE USER ... WITH PASSWORD`** creates a password-based role. Managed identities authenticate with tokens, not secrets.\n- **Making the app an Entra admin** gives it far more privilege than it needs.\n- **Automatic access for the whole tenant** doesn't exist. Each principal needs a role.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-07",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A Python ingestion job inserts 2 million chunk rows (text plus a 1536-dimension embedding) into PostgreSQL. It currently runs one `INSERT` and one `commit()` per row, and the job takes hours. Which two changes give the biggest speed-up? Select two.",
+    "options": [
+      "Stream rows with COPY (in psycopg 3, cur.copy(\"COPY chunks (text, embedding) FROM STDIN\"))",
+      "Open a new connection for each row so that inserts run in parallel",
+      "Batch the inserts (for example executemany) inside fewer, larger transactions instead of committing every row",
+      "Create the HNSW index before loading so that it can be built incrementally",
+      "Set sslmode=disable to avoid encryption overhead"
+    ],
+    "answer": [
+      0,
+      2
+    ],
+    "explanation": "The fastest bulk path in PostgreSQL is **`COPY`**. Failing that, **batch rows into fewer transactions**. Per-row commits force a WAL flush and a network round trip every time.\n\nWhy the other options are wrong:\n\n- **A connection per row** adds the TLS and authentication handshake to every insert and can run out of connection slots.\n- **Building the HNSW index first** makes each insert slower. Loading the data first and building the index once afterwards is much faster.\n- **Disabling TLS** is blocked by default and isn't where the time goes.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-08",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "An export job runs `SELECT id, text, embedding FROM chunks` over 5 million rows with psycopg 3 and runs out of memory, because the client buffers the whole result set before the loop starts. How should you read the rows?",
+    "options": [
+      "Call cur.fetchall() and then delete the list after processing",
+      "Add LIMIT 5000000 to the query",
+      "Raise work_mem on the server",
+      "Use a server-side (named) cursor, such as conn.cursor(name=\"export\"), and iterate so rows arrive in batches (itersize)"
+    ],
+    "answer": 3,
+    "explanation": "A **named (server-side) cursor** keeps the result set on the server and streams it to the client in batches of `itersize` rows, so client memory use stays flat.\n\n```python\nwith conn.cursor(name=\"export\") as cur:\n    cur.itersize = 2000\n    cur.execute(\"SELECT id, text, embedding FROM chunks\")\n    for row in cur:\n        write(row)\n```\n\nWhy the other options are wrong:\n\n- **`fetchall()`** loads every row into memory, which is exactly the problem.\n- **`LIMIT`** with the full row count changes nothing.\n- **`work_mem`** is server memory for sorts and hashes. It doesn't affect client-side buffering.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-connect-query-09",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "You connect with password authentication to flexible server `pg-rag-prod` as administrator `ragadmin`. Which connection parameters are correct?",
+    "options": [
+      "host=pg-rag-prod.postgres.database.azure.com port=5432 user=ragadmin",
+      "host=pg-rag-prod.postgres.database.azure.com port=5432 user=ragadmin@pg-rag-prod",
+      "host=pg-rag-prod.database.windows.net port=1433 user=ragadmin",
+      "host=pg-rag-prod.postgres.azure.net port=10000 user=ragadmin"
+    ],
+    "answer": 0,
+    "explanation": "Flexible server uses **`<server>.postgres.database.azure.com`** on port **5432**, and the user name is just **`ragadmin`**.\n\nWhy the other options are wrong:\n\n- **`ragadmin@pg-rag-prod`** is the user-name format of the retired *Single Server*. Flexible server doesn't use the `@server` suffix.\n- **`database.windows.net:1433`** is Azure SQL Database.\n- **`postgres.azure.net:10000`** mixes up host-name and port conventions from other services. It isn't a PostgreSQL endpoint.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Connect and query Azure Database for PostgreSQL by using SDKs",
+    "source": "generated",
+    "objective": "pg-connect-query"
+  },
+  {
+    "id": "gen-pg-schema-01",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You switch to an embedding model that outputs 3072-dimension vectors and store them in a `vector(3072)` column. `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)` fails because the column has more than 2000 dimensions. You want to keep all 3072 dimensions and still use an HNSW index. What should you do?",
+    "options": [
+      "Raise maintenance_work_mem so the index can hold more dimensions",
+      "Use an IVFFlat index instead, which has no dimension limit",
+      "Store the embeddings as halfvec(3072), or index the expression embedding::halfvec(3072) with halfvec_cosine_ops",
+      "Store the embeddings in a float8[] column and index it with GIN"
+    ],
+    "answer": 2,
+    "explanation": "pgvector can **index `vector` columns up to 2,000 dimensions**. The half-precision **`halfvec` type can be indexed up to 4,000 dimensions**, so 3072 fits, and the index is about half the size. A common pattern is an expression index:\n\n```sql\nCREATE INDEX ON chunks USING hnsw\n  ((embedding::halfvec(3072)) halfvec_cosine_ops);\n```\n\nQueries must use the same cast so that the index is used.\n\nWhy the other options are wrong:\n\n- **`maintenance_work_mem`** affects how fast the index builds, not the dimension limit.\n- **IVFFlat** has the same 2,000-dimension limit for `vector`.\n- **`float8[]` with GIN** supports array containment, not nearest-neighbor search.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-schema-02",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "RAG queries always filter chunks by `tenant_id` and a `created_at` range. Each source system also attaches a different set of optional attributes (author, page, department, and so on), which are sometimes used for containment filters. Which two schema decisions fit best? Select two.",
+    "options": [
+      "Store tenant_id and created_at as typed columns (uuid, timestamptz) with B-tree indexes",
+      "Put every field, including tenant_id and created_at, inside one JSONB document",
+      "Store the variable attributes in a jsonb column with a GIN index",
+      "Create a separate table for every source system's attribute set",
+      "Store the optional attributes as one comma-separated text column"
+    ],
+    "answer": [
+      0,
+      2
+    ],
+    "explanation": "Use **typed, indexed columns** for the predicates you filter on in every query. The planner keeps accurate statistics on them and B-tree range scans are cheap. Use **`jsonb` with a GIN index** for sparse, varying attributes, so containment filters such as `attrs @> '{\"department\":\"legal\"}'` stay fast without frequent schema changes.\n\nWhy the other options are wrong:\n\n- **Putting everything in JSONB** loses type checking and statistics, and makes range filters on hot fields awkward.\n- **A table per source system** multiplies the schema and complicates every query.\n- **Comma-separated text** can't be indexed or queried reliably.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-schema-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Each uploaded document is split into 50–2,000 chunks, and each chunk has its own embedding. Deleting a document must remove its chunks, and queries rank individual chunks. Which schema fits best?",
+    "options": [
+      "A documents table plus a chunks table with document_id REFERENCES documents ON DELETE CASCADE, chunk_no, content text, and embedding vector(1536)",
+      "A documents table with a single vector(1536)[] array column that holds every chunk embedding",
+      "A separate table created for each document, named after the document ID",
+      "One wide documents table with columns chunk_1 to chunk_2000"
+    ],
+    "answer": 0,
+    "explanation": "A **one-to-many chunks table** gives each chunk its own row, so one vector index covers every chunk and `ORDER BY embedding <=> $1 LIMIT k` ranks chunks directly. **`ON DELETE CASCADE`** cleans up the chunks when their document is deleted.\n\nWhy the other options are wrong:\n\n- **An array of vectors** can't be indexed for nearest-neighbor search, and you'd have to unpack it to rank chunks.\n- **A table per document** can lead to millions of tables. You can't have one index or one query across all of them.\n- **Wide repeated columns** are a classic anti-pattern. They hit PostgreSQL's column limit (1,600) and are impossible to index sensibly.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-schema-04",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "You're designing a `conversations` table for a chat app. IDs are generated by several services in different regions, and timestamps from users in many time zones must compare correctly. Which two type choices are best? Select two.",
+    "options": [
+      "timestamptz for created_at",
+      "text in 'DD/MM/YYYY HH:MI' format for created_at",
+      "uuid for the conversation ID",
+      "varchar(36) for the conversation ID",
+      "timestamp without time zone, with each service's local time"
+    ],
+    "answer": [
+      0,
+      2
+    ],
+    "explanation": "**`timestamptz`** stores an absolute instant (internally UTC) and converts it on input and output, so values written from different time zones compare correctly. **`uuid`** stores IDs in 16 bytes, validates their format, and can be generated independently by each service without coordination.\n\nWhy the other options are wrong:\n\n- **Dates as text** sort lexically, not chronologically, and aren't validated.\n- **`varchar(36)`** works but uses more than twice the space of `uuid`, compares more slowly, and accepts invalid values.\n- **`timestamp` with local time** loses the offset, so values from different regions can't be compared.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-schema-05",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You're moving from `text-embedding-ada-002` to `text-embedding-3-small`, and both produce 1536-dimension vectors. Re-embedding 8 million chunks takes days, and search must keep working throughout. How should you change the schema?",
+    "options": [
+      "Write the new embeddings into the existing column as they're produced, because both models have 1536 dimensions",
+      "Run ALTER TABLE chunks ALTER COLUMN embedding TYPE vector(1536) USING embedding to convert the vectors in place",
+      "Add a new column (for example embedding_v2 vector(1536)), backfill and index it, switch queries to it, then drop the old column",
+      "Store the old and new vectors added together in one column so both models stay searchable"
+    ],
+    "answer": 2,
+    "explanation": "Vectors from **different models live in different vector spaces**, even when their dimension counts match, so they must never be mixed or compared. A **side-by-side column** lets you backfill and index it while queries keep using the old column. Then you switch over in one step and drop the old column.\n\nWhy the other options are wrong:\n\n- **Writing new embeddings into the old column** mixes incompatible spaces during the migration, so search quality drops unpredictably.\n- **`ALTER ... TYPE` with the same type** changes nothing. A model's embeddings can't be converted by casting.\n- **Summing the vectors** produces meaningless embeddings.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-schema-06",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "A hybrid retrieval pipeline also produces learned sparse embeddings: vectors with a 30,000-term vocabulary in which typically fewer than 200 values are non-zero. Which pgvector type should store them?",
+    "options": [
+      "vector(30000)",
+      "sparsevec(30000)",
+      "halfvec(30000)",
+      "bit(30000)"
+    ],
+    "answer": 1,
+    "explanation": "**`sparsevec`** stores only the non-zero elements and their indexes. It's built for high-dimensional, mostly-zero vectors and supports up to 16,000 non-zero elements, along with distance operators and HNSW indexing.\n\nWhy the other options are wrong:\n\n- **`vector(30000)`** stores every zero as a 4-byte float (about 120 KB per row) and can't be indexed beyond 2,000 dimensions.\n- **`halfvec`** halves the element size but still stores every element densely.\n- **`bit`** is for binary vectors and loses the weights.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-schema-07",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You're adding keyword search next to vector search on the `content` column of `chunks`. The keyword representation must always match `content`, even when rows are updated by other services that don't know about it. What should you add?",
+    "options": [
+      "A trigger-free tsvector column that the application fills in only when it inserts rows",
+      "A B-tree index on content, used with LIKE '%term%' queries",
+      "A content_tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED column with a GIN index",
+      "A second vector column that holds embeddings of keywords"
+    ],
+    "answer": 2,
+    "explanation": "A **stored generated column** is recalculated by PostgreSQL whenever `content` changes, so it can never drift, no matter who writes the row. A **GIN index** makes `content_tsv @@ websearch_to_tsquery('english', $1)` fast and supports `ts_rank` scoring for hybrid search.\n\nWhy the other options are wrong:\n\n- **A column filled by the application** goes stale when other services update rows.\n- **B-tree indexes** can't serve a `LIKE` with a leading wildcard, and `LIKE` has no stemming or ranking.\n- **Embeddings of keywords** are still semantic search. They don't provide exact lexical matching.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-schema-08",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A multi-tenant RAG database stores every tenant's chunks in one `chunks` table. After a bug in which a query left out its `WHERE tenant_id = ...` filter, security requires the database itself to stop any session from reading another tenant's rows. What should you implement?",
+    "options": [
+      "A view for each tenant, with the application choosing which view to query",
+      "A CHECK constraint on tenant_id",
+      "A unique index on (tenant_id, id)",
+      "Row-level security: ALTER TABLE chunks ENABLE ROW LEVEL SECURITY plus a policy such as USING (tenant_id = current_setting('app.tenant_id')::uuid), with the app role not exempt from RLS"
+    ],
+    "answer": 3,
+    "explanation": "**Row-level security** adds the policy predicate to *every* query on the table, so a missing `WHERE` clause can no longer leak data. The app sets `app.tenant_id` per transaction (for example with `SET LOCAL`). The app role must not own the table, or `FORCE ROW LEVEL SECURITY` must be used, and it must not have `BYPASSRLS`.\n\nWhy the other options are wrong:\n\n- **Views for each tenant** still rely on the app choosing correctly, which is the same failure mode as before.\n- **CHECK constraints** validate values on write. They don't filter reads.\n- **Unique indexes** enforce uniqueness, not access control.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Model schemas and choose appropriate data types",
+    "source": "generated",
+    "objective": "pg-schema"
+  },
+  {
+    "id": "gen-pg-indexing-01",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You created `CREATE INDEX ON chunks USING hnsw (embedding vector_l2_ops);`, but the application ranks results with `ORDER BY embedding <=> $1 LIMIT 10`. `EXPLAIN` shows a sequential scan with a sort, and the HNSW index is never used. What is the fix?",
+    "options": [
+      "Run ANALYZE chunks so the planner discovers the index",
+      "Recreate the index with vector_cosine_ops so that it matches the <=> cosine distance operator",
+      "SET enable_seqscan = off for the session",
+      "Increase hnsw.ef_search to 200"
+    ],
+    "answer": 1,
+    "explanation": "A pgvector index serves only the **distance operator of its operator class**: `vector_l2_ops` serves `<->`, `vector_cosine_ops` serves `<=>`, and `vector_ip_ops` serves `<#>`. The query uses cosine distance, so the index must be built with `vector_cosine_ops`, or the query must switch to the operator the index was built for.\n\nWhy the other options are wrong:\n\n- **`ANALYZE`** refreshes statistics. It can't make an L2 index answer a cosine ordering.\n- **`enable_seqscan = off`** can't force an index that can't serve the operator. The planner falls back to a sequential scan anyway.\n- **`ef_search`** tunes how an HNSW scan searches *once the index is in use*.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement indexing strategies to optimize latency and reduce pgvector compute overhead",
+    "source": "generated",
+    "objective": "pg-indexing"
+  },
+  {
+    "id": "gen-pg-indexing-02",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "An HNSW index (m = 16, ef_construction = 64) returns results quickly, but offline evaluation shows recall@10 of 0.89, and the target is 0.95. You want to raise recall without rebuilding the index. What should you change?",
+    "options": [
+      "Raise hnsw.ef_search (default 40), for example SET hnsw.ef_search = 100, accepting somewhat higher latency",
+      "Increase m to 48",
+      "SET ivfflat.probes = 20",
+      "Increase maintenance_work_mem"
+    ],
+    "answer": 0,
+    "explanation": "**`hnsw.ef_search`** sets the size of the candidate list an HNSW search keeps at query time. Raising it explores more of the graph, so recall goes up and latency rises a little. It can be set per session or per transaction (`SET LOCAL`), and no rebuild is needed.\n\nWhy the other options are wrong:\n\n- **`m`** is a build-time parameter. Changing it means rebuilding the index.\n- **`ivfflat.probes`** only affects IVFFlat indexes.\n- **`maintenance_work_mem`** affects how fast the index builds, not query recall.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement indexing strategies to optimize latency and reduce pgvector compute overhead",
+    "source": "generated",
+    "objective": "pg-indexing"
+  },
+  {
+    "id": "gen-pg-indexing-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Building an HNSW index on 10 million embeddings takes many hours on a 16-vCore Memory Optimized flexible server, and a NOTICE says the graph no longer fits into maintenance_work_mem. You want a faster build without lowering index quality. Which two settings should you raise for the build session? Select two.",
+    "options": [
+      "maintenance_work_mem, so that the graph fits in memory during the build",
+      "hnsw.ef_search",
+      "effective_cache_size",
+      "max_parallel_maintenance_workers, so that pgvector can build the index with parallel workers",
+      "work_mem"
+    ],
+    "answer": [
+      0,
+      3
+    ],
+    "explanation": "HNSW builds are much faster when the **graph fits in `maintenance_work_mem`**. Once it no longer fits, the build slows down sharply. pgvector also supports **parallel index builds**, which `max_parallel_maintenance_workers` controls.\n\n```sql\nSET maintenance_work_mem = '8GB';\nSET max_parallel_maintenance_workers = 7;\nCREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops);\n```\n\nWhy the other options are wrong:\n\n- **`hnsw.ef_search`** is a query-time setting.\n- **`effective_cache_size`** is only a planner estimate. It allocates nothing.\n- **`work_mem`** is used by query sorts and hashes, not by index builds.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement indexing strategies to optimize latency and reduce pgvector compute overhead",
+    "source": "generated",
+    "objective": "pg-indexing"
+  },
+  {
+    "id": "gen-pg-indexing-04",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A query runs `WHERE category = 'contracts' ORDER BY embedding <=> $1 LIMIT 10` against an HNSW index. Contracts are only 2% of rows, and the query often returns just 1 or 2 rows instead of 10. The server runs pgvector 0.8. What should you enable?",
+    "options": [
+      "SET ivfflat.probes = 100",
+      "SET hnsw.iterative_scan = relaxed_order (or strict_order) so the index scan keeps searching until enough rows pass the filter",
+      "Raise LIMIT to 500 and keep the first 10 contract rows in the application",
+      "Drop the HNSW index so that PostgreSQL always runs an exact scan"
+    ],
+    "answer": 1,
+    "explanation": "With an approximate index, PostgreSQL applies the filter **after** the index returns its `ef_search` candidates, so a selective filter can leave fewer rows than `LIMIT`. **Iterative index scans** (pgvector 0.8+) keep scanning the index until enough rows pass the filter, bounded by `hnsw.max_scan_tuples`.\n\nWhy the other options are wrong:\n\n- **`ivfflat.probes`** applies only to IVFFlat indexes.\n- **Over-fetching and filtering in the app** wastes work and still can't guarantee 10 matching rows.\n- **Dropping the index** fixes the row count but makes every query a full scan, which is far too slow at scale. (A B-tree on `category` or a partial index may help separately.)",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement indexing strategies to optimize latency and reduce pgvector compute overhead",
+    "source": "generated",
+    "objective": "pg-indexing"
+  },
+  {
+    "id": "gen-pg-indexing-05",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "You are building an IVFFlat index after loading 4 million rows. Using the common pgvector starting point for tables over 1 million rows (lists ≈ √rows), which `lists` value should you pick?",
+    "options": [
+      "100",
+      "4000",
+      "2000",
+      "40000"
+    ],
+    "answer": 2,
+    "explanation": "pgvector suggests **lists = rows / 1000** for up to 1M rows and **lists = √rows** above that. √4,000,000 = **2000**. A good starting `ivfflat.probes` is about √lists (around 45). Build the index **after** loading so that the centroids reflect the data.\n\nWhy the other options are wrong:\n\n- **100** puts about 40,000 vectors in each list, so every probe scans a lot of data and queries are slow.\n- **4000** follows the rows/1000 rule, which is meant for tables under 1M rows. It's a reasonable value, but not the recommended start at this size.\n- **40000** gives lists of about 100 vectors each. Recall becomes poor unless you raise `probes` a lot, which cancels out the benefit.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement indexing strategies to optimize latency and reduce pgvector compute overhead",
+    "source": "generated",
+    "objective": "pg-indexing"
+  },
+  {
+    "id": "gen-pg-compute-01",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A production pgvector workload has a 40 GB HNSW index plus about 10 GB of frequently read table pages. Latency is good only when this working set is served from memory, and CPU demand is moderate (about 6–8 vCores). Which flexible server compute size fits best?",
+    "options": [
+      "Burstable B2ms (2 vCores, 8 GiB)",
+      "General Purpose D4ds_v5 (4 vCores, 16 GiB)",
+      "General Purpose D8ds_v5 (8 vCores, 32 GiB)",
+      "Memory Optimized E8ds_v5 (8 vCores, 64 GiB)"
+    ],
+    "answer": 3,
+    "explanation": "**Memory Optimized (E-series)** SKUs have about **8 GiB per vCore**. The E8ds_v5 gives 64 GiB, enough to keep the roughly 50 GB working set cached, with the 8 vCores the workload needs.\n\nWhy the other options are wrong:\n\n- **Burstable B2ms** depends on CPU credits and has far too little memory. It's meant for dev and test or very light workloads.\n- **D4ds_v5** has 16 GiB, so most index reads go to disk.\n- **D8ds_v5** matches the vCores but General Purpose has only 4 GiB per vCore. At 32 GiB, the working set still doesn't fit.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-02",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Nightly embedding loads into a flexible server with 128 GiB of Premium SSD storage have slowed down. Monitoring shows CPU at 35% and memory with plenty of headroom, while disk IOPS stays flat at the storage limit of about 500 throughout the load. What should you change?",
+    "options": [
+      "Raise the storage IOPS limit, either with a larger disk or a higher performance tier, or by moving to Premium SSD v2 and provisioning IOPS directly",
+      "Double the vCores",
+      "Turn on storage autogrow",
+      "Add a read replica"
+    ],
+    "answer": 0,
+    "explanation": "The load is **IOPS-bound**: it sits at the ~500 IOPS that a 128 GiB Premium SSD (P10) provides. With Premium SSD, IOPS grow with the disk size or performance tier. **Premium SSD v2** lets you provision IOPS and throughput separately from capacity.\n\nWhy the other options are wrong:\n\n- **More vCores** don't help when the CPU is mostly idle and waiting on disk. (vCores can raise the VM-level I/O cap, but here the disk itself is the limit.)\n- **Autogrow** only adds capacity when the disk is nearly full, and growth isn't timed around the load.\n- **Read replicas** serve reads. They don't speed up writes on the primary.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A flexible server with zone-redundant high availability handles both ingestion writes and a growing number of similarity-search reads. CPU on the primary is saturated by read queries. You want to add read capacity without changing the primary's size. What should you do?",
+    "options": [
+      "Send read traffic to the HA standby server",
+      "Create one or more read replicas and route similarity-search queries to them, for example through a read-only endpoint",
+      "Increase storage so that queries can use more IOPS",
+      "Run PgBouncer in session mode on the primary"
+    ],
+    "answer": 1,
+    "explanation": "**Read replicas** copy data asynchronously and accept read-only queries, so search traffic moves off the primary. (Replicas can lag slightly, which is usually fine for retrieval.) **Virtual endpoints** give you a stable read-only connection string.\n\nWhy the other options are wrong:\n\n- **The HA standby** is for failover only. It doesn't accept connections.\n- **More storage** doesn't fix a CPU bottleneck.\n- **PgBouncer** reduces connection overhead but adds no compute for the queries themselves.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-04",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A RAG prototype went to production on a Burstable B2s flexible server. Queries are fast in the morning but become very slow by mid-afternoon, every day. The server's CPU credits remaining metric reaches zero just before the slowdown. What is the right fix?",
+    "options": [
+      "Restart the server each afternoon to reset its credits",
+      "Increase the storage size so the server gets more CPU credits",
+      "Move the server to a General Purpose or Memory Optimized tier, which gives sustained, non-burstable CPU",
+      "Lower max_connections to save CPU credits"
+    ],
+    "answer": 2,
+    "explanation": "**Burstable** SKUs earn CPU credits while idle and spend them under load. Once credits run out, the CPU is **throttled to its baseline**. Sustained production load needs **General Purpose** or **Memory Optimized** compute.\n\nWhy the other options are wrong:\n\n- **Restarting** doesn't refill credits, and it causes downtime.\n- **Storage size** affects IOPS, not CPU credits.\n- **Fewer connections** doesn't reduce the CPU each query needs. It only queues users.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-05",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You raised the `shared_buffers` server parameter on a flexible server so more of the HNSW index stays cached. An hour later, `SHOW shared_buffers;` still returns the old value and cache hit ratios haven't changed. Why?",
+    "options": [
+      "Azure ignores shared_buffers and manages it automatically",
+      "The value applies only to new connections, so existing pools must reconnect",
+      "You must also raise effective_cache_size before shared_buffers can increase",
+      "shared_buffers is a static parameter, so the server must be restarted before the new value takes effect"
+    ],
+    "answer": 3,
+    "explanation": "**`shared_buffers`** is allocated when PostgreSQL starts, so it's a **static** parameter. In Azure the change is saved but stays *pending* until you **restart the server**. Plan the restart for a maintenance window.\n\nWhy the other options are wrong:\n\n- **Azure doesn't ignore it.** It's a configurable server parameter on flexible server.\n- **Reconnecting** only picks up *dynamic* parameters. Static ones need a server restart.\n- **`effective_cache_size`** is a separate planner hint. It doesn't block other settings.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-06",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Vector search latency on a flexible server has been creeping up. You suspect the HNSW index no longer fits in memory. Which check confirms this most directly?",
+    "options": [
+      "Compare pg_relation_size of the index with the server's memory and shared_buffers, and check idx_blks_read against idx_blks_hit for the index in pg_statio_user_indexes",
+      "Check the Activity Log for recent configuration changes",
+      "Count rows in pg_stat_activity",
+      "Run VACUUM FULL on the table and see whether latency improves"
+    ],
+    "answer": 0,
+    "explanation": "If the **index size** is close to or larger than the available memory, and **`pg_statio_user_indexes`** shows many `idx_blks_read` (disk reads) compared with `idx_blks_hit` (cache hits), the index isn't staying in memory. Rising disk read IOPS during searches backs this up. The fix is more memory (a Memory Optimized SKU) or a smaller index (`halfvec`, fewer dimensions).\n\nWhy the other options are wrong:\n\n- **The Activity Log** records control-plane operations, not cache behavior.\n- **`pg_stat_activity`** shows sessions, not index caching.\n- **`VACUUM FULL`** rewrites the table under an exclusive lock. It's disruptive and doesn't diagnose memory pressure.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-07",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Your 1536-dimension `vector` HNSW index needs about 90 GB of memory to stay fast, but the budget only covers a 64 GiB Memory Optimized server. Search quality must stay acceptable. Which two changes reduce the memory the index needs? Select two.",
+    "options": [
+      "Index the embeddings as halfvec, which halves the bytes per dimension",
+      "Increase the HNSW m parameter from 16 to 32",
+      "Switch the column to double precision arrays for better accuracy",
+      "Generate shorter embeddings, for example 768 dimensions with the text-embedding-3 dimensions parameter, after validating retrieval quality",
+      "Raise hnsw.ef_search"
+    ],
+    "answer": [
+      0,
+      3
+    ],
+    "explanation": "Index size grows with **bytes per dimension × number of dimensions × number of rows** (plus graph links):\n\n- **`halfvec`** uses 2 bytes per dimension instead of 4, which roughly halves vector storage, with usually negligible recall loss.\n- **Fewer dimensions** (text-embedding-3 models support a `dimensions` parameter) shrinks every vector proportionally.\n\nWhy the other options are wrong:\n\n- **A higher `m`** stores more links per node, so the index gets *bigger*.\n- **Double precision** doubles the size and isn't indexable by pgvector.\n- **`ef_search`** changes query-time effort, not index size.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-08",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "During a large backfill, inserts suddenly fail with `cannot execute INSERT in a read-only transaction`. The flexible server's storage used metric is at about 95% of the provisioned size. What should you do to recover and prevent a repeat?",
+    "options": [
+      "Restart the server to clear the read-only flag",
+      "Set default_transaction_read_only = off at the session level and retry",
+      "Increase the provisioned storage, and turn on storage autogrow so the server grows before it reaches the limit",
+      "Drop the HNSW index to free space and keep the current storage size"
+    ],
+    "answer": 2,
+    "explanation": "When storage is almost full, flexible server **switches to read-only** to protect the database. Recover by **increasing storage** (this happens online). Enable **storage autogrow** so it expands automatically before it reaches the threshold.\n\nWhy the other options are wrong:\n\n- **Restarting** doesn't free space. The server stays read-only.\n- **Overriding the session setting** doesn't work. The platform enforces read-only mode.\n- **Dropping the index** frees space briefly but breaks search, and the backfill fills the disk again.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-compute-09",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Under peak load, a flexible server running HNSW similarity queries shows CPU at 95%. The buffer cache hit ratio for the index is 99.9%, disk IOPS are low, and recall is comfortably above target. Which change most directly addresses the bottleneck?",
+    "options": [
+      "Move to a tier with the same vCores but more memory",
+      "Increase storage size to get more IOPS",
+      "Raise shared_buffers",
+      "Scale up vCores, and optionally lower hnsw.ef_search slightly because recall has headroom"
+    ],
+    "answer": 3,
+    "explanation": "The index is already served from memory and the disk is idle, so the workload is **CPU-bound**: distance calculations dominate. **More vCores** add capacity directly. Because recall is above target, a slightly **lower `ef_search`** also cuts the work per query.\n\nWhy the other options are wrong:\n\n- **More memory** doesn't help when nearly everything is already cached.\n- **More IOPS** doesn't help when the disk isn't the bottleneck.\n- **A larger `shared_buffers`** has nothing to gain with a 99.9% hit ratio, and the change needs a restart.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Configure compute, memory, and storage resources for vector workloads",
+    "source": "generated",
+    "objective": "pg-compute"
+  },
+  {
+    "id": "gen-pg-vector-rag-01",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You want hybrid retrieval in PostgreSQL. Keyword search with `ts_rank` and vector search with `<=>` each return a top-50 list, and their scores are on different scales. How should you combine them into one final ranking?",
+    "options": [
+      "Add ts_rank to the cosine distance and sort by the sum",
+      "Rank each list separately (ROW_NUMBER() in two CTEs), then combine with Reciprocal Rank Fusion: score = Σ 1/(k + rank), with k around 60",
+      "Return only the rows that appear in both lists, in keyword order",
+      "Multiply ts_rank by the cosine distance and sort in ascending order"
+    ],
+    "answer": 1,
+    "explanation": "**Reciprocal Rank Fusion (RRF)** uses only each result's *position* in each list, so the different score scales don't matter.\n\n```sql\nWITH sem AS (\n  SELECT id, ROW_NUMBER() OVER (ORDER BY embedding <=> $1) AS r\n  FROM chunks ORDER BY embedding <=> $1 LIMIT 50),\nkw AS (\n  SELECT id, ROW_NUMBER() OVER (ORDER BY ts_rank(content_tsv, q) DESC) AS r\n  FROM chunks, websearch_to_tsquery('english', $2) q\n  WHERE content_tsv @@ q LIMIT 50)\nSELECT id, SUM(1.0 / (60 + r)) AS score\nFROM (SELECT * FROM sem UNION ALL SELECT * FROM kw) u\nGROUP BY id ORDER BY score DESC LIMIT 10;\n```\n\nWhy the other options are wrong:\n\n- **Adding raw scores** mixes a similarity score (higher is better) with a distance (lower is better) on unrelated scales.\n- **Keeping only the intersection** drops strong results that appear in just one list.\n- **Multiplying** raw scores has the same scale and direction problems.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Run vector similarity search and RAG patterns with metadata filters",
+    "source": "generated",
+    "objective": "pg-vector-rag"
+  },
+  {
+    "id": "gen-pg-vector-rag-02",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "A RAG step should send the model only chunks with cosine **similarity** of at least 0.80 to the query, and at most 8 of them. Which pgvector query does this?",
+    "options": [
+      "SELECT id FROM chunks WHERE embedding <=> $1 >= 0.80 ORDER BY embedding <=> $1 LIMIT 8",
+      "SELECT id FROM chunks WHERE embedding <-> $1 <= 0.80 ORDER BY embedding <-> $1 DESC LIMIT 8",
+      "SELECT id FROM chunks WHERE (embedding <#> $1) >= 0.80 LIMIT 8",
+      "SELECT id FROM chunks WHERE 1 - (embedding <=> $1) >= 0.80 ORDER BY embedding <=> $1 LIMIT 8"
+    ],
+    "answer": 3,
+    "explanation": "`<=>` returns cosine **distance**, which equals 1 − cosine similarity. A similarity of at least 0.80 is therefore `1 - (embedding <=> $1) >= 0.80`, and sorting by ascending distance puts the most similar chunks first.\n\nWhy the other options are wrong:\n\n- **`<=> >= 0.80`** keeps chunks with *low* similarity (0.20 or less).\n- **`<->`** is Euclidean (L2) distance, not cosine, and sorting it `DESC` returns the *least* similar rows first.\n- **`<#>`** returns the *negative* inner product, so the threshold is reversed. This query also has no ordering.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Run vector similarity search and RAG patterns with metadata filters",
+    "source": "generated",
+    "objective": "pg-vector-rag"
+  },
+  {
+    "id": "gen-pg-vector-rag-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "You want PostgreSQL to create the query embedding itself by calling your Azure OpenAI deployment inside the retrieval query, for example `ORDER BY embedding <=> azure_openai.create_embeddings('text-embedding-3-small', $1)::vector`. Which two setup steps are needed? Select two.",
+    "options": [
+      "Allow-list AZURE_AI in the azure.extensions server parameter and run CREATE EXTENSION azure_ai",
+      "Install pg_cron so that it can call Azure OpenAI on a schedule",
+      "Configure the endpoint and credentials, for example SELECT azure_ai.set_setting('azure_openai.endpoint', ...) and azure_openai.subscription_key (or managed identity auth where supported)",
+      "Enable pgvector only, because it calls embedding models itself",
+      "Create a Cosmos DB account to host the embedding model"
+    ],
+    "answer": [
+      0,
+      2
+    ],
+    "explanation": "The **`azure_ai` extension** adds SQL functions such as `azure_openai.create_embeddings`. Setup takes two steps:\n\n1. Allow-list it in **`azure.extensions`** and run **`CREATE EXTENSION azure_ai;`**.\n2. Point it at your resource with **`azure_ai.set_setting`** (endpoint plus a key, or a managed identity where supported).\n\nWhy the other options are wrong:\n\n- **pg_cron** schedules jobs. It has nothing to do with calling models inline.\n- **pgvector** provides vector types, operators, and indexes, but it never calls external models.\n- **Cosmos DB** doesn't host Azure OpenAI deployments.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Run vector similarity search and RAG patterns with metadata filters",
+    "source": "generated",
+    "objective": "pg-vector-rag"
+  },
+  {
+    "id": "gen-pg-vector-rag-04",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "Every RAG query filters on one of five known `doc_type` values. Searches for the rare types (each under 1% of rows) often return fewer than k results through the shared HNSW index. The server runs an older pgvector version without iterative scans. What is the most effective indexing approach?",
+    "options": [
+      "Raise hnsw.ef_search to 10000 for every query",
+      "Create a partial HNSW index for each doc_type, for example CREATE INDEX ... USING hnsw (embedding vector_cosine_ops) WHERE doc_type = 'policy'",
+      "Add doc_type to the HNSW index as a second column",
+      "Filter by doc_type in the application after fetching the top 1000 rows"
+    ],
+    "answer": 1,
+    "explanation": "When a filter has **a few known values**, a **partial index per value** contains only matching rows. The approximate search then finds k results inside the filtered subset. The query must repeat the same `WHERE doc_type = '...'` predicate so that the planner picks the partial index.\n\nWhy the other options are wrong:\n\n- **A huge `ef_search`** makes every query slow and still doesn't guarantee k matches.\n- **Multi-column HNSW indexes** aren't supported. HNSW indexes one vector column.\n- **Over-fetching and filtering in the app** wastes work and can still return too few rows.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Run vector similarity search and RAG patterns with metadata filters",
+    "source": "generated",
+    "objective": "pg-vector-rag"
+  },
+  {
+    "id": "gen-pg-vector-rag-05",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "Which query returns the 5 chunks **most similar** to the query embedding `$1` by cosine distance?",
+    "options": [
+      "SELECT id FROM chunks ORDER BY embedding <=> $1 DESC LIMIT 5",
+      "SELECT id FROM chunks WHERE embedding = $1 LIMIT 5",
+      "SELECT id FROM chunks ORDER BY embedding <=> $1 LIMIT 5",
+      "SELECT id FROM chunks ORDER BY embedding <#> $1 DESC LIMIT 5"
+    ],
+    "answer": 2,
+    "explanation": "Cosine **distance** (`<=>`) is smallest for the most similar vectors, so you sort **ascending**, which is the default. This form also matches an HNSW or IVFFlat index built with `vector_cosine_ops`.\n\nWhy the other options are wrong:\n\n- **`DESC`** returns the *least* similar chunks.\n- **`=`** tests for exact equality, which almost never matches a new query vector.\n- **`<#>`** is the *negative* inner product (smaller means more similar), so sorting it `DESC` also returns the least similar chunks.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Run vector similarity search and RAG patterns with metadata filters",
+    "source": "generated",
+    "objective": "pg-vector-rag"
+  },
+  {
+    "id": "gen-pg-connections-01",
+    "domain": "data-management",
+    "type": "mcq",
+    "question": "You enable the built-in PgBouncer on a flexible server by setting `pgbouncer.enabled` to `true`. Which port should applications use so that their connections go through the pooler?",
+    "options": [
+      "5432",
+      "6432",
+      "6380",
+      "1433"
+    ],
+    "answer": 1,
+    "explanation": "The built-in PgBouncer listens on **port 6432** on the same host name. Port 5432 still connects straight to PostgreSQL and skips the pooler.\n\nWhy the other options are wrong:\n\n- **5432** is the direct PostgreSQL port, so connections there aren't pooled.\n- **6380** is the TLS port of Azure Cache for Redis.\n- **1433** is SQL Server or Azure SQL.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement connection optimization to improve throughput and minimize latency",
+    "source": "generated",
+    "objective": "pg-connections"
+  },
+  {
+    "id": "gen-pg-connections-02",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "An app connects through PgBouncer in transaction pooling mode. It runs `SET hnsw.ef_search = 100;` once after connecting, then runs search queries in later transactions. Recall is inconsistent: some queries behave as if ef_search were still 40. What should you change?",
+    "options": [
+      "Run SET LOCAL hnsw.ef_search = 100 inside the same transaction as each search query (or set it as a role or database default)",
+      "Switch PgBouncer to statement pooling mode",
+      "Increase PgBouncer's default_pool_size",
+      "Run the SET command twice to make sure it applies"
+    ],
+    "answer": 0,
+    "explanation": "In **transaction pooling**, each transaction may run on a **different server connection**, so session state set with `SET` doesn't follow the client. **`SET LOCAL`** inside the transaction scopes the setting to that transaction on whichever server connection runs it. Alternatively, `ALTER ROLE app SET hnsw.ef_search = 100` applies it as a default.\n\nWhy the other options are wrong:\n\n- **Statement pooling** is even stricter. It allows no multi-statement transactions and loses session state too.\n- **A bigger pool** doesn't change how connections are handed out.\n- **Running SET twice** still sets state on a server connection the next transaction may not get.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement connection optimization to improve throughput and minimize latency",
+    "source": "generated",
+    "objective": "pg-connections"
+  },
+  {
+    "id": "gen-pg-connections-03",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A FastAPI service calls `psycopg.connect(...)` at the start of every request and closes the connection at the end. With Entra authentication and TLS, connection setup adds 30–60 ms to each request. What should you implement in the application?",
+    "options": [
+      "A new connection in a background thread for each request",
+      "One global connection shared by all concurrent requests without locking",
+      "Disable TLS to shorten the handshake",
+      "A single psycopg_pool.ConnectionPool created at startup, with each request borrowing a connection through with pool.connection() as conn:"
+    ],
+    "answer": 3,
+    "explanation": "A **client-side pool** pays the TCP, TLS, and authentication cost once per connection and reuses connections across requests. Create it once at startup with a sensible `min_size` and `max_size`, borrow a connection per request, and return it right away.\n\nWhy the other options are wrong:\n\n- **A connection per request in a background thread** still pays the full setup cost for every request.\n- **One shared connection** isn't safe for concurrent use. Requests would block each other or corrupt transaction state.\n- **Disabling TLS** is blocked by default and insecure. Pooling removes the handshake cost safely.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement connection optimization to improve throughput and minimize latency",
+    "source": "generated",
+    "objective": "pg-connections"
+  },
+  {
+    "id": "gen-pg-connections-04",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A retrieval API in West Europe queries a flexible server in North Europe. Each request runs four short queries, and p50 latency is dominated by network time. Which two changes reduce latency the most? Select two.",
+    "options": [
+      "Place the API and the database in the same region (ideally the same availability zone), for example with a read replica near the API",
+      "Raise max_connections to 5000",
+      "Open a fresh connection for each of the four queries",
+      "Cut round trips by combining the four queries into one statement (for example with joins or WHERE id = ANY(%s)) and reusing pooled connections",
+      "Raise shared_buffers"
+    ],
+    "answer": [
+      0,
+      3
+    ],
+    "explanation": "When the network dominates, cut the **cost of each round trip** and the **number of round trips**:\n\n- **Co-locate** the compute and the database. Cross-region round trips add tens of milliseconds each.\n- **Batch** related queries into one statement, and keep pooled connections so you don't pay connection setup again.\n\nWhy the other options are wrong:\n\n- **More `max_connections`** doesn't shorten a round trip and uses more server memory.\n- **New connections per query** add handshakes, so they make latency worse.\n- **`shared_buffers`** speeds up query execution on the server, which isn't the bottleneck here.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement connection optimization to improve throughput and minimize latency",
+    "source": "generated",
+    "objective": "pg-connections"
+  },
+  {
+    "id": "gen-pg-connections-05",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "A Container App scales out to 40 replicas, and each replica's SQLAlchemy pool allows up to 50 connections (pool_size plus max_overflow). The flexible server's max_connections is 1,700. Under peak load, new connections fail with `remaining connection slots are reserved`. What is the best fix?",
+    "options": [
+      "Raise max_connections to 10,000",
+      "Restart the database during peak hours",
+      "Make total demand fit the server: reduce each replica's pool size, cap maxReplicas, and route through PgBouncer in transaction mode so many client connections share fewer server connections",
+      "Set pool_size to 0 so that connections aren't pooled"
+    ],
+    "answer": 2,
+    "explanation": "The worst-case demand is **40 × 50 = 2,000 connections**, which is more than the 1,700 allowed. Size client pools so that **replicas × pool maximum** stays under the limit, and put **PgBouncer** in front so idle client connections don't each hold a server backend.\n\nWhy the other options are wrong:\n\n- **A huge `max_connections`** is capped by the SKU's memory. Each backend uses RAM, so performance gets worse.\n- **Restarts** drop every connection and don't change the maths.\n- **No pooling** adds handshake cost to every query and still opens connections without any cap.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement connection optimization to improve throughput and minimize latency",
+    "source": "generated",
+    "objective": "pg-connections"
+  },
+  {
+    "id": "gen-pg-connections-06",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "After retrieving 20 chunk IDs from a vector search, the service fetches each chunk's parent document title with a separate `SELECT title FROM documents WHERE id = %s` call. The 20 sequential round trips add about 40 ms. How should you rewrite the lookup?",
+    "options": [
+      "Run the 20 queries over 20 separate new connections at once",
+      "Run a single query, SELECT id, title FROM documents WHERE id = ANY(%s), passing the list of IDs (or join documents into the original vector query)",
+      "Cache each title in a Python dictionary that is never invalidated",
+      "Add an index on documents.title"
+    ],
+    "answer": 1,
+    "explanation": "This is an **N+1 query pattern**. One set-based query with **`= ANY(array)`**, or a `JOIN` in the original search, turns 20 round trips into one.\n\nWhy the other options are wrong:\n\n- **20 new connections** add handshake overhead and put pressure on the connection limit.\n- **A never-invalidated cache** serves stale titles and doesn't solve the problem for the first lookup.\n- **An index on `title`** is pointless. The lookup is by primary key `id`, which is already indexed.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement connection optimization to improve throughput and minimize latency",
+    "source": "generated",
+    "objective": "pg-connections"
+  },
+  {
+    "id": "gen-pg-connections-07",
+    "domain": "data-management",
+    "type": "scenario",
+    "question": "After quiet periods, the first requests of a SQLAlchemy-based service fail with `server closed the connection unexpectedly`. Later requests succeed. Pooled connections are being dropped while idle by an intermediate network device. What should you configure?",
+    "options": [
+      "Set pool_pre_ping=True and a pool_recycle value shorter than the idle timeout",
+      "Raise statement_timeout on the server",
+      "Set pool_size=1",
+      "Retry every failed query forever"
+    ],
+    "answer": 0,
+    "explanation": "**`pool_pre_ping`** checks a connection with a lightweight query when it's checked out and quietly replaces dead ones. **`pool_recycle`** retires connections before they reach the network idle timeout. Together they remove these first-request failures.\n\n```python\nengine = create_engine(url, pool_pre_ping=True, pool_recycle=1800)\n```\n\nWhy the other options are wrong:\n\n- **`statement_timeout`** limits how long a query can run. It doesn't affect idle connections.\n- **`pool_size=1`** limits throughput and the one connection can still go stale.\n- **Retrying forever** hides real failures and can cause retry storms.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Database for PostgreSQL",
+    "relatedObjective": "Implement connection optimization to improve throughput and minimize latency",
+    "source": "generated",
+    "objective": "pg-connections"
+  }
+]

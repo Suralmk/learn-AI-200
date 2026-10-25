@@ -1,0 +1,117 @@
+[
+  {
+    "id": "gen-functions-deploy-01",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "You are choosing a hosting plan for a Python function app that enriches documents with Azure OpenAI. It must reach a private Cosmos DB endpoint through VNet integration, scale to zero overnight to save cost, and optionally keep a few always-ready instances for the busiest function. Which plan meets every requirement?",
+    "options": [
+      "Consumption plan",
+      "Flex Consumption plan",
+      "Premium plan (EP1)",
+      "Dedicated App Service plan (P1v3)"
+    ],
+    "answer": 1,
+    "explanation": "**Flex Consumption** is the serverless plan that combines **VNet integration**, **scale to zero**, per-function scaling, and optional **always-ready instances**.\n\nWhy the other options are wrong:\n\n- **Consumption** scales to zero but doesn't support VNet integration or always-ready instances.\n- **Premium (EP1)** supports VNet integration and pre-warmed instances, but it always keeps at least one instance running and billed, so it never scales to zero.\n- **A Dedicated plan** runs on reserved App Service instances that you pay for all the time. It doesn't scale to zero.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Configure and deploy function apps",
+    "source": "generated",
+    "objective": "functions-deploy"
+  },
+  {
+    "id": "gen-functions-deploy-02",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "After you switch a function app to zip deployment with `WEBSITE_RUN_FROM_PACKAGE=1`, a function that writes a temporary prompt-template cache to its own `site/wwwroot` folder starts failing with a read-only file system error. What is the correct fix?",
+    "options": [
+      "Remove WEBSITE_RUN_FROM_PACKAGE so the deployment unpacks into a writable folder, and keep writing to wwwroot",
+      "Grant the app's managed identity Storage Blob Data Contributor on its deployment storage account",
+      "Write the cache to the temp directory (for example tempfile.gettempdir()) or to external storage instead of the app folder",
+      "Set functionTimeout to -1 in host.json so the write has time to finish"
+    ],
+    "answer": 2,
+    "explanation": "With **run from package**, the zip is mounted as `wwwroot` and is **read-only by design**. That makes deployments atomic and cold starts faster. Code should write scratch data to the **local temp directory** or to an external store such as Blob Storage or Redis.\n\nWhy the other options are wrong:\n\n- **Removing run from package** gives up atomic deployments to work around a code smell. Writing into the deployed app folder is fragile because redeployments overwrite it.\n- **Storage RBAC** affects access to blobs, not whether the mounted package is writable.\n- **`functionTimeout`** limits how long a function can run. It has nothing to do with file system permissions.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Configure and deploy function apps",
+    "source": "generated",
+    "objective": "functions-deploy"
+  },
+  {
+    "id": "gen-functions-deploy-03",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "Security wants to remove the storage account key from the `AzureWebJobsStorage` setting of a function app. The app has a system-assigned managed identity. Which configuration lets the Functions host keep using the storage account?",
+    "options": [
+      "Delete AzureWebJobsStorage entirely; the host falls back to an internal Microsoft-managed account",
+      "Replace the key in the connection string with a SAS token that expires after 10 years",
+      "Set AzureWebJobsStorage to a Key Vault reference that holds the original connection string",
+      "Replace it with AzureWebJobsStorage__accountName=<account> and grant the identity data roles on the account, such as Storage Blob Data Owner"
+    ],
+    "answer": 3,
+    "explanation": "**Identity-based connections** replace the connection string with settings that name the account, such as `AzureWebJobsStorage__accountName`. The host then authenticates with the app's managed identity. That identity needs data-plane RBAC roles: Storage Blob Data Owner for the host, plus queue or table roles if your triggers use them.\n\nWhy the other options are wrong:\n\n- **Deleting the setting** breaks the host, which needs storage for keys, timers, and trigger bookkeeping. There's no hidden fallback account.\n- **A long-lived SAS** is still a shared secret, so it doesn't meet the goal.\n- **A Key Vault reference** hides the key in configuration, but the app still authenticates with the account key.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Configure and deploy function apps",
+    "source": "generated",
+    "objective": "functions-deploy"
+  },
+  {
+    "id": "gen-functions-deploy-04",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "A function on the Consumption plan re-embeds a document batch and needs about 8 minutes. It's always cut off at 5 minutes with a timeout error. What should you change?",
+    "options": [
+      "Set \"functionTimeout\": \"00:10:00\" in host.json",
+      "Set the app setting FUNCTIONS_WORKER_PROCESS_COUNT=2",
+      "Set \"functionTimeout\": \"-1\" in host.json for unlimited execution on Consumption",
+      "Increase the HTTP request timeout in the Azure Load Balancer settings"
+    ],
+    "answer": 0,
+    "explanation": "On the **Consumption plan**, the default timeout is **5 minutes** and the maximum is **10 minutes**. You raise it with `functionTimeout` in `host.json`:\n\n```json\n{ \"version\": \"2.0\", \"functionTimeout\": \"00:10:00\" }\n```\n\nFor work that may run longer, use Durable Functions or a Premium, Flex Consumption, or Dedicated plan.\n\nWhy the other options are wrong:\n\n- **`FUNCTIONS_WORKER_PROCESS_COUNT`** adds language worker processes for concurrency. It doesn't extend a single execution.\n- **`-1` (unlimited)** isn't allowed on Consumption.\n- **Load balancer timeouts** apply to HTTP connections. This limit is the Functions host's execution timeout.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Configure and deploy function apps",
+    "source": "generated",
+    "objective": "functions-deploy"
+  },
+  {
+    "id": "gen-functions-deploy-05",
+    "domain": "azure-services",
+    "type": "scenario",
+    "question": "A developer on Windows deploys a Python function app to a Linux plan. The functions fail at startup with `ModuleNotFoundError` for `numpy` and `psycopg`, even though both are listed in `requirements.txt`. Which two approaches make Azure install the correct Linux dependencies during deployment? Select two.",
+    "options": [
+      "Publish with func azure functionapp publish <app> --build remote",
+      "Zip the local .venv folder from the Windows machine together with the code",
+      "For zip deployments, set SCM_DO_BUILD_DURING_DEPLOYMENT=true so the platform runs a remote build from requirements.txt",
+      "Add \"pythonPackages\": [\"numpy\", \"psycopg\"] to host.json",
+      "Deploy only function_app.py, because packages are installed automatically on first request"
+    ],
+    "answer": [0, 2],
+    "explanation": "Both correct options trigger a **remote build**, where Azure installs `requirements.txt` on Linux. That way, packages with native code such as `numpy` and `psycopg` get Linux wheels:\n\n- `func azure functionapp publish <app> --build remote`\n- Zip deployment with `SCM_DO_BUILD_DURING_DEPLOYMENT=true`\n\nWhy the other options are wrong:\n\n- **Zipping a Windows `.venv`** ships Windows binaries that can't load on Linux.\n- **`host.json`** has no `pythonPackages` setting. Dependencies come from `requirements.txt`.\n- **Installing on first request** doesn't happen. Missing packages stay missing at runtime.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Configure and deploy function apps",
+    "source": "generated",
+    "objective": "functions-deploy"
+  },
+  {
+    "id": "gen-functions-deploy-06",
+    "domain": "azure-services",
+    "type": "mcq",
+    "question": "You are configuring a new function app to send telemetry to Application Insights. Which app setting should you use?",
+    "options": [
+      "APPINSIGHTS_INSTRUMENTATIONKEY",
+      "AzureWebJobsDashboard",
+      "APPLICATIONINSIGHTS_CONNECTION_STRING",
+      "logging.applicationInsights.enabled in local.settings.json"
+    ],
+    "answer": 2,
+    "explanation": "**`APPLICATIONINSIGHTS_CONNECTION_STRING`** is the supported way to connect Functions to Application Insights. The connection string includes the ingestion endpoint, which regional and sovereign clouds need.\n\nWhy the other options are wrong:\n\n- **`APPINSIGHTS_INSTRUMENTATIONKEY`** is the legacy key-only setting. Support for instrumentation-key ingestion ended in 2025, so new apps should use the connection string.\n- **`AzureWebJobsDashboard`** is an obsolete setting from Functions v1 and isn't used for Application Insights.\n- **`local.settings.json`** only applies when you run locally. It isn't deployed to Azure, and that key isn't a valid setting anyway.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Functions",
+    "relatedObjective": "Configure and deploy function apps",
+    "source": "generated",
+    "objective": "functions-deploy"
+  }
+]

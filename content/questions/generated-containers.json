@@ -1,0 +1,253 @@
+[
+  {
+    "id": "gen-acr-images-01",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Your CI pipeline pushes a new build of `inference-api:latest` to a Premium Azure Container Registry about 40 times a day. Each push leaves the previous manifest untagged, and registry storage keeps growing. You want untagged manifests removed automatically 7 days after they lose their tag, without scheduling any build or purge task. What should you configure?",
+    "options": [
+      "Run az acr repository update --name myregistry --image inference-api:latest --delete-enabled true so older manifests are deleted when the tag moves",
+      "Run az acr config retention update --registry myregistry --status enabled --days 7 --type UntaggedManifests",
+      "Enable geo-replication so untagged manifests are compacted across replicas and stop counting towards storage",
+      "Run az acr import --force for every build so the new image overwrites the old manifest instead of creating a new one"
+    ],
+    "answer": 1,
+    "explanation": "A **retention policy for untagged manifests** (a Premium tier feature) makes the registry delete manifests automatically a set number of days after they become untagged. No task or pipeline step is needed.\n\n```bash\naz acr config retention update \\\n  --registry myregistry \\\n  --status enabled --days 7 \\\n  --type UntaggedManifests\n```\n\nWhy the other options are wrong:\n\n- **`az acr repository update --delete-enabled true`** only controls whether an image *may* be deleted. It never deletes anything itself.\n- **Geo-replication** copies the registry to other regions. It doesn't clean up content, and it adds storage in each replica.\n- **`az acr import --force`** copies an image from another source. A push to an existing tag still leaves the old manifest untagged, so the storage growth continues.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Build, store, version, and manage container images by using Azure Container Registry",
+    "source": "generated",
+    "objective": "acr-images"
+  },
+  {
+    "id": "gen-acr-images-02",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A model-serving image tagged `scorer:2.3.1` has passed validation and is approved for production. Auditors require that nobody can push a different image to that tag or delete it, while other tags in the same repository must stay writable. What should you do?",
+    "options": [
+      "Remove the AcrPush role from every identity that has access to the registry",
+      "Enable a retention policy so tagged manifests are kept for 365 days",
+      "Run az acr repository update --name myregistry --image scorer:2.3.1 --write-enabled false --delete-enabled false",
+      "Disable the registry's public network access so that only private endpoints can reach it"
+    ],
+    "answer": 2,
+    "explanation": "ACR supports **image locking** on a single tag or manifest. Setting `--write-enabled false` stops anyone from overwriting the tag, and `--delete-enabled false` stops anyone from deleting it. Other tags in the repository aren't affected.\n\n```bash\naz acr repository update --name myregistry \\\n  --image scorer:2.3.1 \\\n  --write-enabled false --delete-enabled false\n```\n\nWhy the other options are wrong:\n\n- **Removing AcrPush everywhere** blocks *every* push to the registry, not just the approved tag, and it breaks the CI pipeline.\n- **Retention policies** only clean up *untagged* manifests. They don't protect a tag from being overwritten.\n- **Disabling public network access** limits where clients can connect from. Anyone with network access and push rights could still overwrite the tag.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Build, store, version, and manage container images by using Azure Container Registry",
+    "source": "generated",
+    "objective": "acr-images"
+  },
+  {
+    "id": "gen-acr-images-03",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "After an incident, you learn that two AKS nodes ran different code for the same Deployment because the `rag-api:prod` tag was re-pushed during a rollout. You must guarantee that every replica runs exactly the same image bytes until a deliberate change is made. Which two actions meet this requirement? Select two.",
+    "options": [
+      "Set imagePullPolicy: Always so each node pulls the newest image behind the tag",
+      "Reference the image by digest in the manifest, for example rag-api@sha256:<digest>",
+      "Enable the ACR admin user so all nodes authenticate with the same credentials",
+      "Lock the release tag with az acr repository update --write-enabled false and deploy only immutable, versioned tags",
+      "Enable geo-replication so all nodes pull from the same regional replica"
+    ],
+    "answer": [1, 3],
+    "explanation": "Two things make image references immutable:\n\n- **Reference by digest.** A digest (`@sha256:...`) identifies exactly one manifest, so every node resolves to the same bytes no matter what happens to tags.\n- **Lock versioned tags.** If you deploy unique version tags (for example `rag-api:1.8.4`) and lock them with `--write-enabled false`, nobody can re-point the tag.\n\nWhy the other options are wrong:\n\n- **`imagePullPolicy: Always`** makes things *worse*. Every pod start re-resolves a mutable tag, so replicas can pick up different images.\n- **The admin user** only changes how nodes authenticate. It does nothing about which image a tag points to, and Microsoft recommends against it for production.\n- **Geo-replication** reduces pull latency. Replicas still serve whatever manifest the tag currently points to.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Build, store, version, and manage container images by using Azure Container Registry",
+    "source": "generated",
+    "objective": "acr-images"
+  },
+  {
+    "id": "gen-acr-images-04",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "You want to copy `python:3.12-slim` from Docker Hub into your registry as `base/python:3.12-slim` once, keeping the original manifest digest. The build agent has no Docker daemon. Which command should you run?",
+    "options": [
+      "az acr import --name myregistry --source docker.io/library/python:3.12-slim --image base/python:3.12-slim",
+      "az acr build --registry myregistry --image base/python:3.12-slim . with a Dockerfile containing only FROM python:3.12-slim",
+      "docker pull python:3.12-slim, then docker tag and docker push to myregistry.azurecr.io",
+      "az acr repository show --name myregistry --image base/python:3.12-slim --source docker.io"
+    ],
+    "answer": 0,
+    "explanation": "**`az acr import`** copies an image from a public or private registry straight into ACR on the server side. It needs no local Docker daemon and keeps the original manifest and digest.\n\nWhy the other options are wrong:\n\n- **`az acr build` with a one-line Dockerfile** runs a new build. The result is a *new* image with its own digest, not a copy of the upstream manifest.\n- **`docker pull/tag/push`** needs a local Docker daemon, and the scenario says the agent doesn't have one.\n- **`az acr repository show`** only reads metadata about an image that is already in the registry. It has no `--source` parameter and copies nothing.",
+    "difficulty": "Easy",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Build, store, version, and manage container images by using Azure Container Registry",
+    "source": "generated",
+    "objective": "acr-images"
+  },
+  {
+    "id": "gen-acr-images-05",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "An external partner's build system can't authenticate with Microsoft Entra ID. It must be able to push and pull images in the `partner/vision` repository of your registry and must have no access to any other repository. What should you configure?",
+    "options": [
+      "Enable the registry admin user and share its password with the partner",
+      "Create a scope map with content/read and content/write on partner/vision, then create a repository-scoped token from it",
+      "Assign the AcrPush role to a guest account for the partner at the registry scope",
+      "Enable anonymous pull on the registry and let the partner push through a webhook"
+    ],
+    "answer": 1,
+    "explanation": "**Tokens with scope maps** give non-Entra credentials permissions on specific repositories only.\n\n```bash\naz acr scope-map create --name partner-vision --registry myregistry \\\n  --repository partner/vision content/read content/write\naz acr token create --name partner-token --registry myregistry \\\n  --scope-map partner-vision\n```\n\nWhy the other options are wrong:\n\n- **The admin user** has full push and pull rights on *every* repository, and there's only one admin account per registry.\n- **AcrPush at registry scope** covers all repositories and still needs Entra ID sign-in, which the partner can't use.\n- **Anonymous pull** is read-only and applies to the whole registry. Webhooks only send notifications and can't push images.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Registry",
+    "relatedObjective": "Build, store, version, and manage container images by using Azure Container Registry",
+    "source": "generated",
+    "objective": "acr-images"
+  },
+  {
+    "id": "gen-app-service-containers-01",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You deploy a custom Linux container running a FastAPI app on port 8000 to Azure App Service. The log stream shows: `Container didn't respond to HTTP pings on port: 80, failing site start`. What is the simplest fix?",
+    "options": [
+      "Add EXPOSE 8000 to the Dockerfile and redeploy the image",
+      "Turn on Always On so the platform keeps pinging the container until it responds",
+      "Add the app setting WEBSITES_PORT=8000",
+      "Set WEBSITES_ENABLE_APP_SERVICE_STORAGE=true so the container can bind to port 8000"
+    ],
+    "answer": 2,
+    "explanation": "For custom containers, App Service needs to know which port the container listens on. The **`WEBSITES_PORT`** app setting tells the front end to send traffic and warm-up pings to port 8000 instead of the default.\n\n```bash\naz webapp config appsettings set -g rg -n inference-web \\\n  --settings WEBSITES_PORT=8000\n```\n\nWhy the other options are wrong:\n\n- **`EXPOSE 8000`** only documents the port in the image. App Service doesn't use it reliably to route traffic, so `WEBSITES_PORT` is the supported setting.\n- **Always On** keeps the app loaded between requests. It doesn't change which port gets pinged.\n- **`WEBSITES_ENABLE_APP_SERVICE_STORAGE`** controls whether `/home` is persistent shared storage. It has nothing to do with networking.",
+    "difficulty": "Easy",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Deploy containers to Azure App Service, including environment variables and secrets",
+    "source": "generated",
+    "objective": "app-service-containers"
+  },
+  {
+    "id": "gen-app-service-containers-02",
+    "domain": "containers",
+    "type": "mcq",
+    "question": "A containerized App Service app reads an `OPENAI_API_KEY` environment variable. The key is stored in Key Vault `kv-prod` as secret `OpenAIKey` and is rotated every 30 days. The app has a managed identity with secret read access. Which app setting value lets the container receive the current secret version after each rotation without anyone editing the setting?",
+    "options": [
+      "@Microsoft.KeyVault(SecretUri=https://kv-prod.vault.azure.net/secrets/OpenAIKey/3f9c0a1b2d4e4c8f9a7b6c5d4e3f2a1b)",
+      "keyvault://kv-prod/OpenAIKey",
+      "https://kv-prod.vault.azure.net/secrets/OpenAIKey",
+      "@Microsoft.KeyVault(SecretUri=https://kv-prod.vault.azure.net/secrets/OpenAIKey/)"
+    ],
+    "answer": 3,
+    "explanation": "A **versionless Key Vault reference** (`@Microsoft.KeyVault(SecretUri=.../secrets/OpenAIKey/)`) tells App Service to resolve the latest version of the secret. App Service fetches versionless references again periodically (within 24 hours) and whenever the app restarts or its configuration changes, so rotated values reach the container as an ordinary environment variable.\n\nWhy the other options are wrong:\n\n- **A reference with a version ID** pins one specific version. After rotation the app keeps getting the old value until someone edits the setting.\n- **`keyvault://...`** isn't a syntax App Service recognizes. The container would receive that literal string.\n- **The raw secret URL** without the `@Microsoft.KeyVault(...)` wrapper is just a string. App Service doesn't resolve it.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Deploy containers to Azure App Service, including environment variables and secrets",
+    "source": "generated",
+    "objective": "app-service-containers"
+  },
+  {
+    "id": "gen-app-service-containers-03",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "Your App Service for Containers app pulls `myregistry.azurecr.io/chat-ui:4.0`. Security policy says the registry's admin user must stay disabled and no registry password may appear in app settings. The app already has a system-assigned managed identity. Which two actions are required? Select two.",
+    "options": [
+      "Assign the AcrPull role to the app's managed identity on the registry",
+      "Enable the ACR admin user and store its password in DOCKER_REGISTRY_SERVER_PASSWORD as a Key Vault reference",
+      "Assign the AcrPush role to the app's managed identity on the resource group",
+      "Configure the app to pull with managed identity, for example by setting acrUseManagedIdentityCreds to true",
+      "Enable anonymous pull on the registry",
+      "Grant the managed identity Contributor on the registry"
+    ],
+    "answer": [0, 3],
+    "explanation": "Pulling with a managed identity takes two steps:\n\n1. **Grant AcrPull** to the identity on the registry. This is the least-privilege role for pulling images.\n2. **Tell App Service to use the identity** for registry authentication:\n\n```bash\naz webapp config set -g rg -n chat-ui \\\n  --generic-configurations '{\"acrUseManagedIdentityCreds\": true}'\n```\n\n(For a user-assigned identity, also set `acrUserManagedIdentityID`.)\n\nWhy the other options are wrong:\n\n- **The admin user** breaks the policy, even if its password is stored as a Key Vault reference.\n- **AcrPush** gives more access than pulling needs (it allows pushes), and granting it on a resource group only widens that access.\n- **Anonymous pull** exposes the images to anyone and ignores identity entirely.\n- **Contributor** is a control-plane role. Granting it is far too broad, and it doesn't on its own change how App Service authenticates its pulls.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Deploy containers to Azure App Service, including environment variables and secrets",
+    "source": "generated",
+    "objective": "app-service-containers"
+  },
+  {
+    "id": "gen-app-service-containers-04",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A custom Linux container on App Service downloads a 6 GB model at startup. The model is downloaded again on every restart and on every scaled-out instance, which slows cold starts. You want all instances to read the model files from one persistent location mounted at `/models`. What should you configure?",
+    "options": [
+      "Write the model to /tmp, which persists across restarts and is shared between instances",
+      "Mount an Azure Files share with az webapp config storage-account add --storage-type AzureFiles --mount-path /models",
+      "Add a VOLUME /models instruction to the Dockerfile",
+      "Scale up to a larger App Service plan SKU so the container file system keeps its contents between restarts"
+    ],
+    "answer": 1,
+    "explanation": "A **path mapping to an Azure Files share** mounts persistent storage that every instance of the app shares. Downloaded models then survive restarts and scale-out.\n\n```bash\naz webapp config storage-account add -g rg -n vision-api \\\n  --custom-id models --storage-type AzureFiles \\\n  --account-name stmodels --share-name models \\\n  --access-key <key> --mount-path /models\n```\n\nWhy the other options are wrong:\n\n- **`/tmp`** is local to each instance and is lost when the container restarts.\n- **A Dockerfile `VOLUME`** declares an anonymous volume, but App Service doesn't back it with persistent shared storage.\n- **A larger SKU** adds CPU and memory. The container file system is still lost on restart and isn't shared.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Deploy containers to Azure App Service, including environment variables and secrets",
+    "source": "generated",
+    "objective": "app-service-containers"
+  },
+  {
+    "id": "gen-app-service-containers-05",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "You run blue-green container releases with a `staging` deployment slot. The staging slot must always call a test Azure OpenAI endpoint through the `OPENAI_ENDPOINT` setting, and production must always call the production endpoint, even after a swap. How should you configure `OPENAI_ENDPOINT`?",
+    "options": [
+      "Bake each endpoint into a separate image tag and deploy the matching tag to each slot",
+      "Create the setting only in the production slot; swaps copy production settings to staging automatically",
+      "Put both endpoints in one setting and let the container choose based on its hostname",
+      "Mark OPENAI_ENDPOINT as a deployment slot setting in each slot, for example with az webapp config appsettings set --slot-settings"
+    ],
+    "answer": 3,
+    "explanation": "**Deployment slot settings** (sticky settings) stay with their slot during a swap. The container image moves to production, but each slot keeps its own `OPENAI_ENDPOINT`.\n\n```bash\naz webapp config appsettings set -g rg -n chat-api --slot staging \\\n  --slot-settings OPENAI_ENDPOINT=https://aoai-test.openai.azure.com/\n```\n\nWhy the other options are wrong:\n\n- **Separate image tags** mean the image you tested isn't the image you release, which defeats the point of blue-green swaps.\n- **Non-sticky settings swap with the content.** Staging wouldn't keep its own value, and swaps don't copy settings the way that option describes.\n- **Choosing by hostname** pushes environment logic into code and is fragile. App settings exist so the image stays environment-neutral.",
+    "difficulty": "Medium",
+    "relatedService": "Azure App Service",
+    "relatedObjective": "Deploy containers to Azure App Service, including environment variables and secrets",
+    "source": "generated",
+    "objective": "app-service-containers"
+  },
+  {
+    "id": "gen-aca-keda-01",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A Container App processes jobs from the Service Bus queue `jobs` in namespace `sb-prod`. It must scale out on queue depth, and policy forbids storing any Service Bus connection string or SAS key in the app, including as a Container Apps secret. The app has a user-assigned managed identity with an appropriate Service Bus data role. How should you define the scale rule?",
+    "options": [
+      "A custom azure-servicebus rule with queueName and namespace metadata that authenticates with the managed identity (for example --scale-rule-identity <identity resource ID>)",
+      "A custom azure-servicebus rule whose auth block references a Container Apps secret that holds the namespace connection string",
+      "An HTTP scale rule with concurrentRequests set to the expected queue length",
+      "A CPU scale rule at 70% utilization, because KEDA can't authenticate to Service Bus without a connection string"
+    ],
+    "answer": 0,
+    "explanation": "Container Apps scale rules can **authenticate with a managed identity** for supported scalers such as `azure-servicebus`. You give the namespace and queue in the metadata and attach the identity instead of a secret.\n\n```bash\naz containerapp update -n worker -g rg \\\n  --scale-rule-name sb-jobs --scale-rule-type azure-servicebus \\\n  --scale-rule-metadata queueName=jobs namespace=sb-prod messageCount=20 \\\n  --scale-rule-identity <user-assigned-identity-resource-id>\n```\n\nWhy the other options are wrong:\n\n- **A secret reference** still stores the connection string in the app, which policy forbids.\n- **HTTP scale rules** count incoming HTTP requests. A queue worker receives no HTTP traffic, so the rule would never fire.\n- **CPU scaling** reacts to load *after* replicas are busy and can't scale from zero on queue depth. The claim that KEDA needs a connection string is also false.",
+    "difficulty": "Hard",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement event-driven scaling by using KEDA in Container Apps",
+    "source": "generated",
+    "objective": "aca-keda"
+  },
+  {
+    "id": "gen-aca-keda-02",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A Container App has this scale configuration: `minReplicas: 0`, `maxReplicas: 10`, and one `azure-servicebus` rule with `messageCount: \"20\"`. A burst puts 300 active messages in the queue. Ignoring timing effects, how many replicas does the app settle on?",
+    "options": [
+      "1, because KEDA only activates a single replica when scaling from zero",
+      "15, because 300 messages divided by 20 messages per replica is 15",
+      "10, because the target of 15 replicas is capped by maxReplicas",
+      "20, because messageCount is the number of replicas to add for each batch"
+    ],
+    "answer": 2,
+    "explanation": "`messageCount` is the **target number of messages per replica**. The desired count is `ceil(300 / 20) = 15`, but Container Apps never goes above `maxReplicas`, so the app settles on **10**.\n\nWhy the other options are wrong:\n\n- **1** is only the activation step from zero. After activation, the autoscaler keeps scaling towards the target.\n- **15** ignores the `maxReplicas: 10` cap.\n- **20** misreads `messageCount`. It's a per-replica target, not a step size.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement event-driven scaling by using KEDA in Container Apps",
+    "source": "generated",
+    "objective": "aca-keda"
+  },
+  {
+    "id": "gen-aca-keda-03",
+    "domain": "containers",
+    "type": "scenario",
+    "question": "A team reports two things about a queue-driven Container App with default scale settings: new messages sometimes wait several seconds before a replica starts, and replicas keep running for minutes after the queue empties. Which two statements correctly explain this default behavior? Select two.",
+    "options": [
+      "Container Apps polls each scale rule's event source on an interval (30 seconds by default), so new work can wait until the next poll",
+      "After the last event, Container Apps waits a cooldown period (300 seconds by default) before scaling the app to zero",
+      "KEDA scales to zero immediately when the queue length reaches 0, so lingering replicas point to a bug in the app",
+      "Setting minReplicas to 0 disables the scale rules until an HTTP request arrives",
+      "Service Bus pushes messages to KEDA, so any delay must come from Service Bus rather than polling"
+    ],
+    "answer": [0, 1],
+    "explanation": "Two defaults explain what the team sees:\n\n- **Polling interval.** KEDA checks the event source on a timer (30 seconds by default in Container Apps), so a message that arrives just after a poll waits for the next one.\n- **Cooldown period.** After the last active event, Container Apps waits (300 seconds by default) before going from 1 replica to 0, which avoids repeated cold starts.\n\nWhy the other options are wrong:\n\n- **Immediate scale-to-zero** is wrong because the cooldown exists precisely to prevent it.\n- **`minReplicas: 0`** doesn't disable custom rules. They're what activate the app from zero, without any HTTP request.\n- **Push-based scaling** is wrong. KEDA *polls* metrics like queue length, and Service Bus doesn't push them.",
+    "difficulty": "Medium",
+    "relatedService": "Azure Container Apps",
+    "relatedObjective": "Implement event-driven scaling by using KEDA in Container Apps",
+    "source": "generated",
+    "objective": "aca-keda"
+  }
+]
