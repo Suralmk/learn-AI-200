@@ -66,6 +66,7 @@ modules:
       - Choose and configure vector indexes
       - Optimize data layout
       - Scale for high-volume workloads
+      - Configure compute and storage for vector workloads
       - Connection optimization
       - >-
         Exercise - Optimize vector search performance in Azure Database for
