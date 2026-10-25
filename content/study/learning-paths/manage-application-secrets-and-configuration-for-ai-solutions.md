@@ -47,6 +47,7 @@ modules:
     topics:
       - Connect to App Configuration from application code
       - Organize settings with labels and feature flags
+      - Refresh configuration dynamically and use snapshots
       - Reference Key Vault secrets from App Configuration
       - Decide what to store in App Configuration vs Key Vault
       - Exercise - Retrieve settings and secrets from Azure App Configuration
