@@ -109,6 +109,16 @@ Today the content is thin (most topic pages are 140–200 words), the UI is clos
 - `.claude/settings.json` with permission defaults and project commands `/add-topic`, `/add-questions`, `/seo-check`, `/verify-ui`, each pointing back to CLAUDE.md sections.
 - After deploy: open azure.sura.work in Chrome, confirm changes live, OG/JSON-LD render, console clean.
 
-## 12. Left to the builder
+## 12. Calls made after the builder check (owner said: no more questions, decide and ship)
+
+1. **Practice "topic set" = one official study-guide sub-objective** (27 bullets in the Oct 7, 2026 outline), not one topic page. Target ≥10 questions per sub-objective. Per-page practice links point to the sub-objective set(s) the page covers.
+2. **Mapping originals to sub-objectives:** a sidecar file `content/questions/objective-map.json` (`{ "<questionId>": "<objectiveId>" }`). Original question files are not edited. New questions carry `objective` directly.
+3. **URLs stay `/study/<path>/<topic>`** (already descriptive; avoids SEO churn and a redirect table). No URL migration.
+4. **Learning paths stay as routes.** Each path belongs to exactly one skill area (fixed map in `lib/exam-outline.ts`). The sidebar groups paths under the 4 areas. **Guides** stay their own page type, listed under their area via their `domain`; they are restructured into the template too.
+5. **Progress (localStorage):** per topic page `visited` (set on view) and per practice set `bestScore`/`attempts`. Sidebar badge = share of a path's topics visited; dashboard tiles show per-area accuracy from practice history.
+6. **Mock exams stay** at `/exam` and `/exam/[id]`, re-built on the shared `QuizSession` in "exam" mode (end-of-set feedback). The full mock gets an optional 120-minute timer and a 700/1000 scaled pass line. Multi-select scoring is **all-or-nothing**.
+7. **Release:** push to `main` after each phase only when build, lint, typecheck, tests and local browser checks pass, so every push leaves the live site working. Content batches ship the same way.
+
+## 13. Left to the builder
 
 Font choice within "crisp sans + mono", exact coral and neutral values (subject to AA), search library (or hand-rolled index), Mermaid integration approach, test runner details, component prop shapes, file layout of new question files, how the brand mockup's details are refined during implementation.
