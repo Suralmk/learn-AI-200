@@ -1,0 +1,14 @@
+/* TEAM */
+Creator: Surafel Melaku
+Site: https://sura.work
+GitHub: https://github.com/Suralmk
+
+/* THANKS */
+Everyone who reports a content error or contributes a question.
+
+/* SITE */
+Name: AI-200 Learn
+URL: https://azure.sura.work
+Source: https://github.com/Suralmk/learn-AI-200
+Standards: HTML, CSS, TypeScript, Next.js
+Licenses: MIT (code), CC BY 4.0 (notes and questions)
