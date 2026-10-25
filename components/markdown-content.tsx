@@ -25,14 +25,19 @@ export function MarkdownContent({
   className,
 }: {
   content: string;
-  /** "compact" for short text inside UI such as quiz questions and options. */
-  variant?: "doc" | "compact";
+  /**
+   * "compact": short text inside UI such as quiz questions and explanations.
+   * "inline": compact, and free of interactive elements (no copy buttons, focusable
+   * table frames or links), for use inside buttons such as answer options.
+   */
+  variant?: "doc" | "compact" | "inline";
   className?: string;
 }) {
   const nextId = createIdFactory();
+  const inline = variant === "inline";
 
   return (
-    <div className={cn("prose", variant === "compact" && "prose-compact", className)}>
+    <div className={cn("prose", variant !== "doc" && "prose-compact", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkAlerts]}
         components={{
@@ -56,6 +61,13 @@ export function MarkdownContent({
             return <blockquote>{children}</blockquote>;
           },
           table({ children }) {
+            if (inline) {
+              return (
+                <div className="not-prose my-2 overflow-x-auto">
+                  <table className="w-full text-sm">{children}</table>
+                </div>
+              );
+            }
             return <ComparisonTable>{children}</ComparisonTable>;
           },
           pre({ children }) {
@@ -66,6 +78,13 @@ export function MarkdownContent({
             const code = String(children).replace(/\n$/, "");
             if (match?.[1] === "mermaid") return <Mermaid code={code} />;
             if (match || code.includes("\n")) {
+              if (inline) {
+                return (
+                  <pre className="not-prose my-2 overflow-x-auto rounded-md border border-border bg-surface p-3 font-mono text-[0.8125rem]">
+                    <code>{code}</code>
+                  </pre>
+                );
+              }
               return <CodeBlock code={code} language={match?.[1]} />;
             }
             return (
@@ -78,6 +97,7 @@ export function MarkdownContent({
             );
           },
           a({ href = "", children }) {
+            if (inline) return <span className="underline">{children}</span>;
             if (href.startsWith("/")) return <Link href={href}>{children}</Link>;
             if (href.startsWith("#")) return <a href={href}>{children}</a>;
             return (

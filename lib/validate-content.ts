@@ -24,7 +24,8 @@ export function checkMarkdown(
   file: string,
   body: string,
   routes: Set<string>,
-  opts: { template?: boolean } = {}
+  /** lineOffset: lines before the body (frontmatter), so reports use file line numbers. */
+  opts: { template?: boolean; lineOffset?: number } = {}
 ): Report {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -32,7 +33,7 @@ export function checkMarkdown(
   let inFence = false;
 
   body.split(/\r?\n/).forEach((line, i) => {
-    const at = `${file}:${i + 1}`;
+    const at = `${file}:${i + 1 + (opts.lineOffset ?? 0)}`;
     const fence = /^\s*(```+|~~~+)(.*)$/.exec(line);
     if (fence) {
       if (!inFence && !fence[2].trim()) errors.push(`${at}: code fence without a language`);
@@ -90,11 +91,11 @@ export function validateContent(): Report {
   ]);
 
   for (const note of topics) {
-    merge(checkMarkdown(note.repoPath, note.content, routes, { template: true }));
+    merge(checkMarkdown(note.repoPath, note.content, routes, { template: true, lineOffset: note.bodyLineOffset }));
     if (!note.description) report.warnings.push(`${note.repoPath}: missing description`);
   }
   for (const guide of guides) {
-    merge(checkMarkdown(guide.repoPath, guide.content, routes));
+    merge(checkMarkdown(guide.repoPath, guide.content, routes, { lineOffset: guide.bodyLineOffset }));
   }
 
   const ids = new Set((guard(getAllQuestions) ?? []).map((q) => q.id));

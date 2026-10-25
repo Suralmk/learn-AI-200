@@ -9,13 +9,13 @@ import { useProgress } from "@/lib/use-progress";
 import { Meter } from "@/components/viz";
 import { cn } from "@/lib/utils";
 
-function PathGroup({ path, pathname, visited }: { path: NavPath; pathname: string; visited: Record<string, number> }) {
+function PathGroup({ path, pathname, visited, idPrefix }: { path: NavPath; pathname: string; visited: Record<string, number>; idPrefix: string }) {
   const inPath = pathname === path.href || pathname.startsWith(`${path.href}/`);
   const [toggled, setToggled] = useState<boolean | null>(null);
   const open = toggled ?? inPath;
 
   const read = path.topics.filter((t) => visited[t.href]).length;
-  const id = `nav-${path.slug}`;
+  const id = `${idPrefix}nav-${path.slug}`;
 
   return (
     <li>
@@ -74,21 +74,22 @@ function PathGroup({ path, pathname, visited }: { path: NavPath; pathname: strin
   );
 }
 
-function SidebarTree({ nav }: { nav: NavArea[] }) {
+/** idPrefix keeps ids unique when the tree renders twice (mobile disclosure + desktop column). */
+function SidebarTree({ nav, idPrefix }: { nav: NavArea[]; idPrefix: string }) {
   const pathname = usePathname();
   const { visited } = useProgress();
 
   return (
     <nav aria-label="Study topics" className="space-y-7">
       {nav.map((area) => (
-        <section key={area.id} aria-labelledby={`area-${area.id}`}>
-          <h2 id={`area-${area.id}`} className="mb-2 flex items-baseline justify-between gap-2 px-1">
+        <section key={area.id} aria-labelledby={`${idPrefix}area-${area.id}`}>
+          <h2 id={`${idPrefix}area-${area.id}`} className="mb-2 flex items-baseline justify-between gap-2 px-1">
             <span className="text-sm font-semibold text-foreground">{area.title}</span>
             <span className="tabular text-xs text-muted-foreground">{area.weight}</span>
           </h2>
           <ul className="space-y-1">
             {area.paths.map((p) => (
-              <PathGroup key={p.slug} path={p} pathname={pathname} visited={visited} />
+              <PathGroup key={p.slug} path={p} pathname={pathname} visited={visited} idPrefix={idPrefix} />
             ))}
           </ul>
           {area.guides.length > 0 && (
@@ -133,12 +134,12 @@ export function Sidebar({ nav }: { nav: NavArea[] }) {
         </button>
         {open && (
           <div id="mobile-study-nav" className="max-h-[70vh] overflow-y-auto pt-3 pb-4">
-            <SidebarTree nav={nav} />
+            <SidebarTree nav={nav} idPrefix="m-" />
           </div>
         )}
       </div>
       <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-border px-4 py-8 lg:block">
-        <SidebarTree nav={nav} />
+        <SidebarTree nav={nav} idPrefix="d-" />
       </aside>
     </>
   );

@@ -24,7 +24,11 @@ export function createProgressStore(getStorage: StorageGetter = browserStorage) 
       const raw = getStorage()?.getItem(PROGRESS_KEY);
       if (!raw) return emptyProgress();
       const parsed = JSON.parse(raw) as Partial<Progress>;
-      return { ...emptyProgress(), ...parsed };
+      const record = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+      return {
+        visited: record(parsed?.visited) as Progress["visited"],
+        sets: record(parsed?.sets) as Progress["sets"],
+      };
     } catch {
       return emptyProgress();
     }

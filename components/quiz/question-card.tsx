@@ -63,7 +63,8 @@ export const QuestionCard = memo(function QuestionCard({
 
       <div
         role={multi ? "group" : "radiogroup"}
-        aria-labelledby={headingId}
+        aria-label={multi ? `Answer options, select ${correct.length}` : "Answer options"}
+        aria-describedby={headingId}
         onKeyDown={onGroupKeyDown}
         className="mt-6 space-y-2.5"
       >
@@ -84,9 +85,14 @@ export const QuestionCard = memo(function QuestionCard({
         ))}
       </div>
 
+      {/* Always mounted, so screen readers announce the result when it appears. */}
+      <p aria-live="polite" className="sr-only">
+        {revealed ? (right ? "Correct." : selected.length === 0 ? "Not answered." : "Not quite.") : ""}
+      </p>
+
       {revealed && (
         <section
-          aria-live="polite"
+          aria-label="Explanation"
           className={cn(
             "mt-6 rounded-lg border px-5 py-4",
             right ? "border-success/40 bg-success-soft" : "border-danger/40 bg-danger-soft"

@@ -71,11 +71,14 @@ export function QuizSession({
   const answeredCount = Object.values(answers).filter((a) => a.length > 0).length;
   const score = useMemo(() => scoreSession(deck, answers), [deck, answers]);
 
+  const [loading, setLoading] = useState(false);
+
   const start = useCallback(async () => {
     let questions = loaded;
     if (!questions && questionsUrl) {
+      setLoading(true);
       try {
-        const res = await fetch(questionsUrl);
+        const res = await fetch(questionsUrl, { signal: AbortSignal.timeout(20_000) });
         if (!res.ok) throw new Error(String(res.status));
         questions = (await res.json()) as Question[];
         setLoaded(questions);
@@ -83,6 +86,8 @@ export function QuizSession({
       } catch {
         setLoadError(true);
         return;
+      } finally {
+        setLoading(false);
       }
     }
     if (!questions) return;
@@ -93,6 +98,15 @@ export function QuizSession({
     setEndsAt(useTimer && timerMinutes ? Date.now() + timerMinutes * 60_000 : null);
     setPhase("running");
   }, [loaded, questionsUrl, total, useTimer, timerMinutes]);
+
+  // Warn before leaving the page in the middle of a session with answers.
+  const inProgress = phase === "running" && answeredCount > 0;
+  useEffect(() => {
+    if (!inProgress) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [inProgress]);
 
   const finish = useCallback(() => {
     progressStore.recordAttempt(setId, score.percent);
@@ -217,8 +231,8 @@ export function QuizSession({
           </label>
         )}
         <div className="mt-8 flex flex-wrap items-center gap-4">
-          <Button size="lg" onClick={start}>
-            Start
+          <Button size="lg" onClick={start} disabled={loading}>
+            {loading ? "Loading questions…" : "Start"}
           </Button>
           {loadError && (
             <p role="alert" className="text-sm text-danger">

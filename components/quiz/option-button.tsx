@@ -70,7 +70,7 @@ export function OptionButton({
         {state === "correct" ? <Check className="size-3.5" /> : state === "incorrect" ? <X className="size-3.5" /> : optionLetter(index)}
       </span>
       <span className="min-w-0 flex-1">
-        <MarkdownContent content={text} variant="compact" className="text-base text-foreground" />
+        <MarkdownContent content={text} variant="inline" className="text-base text-foreground" />
         {resultLabel && <span className="mt-1 block text-xs font-medium text-muted-foreground">{resultLabel}</span>}
       </span>
     </button>

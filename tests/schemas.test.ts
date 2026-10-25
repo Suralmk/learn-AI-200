@@ -1,3 +1,4 @@
+import fs from "fs";
 import { describe, expect, it } from "vitest";
 import { QuestionSchema, correctIndices, parseQuestionFile } from "@/lib/schemas";
 import { getAllQuestions } from "@/lib/questions";
@@ -47,7 +48,7 @@ describe("question schema", () => {
 });
 
 import { getLearningPaths, getStudyGuides } from "@/lib/content";
-import { getAllTopicParams, getTopicNote } from "@/lib/topics";
+import { getAllTopicNotes, getAllTopicParams, getTopicNote } from "@/lib/topics";
 
 describe("study content", () => {
   it("parses every learning path, guide and topic", () => {
@@ -70,5 +71,14 @@ describe("topic frontmatter", () => {
     });
     expect(fm.last_reviewed).toBe("2026-10-25");
     expect(fm.source_version).toBe("2026-10-07");
+  });
+});
+
+describe("body line offset", () => {
+  it("records where the body starts so validation can report file line numbers", () => {
+    const note = getAllTopicNotes()[0];
+    const raw = fs.readFileSync(note.repoPath, "utf-8").split(/\r?\n/);
+    const firstBodyLine = note.content.split(/\r?\n/).findIndex((l) => l.trim() !== "");
+    expect(raw[note.bodyLineOffset + firstBodyLine]).toBe(note.content.split(/\r?\n/)[firstBodyLine]);
   });
 });

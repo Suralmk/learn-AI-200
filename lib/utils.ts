@@ -15,7 +15,17 @@ export function shuffleArray<T>(items: T[]): T[] {
   return shuffled;
 }
 
+const NAMES_OPTION_LETTER =
+  /\b(?:why|options?|answer)\s+\(?[A-I]\)?\b|\b[A-I]\)?\s+(?:is|are)\s+(?:correct|wrong|incorrect)\b/i;
+
+/** True when the explanation refers to options by letter ("Why C is correct", "Option B"). */
+export function namesOptionLetters(explanation: string): boolean {
+  return NAMES_OPTION_LETTER.test(explanation);
+}
+
 export function shuffleQuestionOptions(question: Question): Question {
+  // Shuffling would make "Why C is correct" point at the wrong option.
+  if (namesOptionLetters(question.explanation)) return question;
   // Shuffle positions, not text, so duplicate option text can't confuse the mapping.
   const order = shuffleArray(question.options.map((_, i) => i));
   const newIndex = (oldIndex: number) => order.indexOf(oldIndex);

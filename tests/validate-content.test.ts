@@ -10,6 +10,11 @@ describe("checkMarkdown", () => {
     expect(errors).toEqual(["x.md:5: H1 in body (the page renders the title as H1)"]);
   });
 
+  it("reports line numbers in the file, counting the frontmatter", () => {
+    const { errors } = checkMarkdown("x.md", "\n# Title\n", routes, { lineOffset: 6 });
+    expect(errors).toEqual(["x.md:8: H1 in body (the page renders the title as H1)"]);
+  });
+
   it("handles CRLF line endings", () => {
     const crlf = ["```bash", "# comment", "```", ""].join(String.fromCharCode(13, 10));
     const { errors } = checkMarkdown("x.md", crlf, routes);

@@ -7,6 +7,7 @@ import {
   LearningPathFrontmatterSchema,
   parseFrontmatter,
 } from "./schemas";
+import { bodyLineOffset } from "./topics";
 
 export type LearningPath = z.infer<typeof LearningPathFrontmatterSchema> & { slug: string };
 
@@ -15,6 +16,7 @@ export type StudyGuide = z.infer<typeof GuideFrontmatterSchema> & {
   content: string;
   /** Path of the source file from the repo root, for "Edit on GitHub". */
   repoPath: string;
+  bodyLineOffset: number;
 };
 
 const STUDY_DIR = path.join(process.cwd(), "content", "study");
@@ -43,9 +45,16 @@ function loadPaths(): Map<string, LearningPath> {
 function loadGuides(): Map<string, StudyGuide> {
   if (guidesCache) return guidesCache;
   const guides = readMdFiles(GUIDES_DIR).map((file) => {
-    const { data, content } = matter(fs.readFileSync(path.join(GUIDES_DIR, file), "utf-8"));
+    const raw = fs.readFileSync(path.join(GUIDES_DIR, file), "utf-8");
+    const { data, content } = matter(raw);
     const fm = parseFrontmatter(GuideFrontmatterSchema, file, data);
-    return { ...fm, slug: file.replace(/\.md$/, ""), content, repoPath: `content/study/guides/${file}` };
+    return {
+      ...fm,
+      slug: file.replace(/\.md$/, ""),
+      content,
+      repoPath: `content/study/guides/${file}`,
+      bodyLineOffset: bodyLineOffset(raw, content),
+    };
   });
   guidesCache = new Map(guides.sort((a, b) => a.order - b.order).map((g) => [g.slug, g]));
   return guidesCache;

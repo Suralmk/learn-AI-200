@@ -43,6 +43,12 @@ describe("progress store", () => {
     expect(store.load()).toEqual(emptyProgress());
   });
 
+  it("replaces null or non-object fields with empty ones", () => {
+    const s = memoryStorage();
+    s.setItem("ai200-learn:progress:v1", JSON.stringify({ visited: null, sets: [1, 2] }));
+    expect(createProgressStore(() => s).load()).toEqual(emptyProgress());
+  });
+
   it("ignores corrupted JSON", () => {
     const s = memoryStorage();
     s.setItem("ai200-learn:progress:v1", "{not json");

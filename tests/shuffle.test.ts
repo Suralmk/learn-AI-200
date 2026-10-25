@@ -24,3 +24,20 @@ describe("shuffleQuestionOptions", () => {
     }
   });
 });
+
+describe("questions whose explanation names option letters", () => {
+  it("keeps the original option order so 'Why C is correct' still matches", () => {
+    const lettered = { ...q, answer: 2, explanation: "**Why C is correct:** … **Why A is wrong:** …" };
+    for (let i = 0; i < 20; i++) {
+      const s = shuffleQuestionOptions(lettered);
+      expect(s.options).toEqual(lettered.options);
+      expect(s.answer).toBe(2);
+    }
+  });
+
+  it("still shuffles explanations that don't mention letters", () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 30; i++) seen.add(shuffleQuestionOptions(q).options.join("|"));
+    expect(seen.size).toBeGreaterThan(1);
+  });
+});

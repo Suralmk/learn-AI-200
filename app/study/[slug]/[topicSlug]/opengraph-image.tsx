@@ -6,6 +6,7 @@ import { getAllTopicParams, getTopicNote } from "@/lib/topics";
 export const alt = `${EXAM.code} study notes`;
 export const size = OG_SIZE;
 export const contentType = "image/png";
+export const dynamicParams = false;
 
 export function generateStaticParams() {
   return getAllTopicParams();

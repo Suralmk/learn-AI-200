@@ -34,13 +34,18 @@ export function Countdown({ endsAt, onExpire }: { endsAt: number; onExpire: () =
     return () => window.clearInterval(id);
   }, [endsAt]);
 
+  // Announce only at a few thresholds, not every second.
+  const milestone = seconds <= 30 ? "30 seconds left" : seconds <= 60 ? "1 minute left" : seconds <= 300 ? "5 minutes left" : "";
+
   return (
-    <p
-      className={cn("tabular inline-flex items-center gap-1.5", seconds < 300 && "font-semibold text-warning")}
-      aria-live={seconds < 60 ? "polite" : "off"}
-    >
-      <Clock className="size-4" aria-hidden />
-      {formatTime(seconds)} left
-    </p>
+    <>
+      <p className={cn("tabular inline-flex items-center gap-1.5", seconds < 300 && "font-semibold text-warning")}>
+        <Clock className="size-4" aria-hidden />
+        {formatTime(seconds)} left
+      </p>
+      <span aria-live="polite" className="sr-only">
+        {milestone}
+      </span>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 # AI-200 Learn
 
-**Free, open-source study notes and practice questions for Microsoft Exam AI-200: Developing AI Cloud Solutions on Azure** (Microsoft Certified: Azure AI Cloud Developer Associate). Every page and question maps to the 27 objectives in the official skills outline (version of October 7, 2026), so you can study from start to finish in one place.
+**Free, open-source study notes and practice questions for Microsoft Exam AI-200: Developing AI Cloud Solutions on Azure** (Microsoft Certified: Azure AI Cloud Developer Associate). Every study page and practice set maps to the 27 objectives in the official skills outline (version of October 7, 2026), so you can study from start to finish in one place.
 
 **Live site: [azure.sura.work](https://azure.sura.work)**
 

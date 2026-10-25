@@ -59,7 +59,8 @@ Spec: `docs/superpowers/specs/2026-10-25-ai-200-learn-overhaul-design.md`. Plan:
   - `sitemap.xml`, `robots.txt`, `humans.txt`, `/.well-known/security.txt`. The 404 page returns HTTP 404.
 - **Quality:**
   - zod-validated content.
-  - 46 Vitest tests in 13 files.
+  - 53 Vitest tests in 14 files.
+  - Questions whose explanation names option letters ("Why C is correct", 62 of them) keep their original option order; all others are shuffled.
   - Lint, typecheck and build are clean.
 - **Local Lighthouse (production build, mobile, simulated throttling)**, taken on unloaded runs with benchmark index ≈2000. Under load the same pages scored 55–65; see Open items.
 
@@ -225,4 +226,6 @@ Use these; don't re-implement them.
 - **Design ideas** from the finish review (not done):
   - a one-row blueprint bar on area headers and on the phone hero
   - a tighter home hero bottom padding
+- **Hardcoded URL exception:** `public/humans.txt` and `public/.well-known/security.txt` are static files and name the repo URL directly.
+- **Validator gaps:** fence toggling ignores marker type/length, setext H1s are not detected, question Markdown is not validated.
 - **Infrastructure:** add a CI workflow (lint, typecheck, test, validate:content, build) on pull requests.

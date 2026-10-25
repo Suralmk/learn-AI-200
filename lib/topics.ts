@@ -11,7 +11,14 @@ export type TopicNote = z.infer<typeof TopicFrontmatterSchema> & {
   /** Path of the source file from the repo root, for "Edit on GitHub". */
   repoPath: string;
   content: string;
+  /** Lines before the body in the source file (frontmatter), for validator line numbers. */
+  bodyLineOffset: number;
 };
+
+/** Number of source lines that precede gray-matter's `content`. */
+export function bodyLineOffset(raw: string, content: string): number {
+  return raw.split(/\r?\n/).length - content.split(/\r?\n/).length;
+}
 
 const TOPICS_DIR = path.join(process.cwd(), "content", "study", "topics");
 
@@ -32,10 +39,19 @@ function loadTopics(): Map<string, TopicNote> {
     if (!fs.statSync(dir).isDirectory()) continue;
     for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort()) {
       const slug = file.replace(/\.md$/, "");
-      const { data, content } = matter(fs.readFileSync(path.join(dir, file), "utf-8"));
+      const raw = fs.readFileSync(path.join(dir, file), "utf-8");
+      const { data, content } = matter(raw);
       const fm = parseFrontmatter(TopicFrontmatterSchema, `${pathSlug}/${file}`, data);
       const href = topicHref(pathSlug, slug);
-      cache.set(href, { ...fm, slug, pathSlug, href, repoPath: `content/study/topics/${pathSlug}/${file}`, content });
+      cache.set(href, {
+        ...fm,
+        slug,
+        pathSlug,
+        href,
+        repoPath: `content/study/topics/${pathSlug}/${file}`,
+        content,
+        bodyLineOffset: bodyLineOffset(raw, content),
+      });
     }
   }
   return cache;

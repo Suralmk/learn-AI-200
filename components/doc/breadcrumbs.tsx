@@ -12,7 +12,10 @@ export interface Crumb {
 export function Breadcrumbs({ crumbs, currentPath, className }: { crumbs: Crumb[]; currentPath: string; className?: string }) {
   return (
     <>
-      <BreadcrumbJsonLd crumbs={crumbs.map((c) => ({ name: c.label, path: c.href ?? currentPath }))} />
+      {/* In-page anchors (e.g. /questions#area-x) aren't separate pages, so they stay out of the JSON-LD. */}
+      <BreadcrumbJsonLd
+        crumbs={crumbs.filter((c) => !c.href?.includes("#")).map((c) => ({ name: c.label, path: c.href ?? currentPath }))}
+      />
       <nav aria-label="Breadcrumb" className={className ?? "mb-6"}>
         <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
           {crumbs.map((c, i) => (

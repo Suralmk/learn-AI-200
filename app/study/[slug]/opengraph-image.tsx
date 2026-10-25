@@ -5,6 +5,7 @@ import { OG_SIZE, renderOgImage } from "@/lib/og";
 export const alt = `${EXAM.code} study notes`;
 export const size = OG_SIZE;
 export const contentType = "image/png";
+export const dynamicParams = false;
 
 export function generateStaticParams() {
   return [...getLearningPaths(), ...getStudyGuides()].map((p) => ({ slug: p.slug }));
