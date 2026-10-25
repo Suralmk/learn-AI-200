@@ -24,6 +24,8 @@ export const CONTRIBUTING_URL = githubBlobUrl("CONTRIBUTING.md");
 
 export const AUTHOR = { name: "Surafel Melaku", url: "https://sura.work" } as const;
 
+export const BUY_ME_A_COFFEE_URL = "https://www.buymeacoffee.com/suralmk";
+
 export const CONTENT_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
 
 export const NOT_AFFILIATED_NOTICE =

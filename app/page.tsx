@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, ListChecks, Sparkle, Timer } from "lucide-react";
+import { BuyMeCoffee } from "@/components/buy-me-coffee";
 import { CertBadge } from "@/components/cert-badge";
 import { StarPrompt } from "@/components/star-prompt";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,10 @@ export default function HomePage() {
               >
                 Practice questions
               </Button>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-white/70">
+              <BuyMeCoffee size="sm" />
+              <span>Free forever. Coffee keeps the notes coming.</span>
             </div>
           </div>
 

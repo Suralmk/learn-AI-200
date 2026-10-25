@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { EXAM } from "@/lib/exam-outline";
 import { AUTHOR, CONTENT_LICENSE_URL, CONTRIBUTING_URL, GITHUB_REPO_URL, NOT_AFFILIATED_NOTICE, SITE_NAME, githubBlobUrl } from "@/lib/site";
+import { BuyMeCoffee } from "@/components/buy-me-coffee";
 import { GithubLink } from "./github-link";
 
 const COLUMNS = [
@@ -43,6 +44,7 @@ export function Footer() {
             and contributors.
           </p>
           <GithubLink className="text-sm font-medium text-primary hover:underline">Star the repository</GithubLink>
+          <BuyMeCoffee size="sm" className="block pt-1" />
         </div>
         {COLUMNS.map((col) => (
           <nav key={col.title} aria-label={col.title}>
