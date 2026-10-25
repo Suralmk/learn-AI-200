@@ -1,49 +1,21 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import type { DomainId } from "./domains";
-import type { SkillFocusId } from "./skill-focus";
+import type { z } from "zod";
 import {
   GuideFrontmatterSchema,
   LearningPathFrontmatterSchema,
   parseFrontmatter,
 } from "./schemas";
 
-export interface LearningModule {
-  name: string;
-  duration: string;
-  description: string;
-  topics: string[];
-}
+export type LearningPath = z.infer<typeof LearningPathFrontmatterSchema> & { slug: string };
 
-export interface LearningPath {
+export type StudyGuide = z.infer<typeof GuideFrontmatterSchema> & {
   slug: string;
-  title: string;
-  certification: string;
-  duration: string;
-  level: string;
-  description: string;
-  tags: string[];
-  filterTags: string[];
-  skillFocus: SkillFocusId;
-  modules: LearningModule[];
-  order: number;
-}
-
-export interface StudyGuide {
-  slug: string;
-  title: string;
-  domain: DomainId;
-  description: string;
-  order: number;
   content: string;
-  last_reviewed?: string;
-  source_version?: string;
-  objectives?: string[];
-}
-
-/** @deprecated Use StudyGuide — kept for backward compatibility */
-export type StudyTopic = StudyGuide;
+  /** Path of the source file from the repo root, for "Edit on GitHub". */
+  repoPath: string;
+};
 
 const STUDY_DIR = path.join(process.cwd(), "content", "study");
 const PATHS_DIR = path.join(STUDY_DIR, "learning-paths");
@@ -54,79 +26,43 @@ function readMdFiles(dir: string): string[] {
   return fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
 }
 
-function parseLearningPath(filename: string): LearningPath | null {
-  const slug = filename.replace(/\.md$/, "");
-  const raw = fs.readFileSync(path.join(PATHS_DIR, filename), "utf-8");
-  const { data } = matter(raw);
+let pathsCache: Map<string, LearningPath> | null = null;
+let guidesCache: Map<string, StudyGuide> | null = null;
 
-  if (!data.modules) return null;
-
-  const fm = parseFrontmatter(LearningPathFrontmatterSchema, filename, data);
-  return { ...fm, slug: fm.slug ?? slug };
+function loadPaths(): Map<string, LearningPath> {
+  if (pathsCache) return pathsCache;
+  const paths = readMdFiles(PATHS_DIR).map((file) => {
+    const { data } = matter(fs.readFileSync(path.join(PATHS_DIR, file), "utf-8"));
+    const fm = parseFrontmatter(LearningPathFrontmatterSchema, file, data);
+    return { ...fm, slug: fm.slug ?? file.replace(/\.md$/, "") };
+  });
+  pathsCache = new Map(paths.sort((a, b) => a.order - b.order).map((p) => [p.slug, p]));
+  return pathsCache;
 }
 
-function parseStudyGuide(filename: string): StudyGuide | null {
-  const slug = filename.replace(/\.md$/, "");
-  const raw = fs.readFileSync(path.join(GUIDES_DIR, filename), "utf-8");
-  const { data, content } = matter(raw);
-
-  if (data.modules) return null;
-
-  const fm = parseFrontmatter(GuideFrontmatterSchema, filename, data);
-  return { ...fm, slug, content };
+function loadGuides(): Map<string, StudyGuide> {
+  if (guidesCache) return guidesCache;
+  const guides = readMdFiles(GUIDES_DIR).map((file) => {
+    const { data, content } = matter(fs.readFileSync(path.join(GUIDES_DIR, file), "utf-8"));
+    const fm = parseFrontmatter(GuideFrontmatterSchema, file, data);
+    return { ...fm, slug: file.replace(/\.md$/, ""), content, repoPath: `content/study/guides/${file}` };
+  });
+  guidesCache = new Map(guides.sort((a, b) => a.order - b.order).map((g) => [g.slug, g]));
+  return guidesCache;
 }
 
 export function getLearningPaths(): LearningPath[] {
-  return readMdFiles(PATHS_DIR)
-    .map(parseLearningPath)
-    .filter((p): p is LearningPath => p !== null)
-    .sort((a, b) => a.order - b.order);
+  return [...loadPaths().values()];
 }
 
 export function getLearningPath(slug: string): LearningPath | null {
-  const filePath = path.join(PATHS_DIR, `${slug}.md`);
-  if (!fs.existsSync(filePath)) {
-    return getLearningPaths().find((p) => p.slug === slug) ?? null;
-  }
-  return parseLearningPath(`${slug}.md`);
+  return loadPaths().get(slug) ?? null;
 }
 
 export function getStudyGuides(): StudyGuide[] {
-  return readMdFiles(GUIDES_DIR)
-    .map(parseStudyGuide)
-    .filter((g): g is StudyGuide => g !== null)
-    .sort((a, b) => a.order - b.order);
+  return [...loadGuides().values()];
 }
 
 export function getStudyGuide(slug: string): StudyGuide | null {
-  const filePath = path.join(GUIDES_DIR, `${slug}.md`);
-  if (!fs.existsSync(filePath)) return null;
-
-  return parseStudyGuide(`${slug}.md`);
-}
-
-export function getAllFilterTags(): string[] {
-  const tags = new Set<string>();
-  getLearningPaths().forEach((p) => p.filterTags.forEach((t) => tags.add(t)));
-  return Array.from(tags).sort();
-}
-
-export function getAllAreas(): string[] {
-  const areas = new Set<string>();
-  getLearningPaths().forEach((p) => p.tags.forEach((t) => areas.add(t)));
-  return Array.from(areas).sort();
-}
-
-/** @deprecated Use getStudyGuides */
-export function getStudyTopics(): StudyGuide[] {
-  return getStudyGuides();
-}
-
-/** @deprecated Use getStudyGuide */
-export function getStudyTopic(slug: string): StudyGuide | null {
-  return getStudyGuide(slug);
-}
-
-export function getStudyTopicsByDomain(domain: DomainId): StudyGuide[] {
-  return getStudyGuides().filter((t) => t.domain === domain);
+  return loadGuides().get(slug) ?? null;
 }

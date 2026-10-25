@@ -1,59 +1,9 @@
-import { getSkillArea } from "./exam-outline";
+import { SKILL_AREAS, type SkillAreaId } from "./exam-outline";
 
-export type DomainId =
-  | "containers"
-  | "data-management"
-  | "azure-services"
-  | "secure-monitor"
-  | "sdk-cli";
+/** Question domains: the four skill areas plus the cross-cutting SDK/CLI set. */
+export type DomainId = SkillAreaId | "sdk-cli";
 
-export interface Domain {
-  id: DomainId;
-  title: string;
-  weight: string;
-  description: string;
-}
-
-export const DOMAINS: Domain[] = [
-  {
-    id: "containers",
-    title: "Containerized Solutions",
-    weight: getSkillArea("containers").weight,
-    description:
-      "Azure Container Registry, Container Apps, AKS, and KEDA for AI workloads.",
-  },
-  {
-    id: "data-management",
-    title: "Data Management for AI",
-    weight: getSkillArea("data-management").weight,
-    description:
-      "Cosmos DB, PostgreSQL with pgvector, and Azure Managed Redis for RAG and vector search.",
-  },
-  {
-    id: "azure-services",
-    title: "Azure Services Integration",
-    weight: getSkillArea("azure-services").weight,
-    description:
-      "Service Bus, Event Grid, and Azure Functions for event-driven AI solutions.",
-  },
-  {
-    id: "secure-monitor",
-    title: "Secure, Monitor & Troubleshoot",
-    weight: getSkillArea("secure-monitor").weight,
-    description:
-      "Key Vault, App Configuration, OpenTelemetry, and KQL for observability.",
-  },
-  {
-    id: "sdk-cli",
-    title: "Azure SDK and Azure CLI",
-    weight: "Quiz",
-    description:
-      "Azure CLI commands and Python SDK classes/methods for deploying, configuring, and troubleshooting AI solutions.",
-  },
-];
-
-export function getDomain(id: DomainId): Domain {
-  const domain = DOMAINS.find((d) => d.id === id);
-  if (!domain) throw new Error(`Unknown domain: ${id}`);
-  return domain;
-}
+export const DOMAIN_TITLES: Record<DomainId, string> = {
+  ...(Object.fromEntries(SKILL_AREAS.map((a) => [a.id, a.title])) as Record<SkillAreaId, string>),
+  "sdk-cli": "Azure SDK and CLI",
+};

@@ -1,32 +1,24 @@
-import { getLearningPaths, getStudyGuides } from "./content";
-import { extractToc } from "./toc";
-import { getTopicNote, getTopicSlugsForPath } from "./topics";
+import { getStudyGuides } from "./content";
+import { buildStudyNav } from "./nav";
 import type { SearchEntry } from "./search-index";
+import { pageToc } from "./toc";
+import { getAllTopicNotes } from "./topics";
 
-/** Build-time index over titles and H2 headings of all study content. */
+/** Build-time index over titles and H2 headings of all study content, in reading order. */
 export function buildSearchIndex(): SearchEntry[] {
-  const entries: SearchEntry[] = [];
+  const notes = new Map(getAllTopicNotes().map((n) => [n.href, n]));
+  const page = (title: string, href: string, section: string, content: string): SearchEntry[] => [
+    { title, href, section },
+    ...pageToc(content).map((h) => ({ title, heading: h.title, href: `${href}#${h.id}`, section })),
+  ];
 
-  for (const path of getLearningPaths()) {
-    entries.push({ title: path.title, href: `/study/${path.slug}`, kind: "path", section: "Learning path" });
-    for (const topicSlug of getTopicSlugsForPath(path.slug)) {
-      const note = getTopicNote(path.slug, topicSlug);
-      if (!note) continue;
-      const href = `/study/${path.slug}/${topicSlug}`;
-      entries.push({ title: note.title, href, kind: "topic", section: path.title });
-      for (const item of extractToc(note.content)) {
-        entries.push({ title: note.title, heading: item.title, href: `${href}#${item.id}`, kind: "topic", section: path.title });
-      }
-    }
-  }
-
-  for (const guide of getStudyGuides()) {
-    const href = `/study/${guide.slug}`;
-    entries.push({ title: guide.title, href, kind: "guide", section: "Quick reference" });
-    for (const item of extractToc(guide.content)) {
-      entries.push({ title: guide.title, heading: item.title, href: `${href}#${item.id}`, kind: "guide", section: "Quick reference" });
-    }
-  }
-
-  return entries;
+  return [
+    ...buildStudyNav().flatMap((area) =>
+      area.paths.flatMap((path) => [
+        { title: path.title, href: path.href, section: "Learning path" },
+        ...path.topics.flatMap((t) => page(t.title, t.href, path.title, notes.get(t.href)?.content ?? "")),
+      ])
+    ),
+    ...getStudyGuides().flatMap((g) => page(g.title, `/study/${g.slug}`, "Quick reference", g.content)),
+  ];
 }

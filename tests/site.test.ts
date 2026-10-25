@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import pkg from "@/package.json";
 import { GITHUB_REPO_URL, SITE_NAME, SITE_URL, githubEditUrl } from "@/lib/site";
-import { DOMAINS } from "@/lib/domains";
+import { DOMAIN_TITLES } from "@/lib/domains";
 
 describe("site constants", () => {
   it("uses the canonical origin and name", () => {
@@ -16,7 +16,8 @@ describe("site constants", () => {
     );
   });
 
-  it("takes domain weights from the exam outline", () => {
-    expect(DOMAINS.find((d) => d.id === "data-management")?.weight).toBe("30–35%");
+  it("takes domain titles from the exam outline", () => {
+    expect(DOMAIN_TITLES["data-management"]).toBe("Data management for AI");
+    expect(DOMAIN_TITLES["sdk-cli"]).toBe("Azure SDK and CLI");
   });
 });

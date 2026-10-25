@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ALL_OBJECTIVES } from "./exam-outline";
+import { ALL_OBJECTIVES, SKILL_AREA_IDS } from "./exam-outline";
 
 const objectiveIds = new Set(ALL_OBJECTIVES.map((o) => o.id));
 
@@ -9,13 +9,7 @@ export const ObjectiveIdSchema = z
     message: `Unknown objective "${id}" (see lib/exam-outline.ts)`,
   }));
 
-export const DomainIdSchema = z.enum([
-  "containers",
-  "data-management",
-  "azure-services",
-  "secure-monitor",
-  "sdk-cli",
-]);
+export const DomainIdSchema = z.enum([...SKILL_AREA_IDS, "sdk-cli"]);
 
 export const QuestionSchema = z
   .object({
@@ -57,13 +51,7 @@ export const QuestionSchema = z
 
 export type Question = z.infer<typeof QuestionSchema>;
 
-export function correctIndices(q: Pick<Question, "answer">): number[] {
-  return Array.isArray(q.answer) ? [...q.answer].sort((a, b) => a - b) : [q.answer];
-}
-
-export function isMultiSelect(q: Pick<Question, "answer">): boolean {
-  return Array.isArray(q.answer);
-}
+export { correctIndices, isMultiSelect } from "./answer";
 
 function formatIssues(error: z.ZodError): string {
   return error.issues
@@ -89,7 +77,11 @@ export function parseQuestionFile(file: string, data: unknown): Question[] {
   });
 }
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
+/** YAML turns unquoted 2026-10-25 into a Date; accept both and normalise to a string. */
+const isoDate = z.preprocess(
+  (v) => (v instanceof Date && !Number.isNaN(v.getTime()) ? v.toISOString().slice(0, 10) : v),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")
+);
 
 export const TopicFrontmatterSchema = z.object({
   title: z.string().min(1),

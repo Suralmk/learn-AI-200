@@ -1,77 +1,73 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { slugify } from "./slugify";
+import type { z } from "zod";
 import { TopicFrontmatterSchema, parseFrontmatter } from "./schemas";
 
-export interface TopicNote {
+export type TopicNote = z.infer<typeof TopicFrontmatterSchema> & {
   slug: string;
-  title: string;
   pathSlug: string;
-  moduleName: string;
-  description?: string;
-  last_reviewed?: string;
-  source_version?: string;
-  tags?: string[];
-  objectives?: string[];
+  href: string;
+  /** Path of the source file from the repo root, for "Edit on GitHub". */
+  repoPath: string;
   content: string;
-}
+};
 
 const TOPICS_DIR = path.join(process.cwd(), "content", "study", "topics");
 
-export function getTopicNote(
-  pathSlug: string,
-  topicSlug: string
-): TopicNote | null {
-  const filePath = path.join(TOPICS_DIR, pathSlug, `${topicSlug}.md`);
-  if (!fs.existsSync(filePath)) return null;
-
-  const raw = fs.readFileSync(filePath, "utf-8");
-  const { data, content } = matter(raw);
-
-  const fm = parseFrontmatter(
-    TopicFrontmatterSchema,
-    `${pathSlug}/${topicSlug}.md`,
-    data
-  );
-  return { ...fm, slug: topicSlug, content };
+export function topicHref(pathSlug: string, topicSlug: string): string {
+  return `/study/${pathSlug}/${topicSlug}`;
 }
 
-export function getTopicSlugsForPath(pathSlug: string): string[] {
-  const dir = path.join(TOPICS_DIR, pathSlug);
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith(".md"))
-    .map((f) => f.replace(/\.md$/, ""));
-}
+let cache: Map<string, TopicNote> | null = null;
 
-export function topicNoteExists(
-  pathSlug: string,
-  topicTitle: string
-): boolean {
-  const topicSlug = slugify(topicTitle);
-  return fs.existsSync(path.join(TOPICS_DIR, pathSlug, `${topicSlug}.md`));
-}
+/** Every topic note, read and validated once per process, keyed by href. */
+function loadTopics(): Map<string, TopicNote> {
+  if (cache) return cache;
+  cache = new Map();
+  if (!fs.existsSync(TOPICS_DIR)) return cache;
 
-
-export function getAllTopicParams(): { slug: string; topicSlug: string }[] {
-  if (!fs.existsSync(TOPICS_DIR)) return [];
-
-  const params: { slug: string; topicSlug: string }[] = [];
-
-  for (const pathSlug of fs.readdirSync(TOPICS_DIR)) {
+  for (const pathSlug of fs.readdirSync(TOPICS_DIR).sort()) {
     const dir = path.join(TOPICS_DIR, pathSlug);
     if (!fs.statSync(dir).isDirectory()) continue;
-
-    for (const file of fs.readdirSync(dir)) {
-      if (!file.endsWith(".md")) continue;
-      params.push({
-        slug: pathSlug,
-        topicSlug: file.replace(/\.md$/, ""),
-      });
+    for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort()) {
+      const slug = file.replace(/\.md$/, "");
+      const { data, content } = matter(fs.readFileSync(path.join(dir, file), "utf-8"));
+      const fm = parseFrontmatter(TopicFrontmatterSchema, `${pathSlug}/${file}`, data);
+      const href = topicHref(pathSlug, slug);
+      cache.set(href, { ...fm, slug, pathSlug, href, repoPath: `content/study/topics/${pathSlug}/${file}`, content });
     }
   }
+  return cache;
+}
 
-  return params;
+export function getAllTopicNotes(): TopicNote[] {
+  return [...loadTopics().values()];
+}
+
+export function getTopicNote(pathSlug: string, topicSlug: string): TopicNote | null {
+  return loadTopics().get(topicHref(pathSlug, topicSlug)) ?? null;
+}
+
+export function getTopicNotesForPath(pathSlug: string): TopicNote[] {
+  return getAllTopicNotes().filter((n) => n.pathSlug === pathSlug);
+}
+
+export function getAllTopicParams(): { slug: string; topicSlug: string }[] {
+  return getAllTopicNotes().map((n) => ({ slug: n.pathSlug, topicSlug: n.slug }));
+}
+
+let byObjective: Map<string, TopicNote[]> | null = null;
+
+/** Topic notes whose frontmatter lists the objective. */
+export function getTopicNotesForObjective(objectiveId: string): TopicNote[] {
+  if (!byObjective) {
+    byObjective = new Map();
+    for (const note of getAllTopicNotes()) {
+      for (const id of note.objectives ?? []) {
+        byObjective.set(id, [...(byObjective.get(id) ?? []), note]);
+      }
+    }
+  }
+  return byObjective.get(objectiveId) ?? [];
 }

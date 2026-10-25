@@ -5,6 +5,3 @@ export function slugify(text: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-export function getTopicSlug(title: string): string {
-  return slugify(title);
-}

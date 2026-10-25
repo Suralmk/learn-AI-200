@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { QuestionSchema, correctIndices, parseQuestionFile } from "@/lib/schemas";
-import { getAllQuestions, getObjectiveForQuestion } from "@/lib/questions";
+import { getAllQuestions } from "@/lib/questions";
 
 const base = {
   id: "t-1",
@@ -39,9 +39,10 @@ describe("question schema", () => {
     expect(QuestionSchema.safeParse({ ...base, answer: 0, objective: "nope" }).success).toBe(false);
   });
 
-  it("resolves objectives from the question or the sidecar map", () => {
-    const q = QuestionSchema.parse({ ...base, answer: 0, objective: "acr-tasks" });
-    expect(getObjectiveForQuestion(q)).toBe("acr-tasks");
+  it("fills objectives for originals from the sidecar map", () => {
+    const q = getAllQuestions().find((x) => x.id === "cont-001");
+    expect(q?.objective).toBeTruthy();
+    expect(q?.source).toBeUndefined();
   });
 });
 
@@ -55,5 +56,19 @@ describe("study content", () => {
     for (const { slug, topicSlug } of getAllTopicParams()) {
       expect(getTopicNote(slug, topicSlug)?.title, `${slug}/${topicSlug}`).toBeTruthy();
     }
+  });
+});
+
+import { TopicFrontmatterSchema } from "@/lib/schemas";
+
+describe("topic frontmatter", () => {
+  it("accepts unquoted YAML dates (parsed as Date) and normalises them", () => {
+    const fm = TopicFrontmatterSchema.parse({
+      title: "t", pathSlug: "p", moduleName: "m",
+      last_reviewed: new Date("2026-10-25T00:00:00Z"),
+      source_version: "2026-10-07",
+    });
+    expect(fm.last_reviewed).toBe("2026-10-25");
+    expect(fm.source_version).toBe("2026-10-07");
   });
 });

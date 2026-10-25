@@ -1,5 +1,7 @@
 import type { DomainId } from "./domains";
-import { correctIndices, type Question } from "./schemas";
+import { EXAM } from "./exam-outline";
+import { correctIndices } from "./answer";
+import type { Question } from "./schemas";
 
 export type Answers = Record<string, number[]>;
 
@@ -55,4 +57,13 @@ export function scoreSession(questions: Question[], answers: Answers): SessionSc
 /** Rough mapping onto Microsoft's 1–1000 reporting scale (700 = pass). */
 export function scaledScore(percent: number): number {
   return Math.round(Math.min(100, Math.max(0, percent)) * 10);
+}
+
+/** Scaled score from the raw ratio, so a rounded 69.7% doesn't read as 700. */
+export function sessionScaledScore(score: { correct: number; total: number }): number {
+  return score.total === 0 ? 0 : scaledScore((score.correct / score.total) * 100);
+}
+
+export function isPassingScore(score: { correct: number; total: number }): boolean {
+  return sessionScaledScore(score) >= EXAM.passScore;
 }

@@ -1,9 +1,7 @@
-import fs from "fs";
-import path from "path";
 import { getLearningPaths, getStudyGuides } from "./content";
 import { ALL_OBJECTIVES } from "./exam-outline";
-import { getAllQuestions } from "./questions";
-import { getAllTopicParams, getTopicNote } from "./topics";
+import { getAllQuestions, readObjectiveMap } from "./questions";
+import { getAllTopicNotes } from "./topics";
 
 /** H2 sections every topic page should have (see CLAUDE.md → Content rules). */
 export const TEMPLATE_SECTIONS = [
@@ -83,35 +81,27 @@ export function validateContent(): Report {
 
   const paths = guard(getLearningPaths) ?? [];
   const guides = guard(getStudyGuides) ?? [];
-  const topics = getAllTopicParams();
+  const topics = guard(getAllTopicNotes) ?? [];
 
   const routes = new Set<string>([
     ...paths.map((p) => `/study/${p.slug}`),
     ...guides.map((g) => `/study/${g.slug}`),
-    ...topics.map((t) => `/study/${t.slug}/${t.topicSlug}`),
+    ...topics.map((t) => t.href),
   ]);
 
-  for (const { slug, topicSlug } of topics) {
-    const note = guard(() => getTopicNote(slug, topicSlug));
-    if (!note) continue;
-    const file = `content/study/topics/${slug}/${topicSlug}.md`;
-    merge(checkMarkdown(file, note.content, routes, { template: true }));
-    if (!note.description) report.warnings.push(`${file}: missing description`);
+  for (const note of topics) {
+    merge(checkMarkdown(note.repoPath, note.content, routes, { template: true }));
+    if (!note.description) report.warnings.push(`${note.repoPath}: missing description`);
   }
   for (const guide of guides) {
-    merge(checkMarkdown(`content/study/guides/${guide.slug}.md`, guide.content, routes));
+    merge(checkMarkdown(guide.repoPath, guide.content, routes));
   }
 
-  const questions = guard(getAllQuestions) ?? [];
-  const mapFile = path.join(process.cwd(), "content", "questions", "objective-map.json");
-  if (fs.existsSync(mapFile)) {
-    const map = JSON.parse(fs.readFileSync(mapFile, "utf-8")) as Record<string, string>;
-    const ids = new Set(questions.map((q) => q.id));
-    const objectives = new Set(ALL_OBJECTIVES.map((o) => o.id));
-    for (const [id, objective] of Object.entries(map)) {
-      if (!ids.has(id)) report.errors.push(`objective-map.json: unknown question ${id}`);
-      if (!objectives.has(objective)) report.errors.push(`objective-map.json: unknown objective ${objective}`);
-    }
+  const ids = new Set((guard(getAllQuestions) ?? []).map((q) => q.id));
+  const objectives = new Set(ALL_OBJECTIVES.map((o) => o.id));
+  for (const [id, objective] of Object.entries(readObjectiveMap())) {
+    if (!ids.has(id)) report.errors.push(`objective-map.json: unknown question ${id}`);
+    if (!objectives.has(objective)) report.errors.push(`objective-map.json: unknown objective ${objective}`);
   }
 
   return report;

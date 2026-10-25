@@ -1,4 +1,5 @@
 import type { DomainId } from "./domains";
+import { EXAM } from "./exam-outline";
 import type { Question } from "./questions";
 import { getAllQuestions } from "./questions";
 
@@ -10,12 +11,14 @@ export interface Exam {
   questionCount: number;
   studySlug?: string;
   category?: "advanced";
+  /** Optional countdown, offered as a toggle before starting. */
+  timerMinutes?: number;
 }
 
 export const EXAMS: Exam[] = [
   {
     id: "ai200-practice-60",
-    title: "Microsoft AI-200 Official Practice Set",
+    title: "AI-200 scenario practice set",
     description:
       "Comprehensive scenario-based 60-question practice exam covering Containers & AKS, Cosmos DB Vector Search, Azure Managed Redis, pgvector, Azure Functions, Identity, Key Vault, and Observability.",
     domains: "all",
@@ -23,9 +26,9 @@ export const EXAMS: Exam[] = [
   },
   {
     id: "full",
-    title: "Full AI-200 Mock Exam",
+    title: "Full AI-200 mock exam",
     description:
-      "Mixed questions across all AI-200 exam domains — simulate the full certification test.",
+      "Mixed questions across all four AI-200 skill areas, sized like the real exam.",
     domains: [
       "containers",
       "data-management",
@@ -33,10 +36,11 @@ export const EXAMS: Exam[] = [
       "secure-monitor",
     ],
     questionCount: 50,
+    timerMinutes: EXAM.minutes,
   },
   {
     id: "containers",
-    title: "Containerized Solutions",
+    title: "Containerized solutions",
     description:
       "Azure Container Registry, Container Apps, AKS, and KEDA for hosting AI workloads.",
     domains: ["containers"],
@@ -45,7 +49,7 @@ export const EXAMS: Exam[] = [
   },
   {
     id: "rag-on-azure",
-    title: "Data Management for AI",
+    title: "Data management for AI",
     description:
       "Cosmos DB vector search, PostgreSQL pgvector, and Managed Redis for retrieval-augmented generation.",
     domains: ["data-management"],
@@ -54,7 +58,7 @@ export const EXAMS: Exam[] = [
   },
   {
     id: "azure-services",
-    title: "Azure Services Integration",
+    title: "Azure services integration",
     description:
       "Service Bus, Event Grid, and Azure Functions for event-driven AI pipelines.",
     domains: ["azure-services"],
@@ -63,7 +67,7 @@ export const EXAMS: Exam[] = [
   },
   {
     id: "secure-monitor",
-    title: "Secure, Monitor & Troubleshoot",
+    title: "Secure, monitor and troubleshoot",
     description:
       "Key Vault, App Configuration, OpenTelemetry, and KQL for securing and observing AI solutions.",
     domains: ["secure-monitor"],
@@ -72,7 +76,7 @@ export const EXAMS: Exam[] = [
   },
   {
     id: "sdk-cli",
-    title: "Azure SDK and Azure CLI Quiz",
+    title: "Azure SDK and Azure CLI quiz",
     description:
       "CLI commands and Python SDK classes/methods for deploying, configuring, authenticating, and troubleshooting AI solutions on Azure.",
     domains: ["sdk-cli"],
@@ -80,7 +84,7 @@ export const EXAMS: Exam[] = [
   },
   {
     id: "advanced",
-    title: "Advanced Use Cases & Scenarios",
+    title: "Advanced use cases and scenarios",
     description:
       "Hard scenario-based questions covering real-world AI solution design, troubleshooting, and architecture trade-offs across all domains.",
     domains: [
@@ -98,27 +102,14 @@ export function getExam(id: string): Exam | null {
   return EXAMS.find((e) => e.id === id) ?? null;
 }
 
+/** Advanced exams draw only advanced questions; the rest exclude them. */
 export function getQuestionsForExam(exam: Exam): Question[] {
-  const all = getAllQuestions();
-
-  if (exam.category === "advanced") {
-    return all.filter(
-      (q) =>
-        q.category === "advanced" &&
-        (exam.domains === "all" || exam.domains.includes(q.domain))
-    );
-  }
-
-  if (exam.domains === "all") {
-    return all.filter((q) => q.category !== "advanced");
-  }
-
-  return all.filter(
-    (q) => exam.domains.includes(q.domain) && q.category !== "advanced"
+  const advanced = exam.category === "advanced";
+  return getAllQuestions().filter(
+    (q) => (q.category === "advanced") === advanced && (exam.domains === "all" || exam.domains.includes(q.domain))
   );
 }
 
 export function getExamQuestionCount(exam: Exam): number {
-  const available = getQuestionsForExam(exam).length;
-  return Math.min(exam.questionCount, available);
+  return Math.min(exam.questionCount, getQuestionsForExam(exam).length);
 }

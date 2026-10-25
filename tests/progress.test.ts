@@ -22,12 +22,11 @@ describe("progress store", () => {
   it("records visits and attempts", () => {
     const store = createProgressStore(() => memoryStorage());
     store.markVisited("/study/a/b");
-    store.recordAttempt("exam:full", { correct: 7, total: 10, byDomain: [{ domain: "containers", correct: 7, total: 10 }] });
-    store.recordAttempt("exam:full", { correct: 5, total: 10, byDomain: [{ domain: "containers", correct: 5, total: 10 }] });
+    store.recordAttempt("exam:full", 70);
+    store.recordAttempt("exam:full", 50);
     const p = store.load();
     expect(p.visited["/study/a/b"]).toBeTypeOf("number");
-    expect(p.sets["exam:full"]).toMatchObject({ attempts: 2, bestPercent: 70, lastPercent: 50 });
-    expect(p.domains.containers).toEqual({ correct: 12, total: 20 });
+    expect(p.sets["exam:full"]).toEqual({ attempts: 2, bestPercent: 70 });
   });
 
   it("survives storage that throws", () => {
