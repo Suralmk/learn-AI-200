@@ -58,6 +58,8 @@ modules:
       Create serverless AI backends with Azure Functions, including inference
       endpoints, event processors, and secure integrations with other Azure
       services.
-    topics: []
+    topics:
+      - Build serverless APIs with Azure Functions triggers and bindings
+      - Configure and deploy function apps
 ---
 
