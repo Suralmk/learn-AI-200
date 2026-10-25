@@ -39,6 +39,7 @@ modules:
       - Deploy to App Service using CLI
       - Deploy from other container registries
       - ACR authentication options
+      - Build and run images with ACR Tasks
   - name: Configure app settings for Azure container environments
     duration: ''
     description: >-

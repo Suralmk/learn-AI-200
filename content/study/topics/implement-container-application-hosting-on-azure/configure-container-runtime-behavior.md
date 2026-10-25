@@ -2,141 +2,132 @@
 title: Configure container runtime behavior
 pathSlug: implement-container-application-hosting-on-azure
 moduleName: Configure app settings for Azure container environments
+description: >-
+  App Service container runtime settings for AI-200: startup command, WEBSITES_PORT, /home persistent storage, Always On and health check path.
+last_reviewed: 2026-10-25
+source_version: 2026-10-07
+tags: [App Service, Containers, Configuration]
+objectives: [app-service-containers]
 ---
-## Overview
 
-Container runtime settings control how App Service executes your container: startup, networking, file system, and health monitoring. Correct configuration means reliable starts and better behavior under load.
+## What this covers
 
-## Short notes (exam revision)
+Runtime settings control how App Service runs your container: the startup command, the port it forwards traffic to, whether files survive a restart, whether the app is kept warm, and how unhealthy instances are detected. Getting these right means the container starts reliably and stays healthy under load. Each one is a single CLI flag or app setting, and the exam expects you to know the exact names.
+
+**Exam weight:** Develop containerized solutions on Azure (20–25%)
+
+**Skills measured**
+
+- "Deploy containers to Azure App Service, including configuring App Service to supply environment variables and secrets"
+
+## Key concepts
 
 | Setting | Key fact |
 |---------|----------|
-| Startup file | `--startup-file` overrides Dockerfile **CMD** (ENTRYPOINT unchanged) |
-| Port | `WEBSITES_PORT` when not on 80/8080; App Service TLS terminates; **one** HTTP port |
-| Persistent storage | `WEBSITES_ENABLE_APP_SERVICE_STORAGE=true` → `/home` persists & shared across instances |
-| Always On | Keeps warm; needs **Basic+**; avoids ~20 min idle cold starts |
-| Health check | Path returning 200; ping ~every minute; bad instances removed after repeated fails |
+| Startup command | `--startup-file` overrides the Dockerfile **CMD**; ENTRYPOINT is unchanged |
+| Port | `WEBSITES_PORT` when the container doesn't listen on 80; TLS ends at the front end; **one** HTTP port only |
+| Persistent storage | `WEBSITES_ENABLE_APP_SERVICE_STORAGE=true` makes `/home` persistent and shared across instances |
+| Always On | Keeps the app warm; needs **Basic** tier or higher; avoids cold starts after about 20 minutes idle |
+| Health check | Path that returns 200; pinged every minute; an instance is pulled from rotation after repeated failures (default 10) |
 
----
+### Startup command
 
-## Startup commands
-
-App Service normally uses Dockerfile ENTRYPOINT/CMD. Override with a custom startup when you need runtime args, init scripts, or different default behavior.
-
-Common scenarios:
+App Service normally runs the image's ENTRYPOINT and CMD. A custom startup command is useful to:
 
 - Pass environment-specific arguments
-- Run DB migrations before starting the app
-- Start multiple processes
+- Run database migrations before the app starts
+- Start more than one process
 - Override framework defaults
 
-```bash
-az webapp config set \
-  --resource-group myResourceGroup \
-  --name myDocumentProcessor \
-  --startup-file "gunicorn --bind=0.0.0.0:8000 --workers=4 app:application"
-```
+The startup command **replaces CMD**. ENTRYPOINT stays as built into the image. Use `/bin/bash -c '...'` when you need shell features such as `&&`.
 
-Startup command replaces **CMD**. **ENTRYPOINT** stays unless you change the image.
+### Port
 
-Shell processing:
-
-```bash
-az webapp config set \
-  --resource-group myResourceGroup \
-  --name myDocumentProcessor \
-  --startup-file "/bin/bash -c 'python migrate.py && gunicorn app:application'"
-```
-
----
-
-## Port configuration
-
-App Service auto-routes when the container listens on **80** or **8080**. Other ports need `WEBSITES_PORT`.
-
-```bash
-az webapp config appsettings set \
-  --resource-group myResourceGroup \
-  --name myDocumentProcessor \
-  --settings WEBSITES_PORT=8000
-```
-
-- Incoming HTTPS is terminated by the platform; the container still receives HTTP
-- Only **one** HTTP port is supported for a custom container
+The Learn module says App Service routes automatically when the container listens on **80** or **8080**. The custom container docs describe **80** as the assumed default. The safe rule: if the port isn't 80, set `WEBSITES_PORT`. HTTPS is terminated by the platform front end, so the container always receives plain HTTP. Only **one** HTTP port can be exposed. Bind to **`0.0.0.0`**, not localhost.
 
 | Framework | Default port | Setting |
 |-----------|--------------|---------|
 | Node.js (Express) | 3000 | `WEBSITES_PORT=3000` |
 | Python (Gunicorn) | 8000 | `WEBSITES_PORT=8000` |
 | Java (Spring Boot) | 8080 | `WEBSITES_PORT=8080` |
-| ASP.NET Core | 80 | Usually none needed |
+| ASP.NET Core (before .NET 8) | 80 | Usually none needed |
+| ASP.NET Core (.NET 8+ official images) | 8080 | `WEBSITES_PORT=8080` to be explicit |
 
-Also bind to **`0.0.0.0`**, not localhost.
+### Persistent storage
 
----
+By default, writes to the container file system are **ephemeral**: they're lost on restart or when the app moves to another host. App Service storage at `/home` is **off by default for Linux custom containers** (on by default for Windows containers). With `WEBSITES_ENABLE_APP_SERVICE_STORAGE=true`:
 
-## Persistent storage
+- `/home` survives restarts.
+- All scaled-out instances share the same `/home`.
+- `/home/LogFiles` holds container and app logs.
 
-By default, container FS writes are **ephemeral** (lost on restart / host move).
+Write persistent output under `/home` (for example `/home/output/`). The quota belongs to the **App Service plan** and is shared by every app in it. For large or high-I/O data, mount Azure Storage (Azure Files or Blob) as a path instead.
 
-Enable App Service storage at `/home` for Linux custom containers (off by default):
+### Always On
+
+After about **20 minutes** without traffic an app can be unloaded, and the next request triggers a **cold start** that can take seconds or minutes for large images. Always On sends periodic requests to keep it loaded. It requires **Basic** tier or higher. Use it for latency-sensitive production apps, long startups or large images, and background processes or long-lived connections.
+
+### Health check
+
+App Service pings a path on each instance about **every minute**. A healthy response is any **2xx**. After repeated failures (default **10**, adjustable with `WEBSITE_HEALTHCHECK_MAXPINGFAILURES` between 2 and 10), the instance is removed from the load balancer. If it stays unhealthy for an hour, it's replaced. Removal only happens when the app runs on two or more instances. Changing the health check configuration **restarts** the app.
+
+## How it works
+
+```mermaid
+flowchart LR
+    Pull[Pull image] --> Start[Run ENTRYPOINT + startup command]
+    Start --> Ping{Responds on<br/>WEBSITES_PORT?}
+    Ping -->|yes| LB[Added to load balancer]
+    Ping -->|no, after start time limit| Fail[Restart / error]
+    LB --> HC[Health check every minute]
+    HC -->|10 failures| Out[Removed from rotation]
+```
+
+## Hands-on
+
+### Azure portal
+
+1. **Settings** > **Configuration** > **General settings**: set **Startup Command** and turn **Always on** to **On**.
+2. **Settings** > **Environment variables**: add `WEBSITES_PORT` and `WEBSITES_ENABLE_APP_SERVICE_STORAGE`.
+3. **Monitoring** > **Health check**: enable it, enter `/health`, and save (the app restarts).
+
+### Azure CLI
 
 ```bash
+# Startup command (replaces CMD)
+az webapp config set \
+  --resource-group myResourceGroup \
+  --name myDocumentProcessor \
+  --startup-file "gunicorn --bind=0.0.0.0:8000 --workers=4 app:application"
+
+# Shell processing for chained commands
+az webapp config set \
+  --resource-group myResourceGroup \
+  --name myDocumentProcessor \
+  --startup-file "/bin/bash -c 'python migrate.py && gunicorn app:application'"
+
+# Port and persistent storage
 az webapp config appsettings set \
   --resource-group myResourceGroup \
   --name myDocumentProcessor \
-  --settings WEBSITES_ENABLE_APP_SERVICE_STORAGE=true
-```
+  --settings WEBSITES_PORT=8000 WEBSITES_ENABLE_APP_SERVICE_STORAGE=true
 
-With this enabled:
-
-- `/home` survives restarts
-- All scaled-out instances share `/home`
-- `/home/LogFiles` holds container/app logs
-
-Write persistent output under `/home` (for example `/home/output/`). Quota is per **plan** (shared by apps). For large/high-I/O needs, mount Azure Storage as an extra volume.
-
----
-
-## Always On
-
-After ~**20 minutes** idle, apps can unload; the next request causes a **cold start** (seconds to minutes for large images).
-
-```bash
+# Always On (Basic tier or higher)
 az webapp config set \
   --resource-group myResourceGroup \
   --name myDocumentProcessor \
   --always-on true
-```
 
-App Service sends periodic pings to keep the app warm. Requires **Basic** tier or higher.
-
-Recommended for:
-
-- Production latency-sensitive apps
-- Long startup / large images
-- Background processes or long-lived connections
-
----
-
-## Health checks
-
-Health checks ping a path and restart/remove unhealthy instances.
-
-```bash
+# Health check path
 az webapp config set \
   --resource-group myResourceGroup \
   --name myDocumentProcessor \
   --generic-configurations '{"healthCheckPath": "/health"}'
 ```
 
-- Return HTTP **200** when healthy
-- Can check DB, dependencies, memory/disk
-- Platform pings about **every minute**
-- After repeated failures (default **10**), instance is removed from load balancer; prolonged failure can replace it
-- Changing health check config **restarts** the app
+### Python
 
-### Simple endpoint
+A simple health endpoint:
 
 ```python
 @app.route("/health")
@@ -144,7 +135,7 @@ def health_check():
     return {"status": "healthy"}, 200
 ```
 
-### Dependency-aware endpoint
+A dependency-aware endpoint:
 
 ```python
 @app.route("/health")
@@ -157,24 +148,67 @@ def health_check():
         return {"status": "unhealthy", "error": str(e)}, 503
 ```
 
----
+Set the same runtime options with the management SDK:
 
-## Use cases
+```python
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.web import WebSiteManagementClient
 
-- Gunicorn on 8000 → set `WEBSITES_PORT=8000` and bind `0.0.0.0`
-- Document processor writes results to `/home/output` with storage enabled
-- Production AI API enables Always On + `/health` that checks model loader readiness
+client = WebSiteManagementClient(DefaultAzureCredential(), "<subscription-id>")
+cfg = client.web_apps.get_configuration("<resource-group>", "<app-name>")
+cfg.always_on = True
+cfg.health_check_path = "/health"
+cfg.app_command_line = "gunicorn --bind=0.0.0.0:8000 app:application"
+client.web_apps.update_configuration("<resource-group>", "<app-name>", cfg)
+```
 
-## Exam tips
+## Exam traps
 
-- `WEBSITES_PORT` vs 80/8080 auto behavior
-- Storage flag exact name: `WEBSITES_ENABLE_APP_SERVICE_STORAGE`
-- Always On = Basic+; idle ~20 minutes without it
-- Health path changes cause restart; fail count ~10 then remove from rotation
+| Requirement | Setting |
+|-------------|---------|
+| Gunicorn listens on 8000 | `WEBSITES_PORT=8000` and bind `0.0.0.0` |
+| Processed files must survive restarts and be shared | `WEBSITES_ENABLE_APP_SERVICE_STORAGE=true`, write to `/home` |
+| Large or high-I/O data | Mount Azure Storage |
+| No cold start after idle | Always On (Basic+) |
+| Pull bad instances out of rotation | Health check path |
+| Run migrations before the app | Startup command with `/bin/bash -c` |
 
-## Learn more
+> [!WARNING]
+> **Exam trap:** The startup command replaces **CMD**, not ENTRYPOINT. If the image has an ENTRYPOINT, your command becomes its arguments.
 
-- [Configure custom containers](https://learn.microsoft.com/en-us/azure/app-service/configure-custom-container)
-- [Health check](https://learn.microsoft.com/en-us/azure/app-service/monitor-instances-health-check)
+> [!WARNING]
+> **Exam trap:** The storage setting is `WEBSITES_ENABLE_APP_SERVICE_STORAGE` (with an S in WEBSITES). For Linux custom containers it defaults to off, so files written outside `/home` or a mount are lost.
+
+> [!WARNING]
+> **Exam trap:** Always On isn't available on the Free or Shared tiers.
+
+> [!TIP]
+> Health check on a single instance only reports. It can't remove the only instance from rotation, so scale out to at least two.
+
+### Use cases
+
+- Gunicorn on 8000: set `WEBSITES_PORT=8000` and bind `0.0.0.0`.
+- A document processor writes results to `/home/output` with storage enabled.
+- A production AI API enables Always On and a `/health` endpoint that checks the model loader is ready.
+
+## Quick review
+
+- `--startup-file` overrides CMD; ENTRYPOINT stays.
+- Set `WEBSITES_PORT` when the container doesn't listen on 80; only one HTTP port.
+- TLS is terminated at the front end; the container receives HTTP.
+- `/home` is persistent and shared only with `WEBSITES_ENABLE_APP_SERVICE_STORAGE=true`.
+- Always On needs Basic+ and prevents unloads after about 20 minutes idle.
+- Health check pings every minute and removes an instance after 10 failures by default.
+- Changing the health check path restarts the app.
+
+## Practice
+
+[Practice: App Service container questions](/practice/app-service-containers)
+
+## Official references
+
+- [Configure container runtime behavior (Learn unit)](https://learn.microsoft.com/en-us/training/modules/deploy-containers-azure-app-service/3-configure-runtime)
+- [Configure a custom container](https://learn.microsoft.com/en-us/azure/app-service/configure-custom-container)
+- [Monitor App Service instances by using Health check](https://learn.microsoft.com/en-us/azure/app-service/monitor-instances-health-check)
 - [Configure common settings](https://learn.microsoft.com/en-us/azure/app-service/configure-common)
 - [AI-200 study guide](https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200)
