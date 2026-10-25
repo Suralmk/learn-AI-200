@@ -16,13 +16,14 @@ export function shuffleArray<T>(items: T[]): T[] {
 }
 
 export function shuffleQuestionOptions(question: Question): Question {
-  const correctOptionText = question.options[question.answer];
-  const shuffledOptions = shuffleArray(question.options);
-  const newAnswerIndex = shuffledOptions.indexOf(correctOptionText);
+  // Shuffle positions, not text, so duplicate option text can't confuse the mapping.
+  const order = shuffleArray(question.options.map((_, i) => i));
+  const newIndex = (oldIndex: number) => order.indexOf(oldIndex);
   return {
     ...question,
-    options: shuffledOptions,
-    answer: newAnswerIndex === -1 ? question.answer : newAnswerIndex,
+    options: order.map((i) => question.options[i]),
+    answer: Array.isArray(question.answer)
+      ? question.answer.map(newIndex).sort((a, b) => a - b)
+      : newIndex(question.answer),
   };
 }
-

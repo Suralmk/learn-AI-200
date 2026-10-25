@@ -3,6 +3,11 @@ import path from "path";
 import matter from "gray-matter";
 import type { DomainId } from "./domains";
 import type { SkillFocusId } from "./skill-focus";
+import {
+  GuideFrontmatterSchema,
+  LearningPathFrontmatterSchema,
+  parseFrontmatter,
+} from "./schemas";
 
 export interface LearningModule {
   name: string;
@@ -32,6 +37,9 @@ export interface StudyGuide {
   description: string;
   order: number;
   content: string;
+  last_reviewed?: string;
+  source_version?: string;
+  objectives?: string[];
 }
 
 /** @deprecated Use StudyGuide — kept for backward compatibility */
@@ -53,19 +61,8 @@ function parseLearningPath(filename: string): LearningPath | null {
 
   if (!data.modules) return null;
 
-  return {
-    slug: (data.slug as string) ?? slug,
-    title: data.title as string,
-    certification: (data.certification as string) ?? "AI-200",
-    duration: (data.duration as string) ?? "",
-    level: (data.level as string) ?? "",
-    description: data.description as string,
-    tags: (data.tags as string[]) ?? [],
-    filterTags: (data.filterTags as string[]) ?? [],
-    skillFocus: data.skillFocus as SkillFocusId,
-    modules: data.modules as LearningModule[],
-    order: (data.order as number) ?? 99,
-  };
+  const fm = parseFrontmatter(LearningPathFrontmatterSchema, filename, data);
+  return { ...fm, slug: fm.slug ?? slug };
 }
 
 function parseStudyGuide(filename: string): StudyGuide | null {
@@ -75,14 +72,8 @@ function parseStudyGuide(filename: string): StudyGuide | null {
 
   if (data.modules) return null;
 
-  return {
-    slug,
-    title: data.title as string,
-    domain: data.domain as DomainId,
-    description: data.description as string,
-    order: (data.order as number) ?? 99,
-    content,
-  };
+  const fm = parseFrontmatter(GuideFrontmatterSchema, filename, data);
+  return { ...fm, slug, content };
 }
 
 export function getLearningPaths(): LearningPath[] {

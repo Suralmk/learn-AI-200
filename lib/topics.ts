@@ -2,12 +2,18 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import { slugify } from "./slugify";
+import { TopicFrontmatterSchema, parseFrontmatter } from "./schemas";
 
 export interface TopicNote {
   slug: string;
   title: string;
   pathSlug: string;
   moduleName: string;
+  description?: string;
+  last_reviewed?: string;
+  source_version?: string;
+  tags?: string[];
+  objectives?: string[];
   content: string;
 }
 
@@ -23,13 +29,12 @@ export function getTopicNote(
   const raw = fs.readFileSync(filePath, "utf-8");
   const { data, content } = matter(raw);
 
-  return {
-    slug: topicSlug,
-    title: data.title as string,
-    pathSlug: data.pathSlug as string,
-    moduleName: data.moduleName as string,
-    content,
-  };
+  const fm = parseFrontmatter(
+    TopicFrontmatterSchema,
+    `${pathSlug}/${topicSlug}.md`,
+    data
+  );
+  return { ...fm, slug: topicSlug, content };
 }
 
 export function getTopicSlugsForPath(pathSlug: string): string[] {
