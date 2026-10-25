@@ -1,116 +1,157 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, ClipboardList, GraduationCap } from "lucide-react";
-import azureLogo from "@/app/asset/Microsoft_Azure-Logo.wine.png";
-import ai200Badge from "@/app/asset/ai_200_badge.png";
+import { BookOpen, ListChecks, Timer } from "lucide-react";
+import { StarPrompt } from "@/components/star-prompt";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { DOMAINS } from "@/lib/domains";
-import { SkillFocusSection } from "@/components/skill-focus-section";
-import { PreparedBy } from "@/components/site-footer";
-import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { BlueprintBars } from "@/components/viz";
+import { EXAM, SKILL_AREAS } from "@/lib/exam-outline";
+import { buildStudyNav } from "@/lib/nav";
+import { getAllQuestions } from "@/lib/questions";
+import { formatDate, pageMetadata } from "@/lib/seo";
+import { DEFAULT_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: {
-    absolute: `${SITE_NAME} — AI-200 Azure AI Cloud Developer Study Notes & Practice Exams`,
-  },
-  description: SITE_DESCRIPTION,
-  alternates: { canonical: "/" },
+  ...pageMetadata({
+    title: "Free study notes and practice questions",
+    description: SITE_DESCRIPTION,
+    path: "/",
+    type: "website",
+  }),
+  title: { absolute: DEFAULT_TITLE },
 };
 
+const STEPS = [
+  {
+    Icon: BookOpen,
+    title: "Read the notes",
+    body: "Each topic covers key concepts, a diagram, CLI and Python you can run, and the traps the exam likes to set.",
+    href: "/study",
+    cta: "Browse study notes",
+  },
+  {
+    Icon: ListChecks,
+    title: "Practice each objective",
+    body: "At least ten questions for every official objective, each with an explanation of why the other options are wrong.",
+    href: "/questions",
+    cta: "Pick an objective",
+  },
+  {
+    Icon: Timer,
+    title: "Sit a mock exam",
+    body: "A timed, full-length run scored out of 1,000 with accuracy per skill area, so you know where to go back to.",
+    href: "/exam",
+    cta: "Start a mock exam",
+  },
+];
+
 export default function HomePage() {
+  const nav = buildStudyNav();
+  const topicCount = nav.reduce((n, a) => n + a.paths.reduce((m, p) => m + p.topics.length, 0), 0);
+  const questionCount = getAllQuestions().length;
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <section className="mb-12">
-        <div className="mb-6 flex items-center gap-4">
-          <Image
-            src={azureLogo}
-            alt="Microsoft Azure"
-            className="h-8 w-auto dark:brightness-110"
-            priority
-          />
-        </div>
-        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <h1 className="mb-3 text-3xl font-semibold tracking-tight">
-              AI-200 Azure AI Cloud Developer Study Notes
+    <>
+      <section className="border-b border-border">
+        <div className="mx-auto grid max-w-[90rem] gap-14 px-4 pt-16 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-center lg:gap-20 lg:pt-24 lg:pb-28">
+          <div>
+            <h1 className="max-w-[18ch] text-4xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl">
+              Study for {EXAM.code} with notes and practice for every objective
             </h1>
-            <p className="mb-2 max-w-2xl text-muted-foreground">
-              Prepare for{" "}
-              <strong className="text-foreground">
-                Microsoft AI-200: Developing AI Cloud Solutions on Azure
-              </strong>{" "}
-              — the Azure AI Cloud Developer Associate certification. Free study
-              notes with code samples, practice questions, and mock exams.
+            <p className="mt-6 max-w-[56ch] text-lg text-muted-foreground text-pretty">
+              Free, open-source preparation for Exam {EXAM.code}: {EXAM.title}. {topicCount} topic pages and {questionCount} practice
+              questions, organized exactly like the official skills outline.
             </p>
-            <p className="mb-2 text-sm text-muted-foreground">
-              For developers building back-end AI solutions with Python, containers,
-              vector databases, and Azure services.
-            </p>
-            <PreparedBy className="mb-6 text-sm text-muted-foreground" />
-            <div className="flex flex-wrap gap-3">
-              <Button render={<Link href="/study" />}>
-                <BookOpen data-icon="inline-start" />
-                Study materials
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Button size="lg" className="h-11 px-5 text-[0.9375rem]" render={<Link href="/study" />}>
+                Start studying
               </Button>
-              <Button variant="outline" render={<Link href="/questions" />}>
-                <ClipboardList data-icon="inline-start" />
+              <Button size="lg" variant="outline" className="h-11 px-5 text-[0.9375rem]" render={<Link href="/questions" />}>
                 Practice questions
               </Button>
-              <Button variant="outline" render={<Link href="/exam" />}>
-                <GraduationCap data-icon="inline-start" />
-                Practice exams
-              </Button>
             </div>
-            <p className="mt-4 text-sm">
-              <a
-                href="https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-200"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Official AI-200 study guide →
+            <p className="mt-6 text-sm text-muted-foreground">
+              Based on the skills measured as of{" "}
+              <a href={EXAM.studyGuideUrl} target="_blank" rel="noopener noreferrer" className="underline decoration-border-strong underline-offset-4 hover:text-foreground">
+                {formatDate(EXAM.sourceVersion)}
               </a>
+              .
             </p>
           </div>
-          <Image
-            src={ai200Badge}
-            alt="Microsoft Certified Azure AI Cloud Developer Associate badge"
-            className="mx-auto h-auto w-40 shrink-0 sm:mx-0 sm:w-44"
-            priority
-          />
+
+          <figure className="rounded-lg border border-border bg-surface p-6 sm:p-8">
+            <figcaption className="mb-6">
+              <span className="block text-base font-semibold text-foreground">What the exam weighs</span>
+              <span className="mt-1 block text-sm text-muted-foreground">
+                Share of questions per skill area. Data management carries the most.
+              </span>
+            </figcaption>
+            <BlueprintBars
+              areas={SKILL_AREAS}
+              renderLabel={(a) => (
+                <Link href={`/questions#area-${a.id}`} className="hover:text-primary">
+                  {SKILL_AREAS.find((x) => x.id === a.id)?.officialTitle}
+                </Link>
+              )}
+            />
+          </figure>
         </div>
       </section>
 
-      <section className="mb-12">
-        <SkillFocusSection />
-      </section>
-
-      <section className="mb-12">
-        <h2 className="mb-4 text-xl font-semibold">Exam domains</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {DOMAINS.map((domain) => (
-            <Card key={domain.id}>
-              <CardHeader>
-                <CardTitle className="text-base">{domain.title}</CardTitle>
-                <CardDescription>{domain.weight} of exam</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {domain.description}
-                </p>
-              </CardContent>
-            </Card>
+      <section aria-labelledby="how-heading" className="mx-auto max-w-[90rem] px-4 py-20 sm:px-8">
+        <h2 id="how-heading" className="max-w-[30ch] text-3xl font-semibold tracking-tight text-balance">
+          Read, practice, then prove it under exam conditions
+        </h2>
+        <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-12">
+          {STEPS.map(({ Icon, title, body, href, cta }) => (
+            <li key={title} className="border-t border-border pt-6">
+              <Icon className="size-5 text-primary" aria-hidden />
+              <h3 className="mt-4 text-lg font-semibold text-foreground">{title}</h3>
+              <p className="mt-2 text-muted-foreground">{body}</p>
+              <Link href={href} className="mt-4 inline-block font-medium text-primary underline-offset-4 hover:underline">
+                {cta}
+              </Link>
+            </li>
           ))}
+        </ol>
+      </section>
+
+      <section aria-labelledby="areas-heading" className="border-t border-border bg-surface">
+        <div className="mx-auto max-w-[90rem] px-4 py-20 sm:px-8">
+          <h2 id="areas-heading" className="text-3xl font-semibold tracking-tight">
+            The four skill areas
+          </h2>
+          <div className="mt-12 grid gap-x-12 gap-y-14 md:grid-cols-2">
+            {nav.map((area) => {
+              const outline = SKILL_AREAS.find((a) => a.id === area.id)!;
+              return (
+                <section key={area.id} aria-labelledby={`home-${area.id}`}>
+                  <div className="flex items-baseline justify-between gap-4 border-b border-border pb-3">
+                    <h3 id={`home-${area.id}`} className="text-lg font-semibold text-foreground">
+                      {outline.officialTitle}
+                    </h3>
+                    <span className="tabular shrink-0 text-sm text-muted-foreground">{area.weight}</span>
+                  </div>
+                  <p className="mt-3 text-muted-foreground">{outline.description}</p>
+                  <ul className="mt-4 space-y-1">
+                    {area.paths.map((p) => (
+                      <li key={p.slug}>
+                        <Link href={p.href} className="group flex items-baseline justify-between gap-4 py-1.5 text-foreground hover:text-primary">
+                          <span className="font-medium">{p.title}</span>
+                          <span className="tabular shrink-0 text-sm text-muted-foreground">{p.topics.length} topics</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
         </div>
       </section>
-    </div>
+
+      <section className="mx-auto max-w-[90rem] px-4 pt-20 sm:px-8">
+        <StarPrompt variant="section" />
+      </section>
+    </>
   );
 }

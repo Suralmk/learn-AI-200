@@ -2,12 +2,29 @@
 
 import { useState } from "react";
 import { Check, Copy, Code2 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-  oneDark,
-  oneLight,
-} from "react-syntax-highlighter/dist/esm/styles/prism";
+import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-light";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import bicep from "react-syntax-highlighter/dist/esm/languages/prism/bicep";
+import csharp from "react-syntax-highlighter/dist/esm/languages/prism/csharp";
+import docker from "react-syntax-highlighter/dist/esm/languages/prism/docker";
+import ini from "react-syntax-highlighter/dist/esm/languages/prism/ini";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+import markup from "react-syntax-highlighter/dist/esm/languages/prism/markup";
+import powershell from "react-syntax-highlighter/dist/esm/languages/prism/powershell";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import { prismTheme } from "@/lib/prism-theme";
+
+// Register only the languages the notes use; the full Prism bundle is ~10x larger.
+for (const [name, lang] of Object.entries({
+  bash, bicep, csharp, docker, ini, javascript, json, markdown, markup, powershell, python, sql, typescript, yaml,
+})) {
+  SyntaxHighlighter.registerLanguage(name, lang);
+}
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +53,11 @@ const LANGUAGE_LABELS: Record<string, { label: string; prismLanguage: string }> 
     js: { label: "JavaScript", prismLanguage: "javascript" },
     typescript: { label: "TypeScript", prismLanguage: "typescript" },
     ts: { label: "TypeScript", prismLanguage: "typescript" },
-    env: { label: "Env", prismLanguage: "bash" },
+    env: { label: "Env", prismLanguage: "ini" },
+    ini: { label: "INI", prismLanguage: "ini" },
+    toml: { label: "TOML", prismLanguage: "ini" },
+    http: { label: "HTTP", prismLanguage: "text" },
+    console: { label: "Console", prismLanguage: "bash" },
     html: { label: "HTML", prismLanguage: "markup" },
     xml: { label: "XML", prismLanguage: "markup" },
     markdown: { label: "Markdown", prismLanguage: "markdown" },
@@ -90,57 +111,43 @@ export function CodeBlock({
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
-  const { resolvedTheme } = useTheme();
   const detectedLang = autoDetectLanguage(code, language);
   const meta = getLanguageMeta(detectedLang);
-  const isDark = resolvedTheme === "dark";
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+    } catch {
+      return; // Clipboard blocked (insecure context or permissions): leave the button as is.
+    }
     setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div
-      className={cn(
-        "not-prose my-4 overflow-hidden rounded-lg border border-border bg-card shadow-xs",
-        className
-      )}
-    >
-      <div className="flex items-center justify-between border-b border-border/60 bg-muted/60 px-3.5 py-2 text-muted-foreground">
-        <span className="flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wide text-foreground/80">
-          <Code2 className="size-3.5 text-primary" />
+    <div className={cn("not-prose group/code my-6 overflow-hidden rounded-lg border border-border bg-surface", className)}>
+      <div className="flex items-center justify-between border-b border-border px-3.5 py-1.5">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Code2 className="size-3.5" aria-hidden />
           {meta.label}
         </span>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="xs"
           onClick={handleCopy}
-          className="h-7 w-7 text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
-          aria-label="Copy code"
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+          aria-label={copied ? "Copied" : `Copy ${meta.label} code`}
         >
-          {copied ? (
-            <Check className="size-3.5 text-green-600 dark:text-green-400" />
-          ) : (
-            <Copy className="size-3.5" />
-          )}
+          {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+          <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
         </Button>
       </div>
-      <div className="overflow-x-auto bg-muted/20 dark:bg-[#18181b]">
+      <div className="overflow-x-auto">
         <SyntaxHighlighter
           language={meta.prismLanguage}
-          style={isDark ? oneDark : oneLight}
-          customStyle={{
-            margin: 0,
-            padding: "1rem",
-            background: "transparent",
-            fontSize: "0.875rem",
-            lineHeight: "1.6",
-          }}
-          codeTagProps={{
-            className: "font-mono text-xs sm:text-sm",
-          }}
+          style={prismTheme}
+          customStyle={{ margin: 0, padding: "1rem 1.125rem", background: "transparent", fontSize: "0.8125rem", lineHeight: "1.65" }}
+          codeTagProps={{ className: "font-mono", style: { fontFamily: "var(--font-plex-mono), ui-monospace, monospace" } }}
         >
           {code}
         </SyntaxHighlighter>
@@ -148,4 +155,3 @@ export function CodeBlock({
     </div>
   );
 }
-

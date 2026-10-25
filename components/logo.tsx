@@ -1,73 +1,33 @@
-import { Space_Grotesk } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const logoFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-});
-
-const AZURE_BLUE = "#0177d1";
-
-export function Logo({
-  className,
-  size = "md",
-}: {
-  className?: string;
-  size?: "sm" | "md";
-}) {
-  const isSm = size === "sm";
-
-  return (
-    <div
-      className={cn(
-        logoFont.className,
-        "leading-none select-none",
-        className
-      )}
-    >
-      <div
-        className={cn(
-          "font-bold tracking-tight",
-          isSm ? "text-base" : "text-lg"
-        )}
-      >
-        <span className="text-foreground">AI</span>
-        <span style={{ color: AZURE_BLUE }}>-200</span>
-      </div>
-      <div
-        className={cn(
-          "font-semibold uppercase tracking-widest",
-          isSm ? "mt-0.5 text-[9px]" : "mt-1 text-[10px]"
-        )}
-        style={{ color: AZURE_BLUE }}
-      >
-        Azure
-      </div>
-    </div>
-  );
-}
-
+/**
+ * The mark: four bars sized by the AI-200 skill-area weights
+ * (containers, data, services, secure/monitor), the exam blueprint.
+ */
 export function LogoIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 32 32"
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("size-8 shrink-0", className)}
       aria-hidden
     >
-      <rect width="32" height="32" rx="7" fill={AZURE_BLUE} />
-      <text
-        x="16"
-        y="21"
-        textAnchor="middle"
-        fill="white"
-        fontFamily="system-ui, sans-serif"
-        fontWeight="700"
-        fontSize="11"
-      >
-        A2
-      </text>
+      <rect width="32" height="32" rx="8" fill="#0177d1" />
+      <rect x="7" y="7.5" width="12.5" height="3" rx="1.5" fill="#fff" />
+      <rect x="7" y="12.5" width="18" height="3" rx="1.5" fill="#fff" />
+      <rect x="7" y="17.5" width="12.5" height="3" rx="1.5" fill="#fff" opacity=".8" />
+      <rect x="7" y="22.5" width="12.5" height="3" rx="1.5" fill="#fff" opacity=".6" />
     </svg>
+  );
+}
+
+export function Logo({ className }: { className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center gap-2.5 select-none", className)}>
+      <LogoIcon className="size-7" />
+      <span className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
+        AI-200 <span className="text-primary">Learn</span>
+      </span>
+    </span>
   );
 }
