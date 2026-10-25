@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI agent / skill working files (local only)
+.superpowers/
+.impeccable/
+.cache/
+.claude/settings.local.json
+.playwright-mcp/
