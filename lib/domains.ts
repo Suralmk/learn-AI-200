@@ -1,3 +1,5 @@
+import { getSkillArea } from "./exam-outline";
+
 export type DomainId =
   | "containers"
   | "data-management"
@@ -16,28 +18,28 @@ export const DOMAINS: Domain[] = [
   {
     id: "containers",
     title: "Containerized Solutions",
-    weight: "20–25%",
+    weight: getSkillArea("containers").weight,
     description:
       "Azure Container Registry, Container Apps, AKS, and KEDA for AI workloads.",
   },
   {
     id: "data-management",
     title: "Data Management for AI",
-    weight: "25–30%",
+    weight: getSkillArea("data-management").weight,
     description:
       "Cosmos DB, PostgreSQL with pgvector, and Azure Managed Redis for RAG and vector search.",
   },
   {
     id: "azure-services",
     title: "Azure Services Integration",
-    weight: "20–25%",
+    weight: getSkillArea("azure-services").weight,
     description:
       "Service Bus, Event Grid, and Azure Functions for event-driven AI solutions.",
   },
   {
     id: "secure-monitor",
     title: "Secure, Monitor & Troubleshoot",
-    weight: "20–25%",
+    weight: getSkillArea("secure-monitor").weight,
     description:
       "Key Vault, App Configuration, OpenTelemetry, and KQL for observability.",
   },

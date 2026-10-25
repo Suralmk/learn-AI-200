@@ -1,6 +1,20 @@
-export const SITE_URL = "https://ai-200.sura.work";
+import pkg from "@/package.json";
 
-export const SITE_NAME = "Learn AI-200";
+export const SITE_URL = "https://azure.sura.work";
+
+export const SITE_NAME = "AI-200 Learn";
+
+/** Repository URL, taken from package.json so it is never guessed. */
+export const GITHUB_REPO_URL = pkg.repository.url.replace(/\.git$/, "");
+
+export const GITHUB_BRANCH = "main";
+
+export function githubEditUrl(repoPath: string): string {
+  return `${GITHUB_REPO_URL}/edit/${GITHUB_BRANCH}/${repoPath}`;
+}
+
+export const NOT_AFFILIATED_NOTICE =
+  "Not affiliated with or endorsed by Microsoft. Azure and Microsoft Learn are trademarks of Microsoft Corporation.";
 
 export const SITE_TAGLINE =
   "Azure AI Cloud Developer Associate exam study notes, practice questions, and mock exams";
