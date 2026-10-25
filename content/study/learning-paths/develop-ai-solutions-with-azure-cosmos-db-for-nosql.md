@@ -47,6 +47,7 @@ modules:
       - Execute vector similarity queries for semantic search
       - Combine vector similarity results with metadata filtering
       - Use the change feed to trigger embedding refresh
+      - Implement a change feed processor with a lease container
       - >-
         Exercise - Build a semantic search application with Azure Cosmos DB for
         NoSQL
