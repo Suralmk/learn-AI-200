@@ -51,6 +51,7 @@ Spec: `docs/superpowers/specs/2026-10-25-ai-200-learn-overhaul-design.md`. Plan:
   - Practice by objective (`/practice/<id>`), and mock exams with a timer, a scaled score, per-area accuracy and review of wrong answers.
   - Keyboard support (1–9 or A–D, Enter, N, and arrow keys in single-answer groups).
   - Home page, study index and 404 page.
+  - Home redesign (owner's reference): a dark hero over `public/images/hero-bg.jpg` in both themes, with Microsoft's AI-200 badge (`public/images/badges/ai-200.png`, kept at the owner's request); numbered skill-area cards, with the heaviest area highlighted; and a "More Azure courses coming soon" section from `lib/courses.ts`, using our own `CertBadge` SVGs (not Microsoft badge copies).
   - Microsoft logos removed.
 - **SEO:**
   - `pageMetadata()` gives every page its title, a description of ≤155 characters, a canonical URL on azure.sura.work, and OG/Twitter tags.
@@ -123,6 +124,7 @@ Use these; don't re-implement them.
 | `Countdown` | Self-ticking timer that reads the clock | `endsAt, onExpire` | QuizSession |
 | `Meter`, `BlueprintBars`, `StatTile`, `AccuracyBars` | Data visuals (dataviz rules) | see `components/viz.tsx` | sidebar, home, results |
 | `StarPrompt` | "If this helped, star the repo" (the card variant is dismissible) | `variant` | home, study index |
+| `CertBadge` | Own hexagon badge for an exam code and level (not a Microsoft badge copy) | `code, level` | home "coming soon" |
 | `GithubStarButton`, `GithubLink` | Repo links from `GITHUB_REPO_URL` | `label` | TopBar, footer |
 | `Button` | shadcn/base-ui button. Use `render={<Link/>}` for links that look like buttons | `variant, size` | everywhere |
 
