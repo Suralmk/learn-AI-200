@@ -33,6 +33,7 @@ modules:
       - Create Kubernetes deployment manifests
       - Expose applications in Azure Kubernetes Services
       - Deploy applications to Azure Kubernetes Services
+      - Configure health probes and rolling updates
   - name: Configure applications on Azure Kubernetes Service
     duration: ''
     description: >-
